@@ -29,6 +29,12 @@ import {
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
   ArrowForward as ArrowForwardIcon,
+  Movie as MovieIcon,
+  Image as ImageIcon,
+  Article as ArticleIcon,
+  Mic as MicIcon,
+  Forum as ForumIcon,
+  EmojiEmotions as EmojiIcon,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 
@@ -713,6 +719,186 @@ const MarketingStrategySection = () => {
               </Typography>
             </Box>
           </Box>
+        </Box>
+      </Box>
+
+      {/* Content Buckets Section */}
+      <Box sx={{ mb: 6 }}>
+        <Typography
+          variant="h4"
+          component="h3"
+          sx={{
+            mb: 4,
+            fontWeight: 700,
+            textAlign: 'center',
+          }}
+        >
+          Content Buckets for Bewakoof
+        </Typography>
+
+        <Typography variant="body1" sx={{ mb: 4, textAlign: 'center', maxWidth: 800, mx: 'auto' }}>
+          To maintain a consistent and engaging content strategy, we've identified key content buckets that will resonate with Bewakoof's target audience while supporting marketing objectives across the funnel.
+        </Typography>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 3 }}>
+          {[
+            {
+              title: "Entertaining Videos",
+              icon: <MovieIcon fontSize="large" />,
+              color: theme.palette.primary.main,
+              description: "Short-form video content designed to entertain and build brand awareness",
+              examples: [
+                "Humorous skits featuring Bewakoof products",
+                "Behind-the-scenes of photoshoots",
+                "Customer reaction videos to quirky designs",
+                "Trending challenges with Bewakoof merchandise"
+              ]
+            },
+            {
+              title: "Visual Storytelling",
+              icon: <ImageIcon fontSize="large" />,
+              color: theme.palette.secondary.main,
+              description: "Eye-catching imagery that showcases products in lifestyle contexts",
+              examples: [
+                "Product styling lookbooks",
+                "User-generated content features",
+                "Themed photoshoots (festival, college life)",
+                "Before/after outfit transformations"
+              ]
+            },
+            {
+              title: "Educational Content",
+              icon: <ArticleIcon fontSize="large" />,
+              color: theme.palette.info.main,
+              description: "Informative content that provides value while subtly promoting products",
+              examples: [
+                "Style guides for different body types",
+                "Fabric care instructions",
+                "Sustainability practices at Bewakoof",
+                "Fashion trend forecasts"
+              ]
+            },
+            {
+              title: "Audio Content",
+              icon: <MicIcon fontSize="large" />,
+              color: theme.palette.warning.main,
+              description: "Podcast-style content and audio snippets for multi-channel engagement",
+              examples: [
+                "Mini-interviews with designers",
+                "Customer testimonial snippets",
+                "Fashion hot takes in 30 seconds",
+                "Bewakoof jingles for reels"
+              ]
+            },
+            {
+              title: "Community Engagement",
+              icon: <ForumIcon fontSize="large" />,
+              color: theme.palette.success.main,
+              description: "Interactive content that encourages audience participation",
+              examples: [
+                "Polls on next design themes",
+                "Caption contests for product images",
+                "Q&A sessions with the design team",
+                "User style challenges with prizes"
+              ]
+            },
+            {
+              title: "Meme Marketing",
+              icon: <EmojiIcon fontSize="large" />,
+              color: theme.palette.error.main,
+              description: "Humorous, shareable content that taps into internet culture",
+              examples: [
+                "Product-themed memes",
+                "Relatable fashion struggles",
+                "Pop culture references with Bewakoof twist",
+                "Trending meme formats featuring products"
+              ]
+            }
+          ].map((bucket, index) => (
+            <Box key={index} sx={{ display: 'flex', width: '100%' }}>
+              <Card
+                component={motion.div}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                sx={{
+                  height: '100%',
+                  borderRadius: 4,
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.05)',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  '&:hover': {
+                    transform: 'translateY(-5px)',
+                    boxShadow: '0 16px 40px rgba(0, 0, 0, 0.1)',
+                  },
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                <Box
+                  sx={{
+                    p: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    borderBottom: `1px solid ${alpha(bucket.color, 0.2)}`,
+                    backgroundColor: alpha(bucket.color, 0.05),
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 50,
+                      height: 50,
+                      borderRadius: '50%',
+                      backgroundColor: alpha(bucket.color, 0.1),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mr: 2,
+                      color: bucket.color,
+                    }}
+                  >
+                    {bucket.icon}
+                  </Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    {bucket.title}
+                  </Typography>
+                </Box>
+                <CardContent sx={{ p: 3, flexGrow: 1 }}>
+                  <Typography variant="body2" sx={{ mb: 2 }}>
+                    {bucket.description}
+                  </Typography>
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                    Content Ideas:
+                  </Typography>
+                  <List disablePadding dense>
+                    {bucket.examples.map((example, idx) => (
+                      <ListItem key={idx} disableGutters sx={{ pb: 0.5 }}>
+                        <ListItemIcon sx={{ minWidth: 28 }}>
+                          <Chip 
+                            size="small" 
+                            label="•" 
+                            sx={{ 
+                              backgroundColor: alpha(bucket.color, 0.1),
+                              color: bucket.color,
+                              fontWeight: 'bold',
+                              height: 20,
+                              width: 20,
+                              fontSize: '0.75rem'
+                            }} 
+                          />
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary={example} 
+                          primaryTypographyProps={{ variant: 'body2' }}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                </CardContent>
+              </Card>
+            </Box>
+          ))}
         </Box>
       </Box>
     </Box>
