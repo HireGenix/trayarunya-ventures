@@ -29,23 +29,29 @@ import {
   CalendarMonth as CalendarMonthIcon,
   CheckCircle as CheckCircleIcon,
   Home as HomeIcon,
-  ArrowForward as ArrowForwardIcon
+  ArrowForward as ArrowForwardIcon,
+  Assignment as AssignmentIcon,
+  Timeline as TimelineIcon
 } from '@mui/icons-material';
 // Removed framer-motion import
 
 import HeroSection from './HeroSection';
+import ExecutiveSummarySection from './ExecutiveSummarySection';
 import ICPSection from './ICPSection';
 import CompetitorAnalysisSection from './CompetitorAnalysisSection';
 import MarketingStrategySection from './MarketingStrategySection';
+import TimelineSection from './TimelineSection';
 import ContentCalendarSection from './ContentCalendarSection';
 import ConclusionSection from './ConclusionSection';
 
 // Define section data for navigation
 const sections = [
   { id: 'hero', name: 'Introduction', icon: <HomeIcon />, component: HeroSection },
+  { id: 'executive-summary', name: 'Executive Summary', icon: <AssignmentIcon />, component: ExecutiveSummarySection },
   { id: 'icp', name: 'Ideal Customer Persona', icon: <PersonIcon />, component: ICPSection },
   { id: 'competitors', name: 'Competitor Analysis', icon: <CompareArrowsIcon />, component: CompetitorAnalysisSection },
   { id: 'strategy', name: 'Marketing Strategy', icon: <TrendingUpIcon />, component: MarketingStrategySection },
+  { id: 'timeline', name: 'Project Timeline', icon: <TimelineIcon />, component: TimelineSection },
   { id: 'calendar', name: 'Content Calendar', icon: <CalendarMonthIcon />, component: ContentCalendarSection },
   { id: 'conclusion', name: 'Conclusion', icon: <CheckCircleIcon />, component: ConclusionSection }
 ];
@@ -397,6 +403,10 @@ const BewakoofProposal = () => {
               <HeroSection />
             </SectionWrapper>
             
+            <SectionWrapper key="executive-summary" id="executive-summary">
+              <ExecutiveSummarySection />
+            </SectionWrapper>
+            
             <SectionWrapper key="icp" id="icp">
               <ICPSection />
             </SectionWrapper>
@@ -407,6 +417,10 @@ const BewakoofProposal = () => {
             
             <SectionWrapper key="strategy" id="strategy">
               <MarketingStrategySection />
+            </SectionWrapper>
+            
+            <SectionWrapper key="timeline" id="timeline">
+              <TimelineSection />
             </SectionWrapper>
             
             <SectionWrapper key="calendar" id="calendar">
