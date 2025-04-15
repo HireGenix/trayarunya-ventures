@@ -13,7 +13,7 @@ const contactInfo = [
   {
     icon: <LocationOnIcon fontSize="large" />,
     title: 'USA Office',
-    details: '1050 North 3rd Street, Laramie, WY 82072, USA',
+    details: '1050 North 3rd Street Ste B, Laramie, WY 82072, USA',
   },
   {
     icon: <LocationOnIcon fontSize="large" />,

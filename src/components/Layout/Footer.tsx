@@ -81,7 +81,7 @@ const socialLinks = [
 ];
 
 const contactInfo = [
-  { icon: <LocationOnIcon />, text: '1050 North 3rd Street, Laramie, WY 82072' },
+  { icon: <LocationOnIcon />, text: '1050 North 3rd Street Ste B, Laramie, WY 82072' },
   { icon: <LocationOnIcon />, text: '2/1201 Behind S.A.M Inter College, Ramnagar, Saharanpur (U.P)-247001' },
   { icon: <PhoneIcon />, text: '+1 (971) 512-1701 (US)' },
   { icon: <PhoneIcon />, text: '+91-8954333390 (India)' },
