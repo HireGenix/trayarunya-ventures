@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Container, Typography, Button, Paper, Chip, useTheme, useMediaQuery, Badge, alpha } from '@mui/material';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -135,46 +135,8 @@ const AboutSection = () => {
         }}
       />
       
-      {/* Floating particles */}
-      <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', zIndex: 0 }}>
-        {[...Array(15)].map((_, i) => (
-          <Box
-            key={i}
-            component={motion.div}
-            initial={{ 
-              x: Math.random() * 100, 
-              y: Math.random() * 100,
-              opacity: Math.random() * 0.5 + 0.3
-            }}
-            animate={{ 
-              x: [
-                Math.random() * 500, 
-                Math.random() * 500,
-                Math.random() * 500
-              ],
-              y: [
-                Math.random() * 500, 
-                Math.random() * 500,
-                Math.random() * 500
-              ],
-              opacity: [Math.random() * 0.5 + 0.3, Math.random() * 0.5 + 0.3, Math.random() * 0.5 + 0.3]
-            }}
-            transition={{ 
-              duration: Math.random() * 20 + 20, 
-              repeat: Infinity,
-              ease: "linear"
-            }}
-            sx={{
-              position: 'absolute',
-              width: Math.random() * 6 + 2,
-              height: Math.random() * 6 + 2,
-              borderRadius: '50%',
-              backgroundColor: i % 3 === 0 ? '#d92c4a' : i % 3 === 1 ? '#14bb87' : '#ffaf06',
-              boxShadow: i % 3 === 0 ? '0 0 10px #d92c4a' : i % 3 === 1 ? '0 0 10px #14bb87' : '0 0 10px #ffaf06',
-            }}
-          />
-        ))}
-      </Box>
+      {/* Floating particles - Client-side only rendering */}
+      <FloatingParticles count={15} />
 
       <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
         <Box sx={{ textAlign: 'center', mb: 10 }}>
@@ -371,45 +333,8 @@ const AboutSection = () => {
                   </Typography>
                 </Box>
                 
-                {/* Animated particles inside the box */}
-                <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden' }}>
-                  {[...Array(20)].map((_, i) => (
-                    <Box
-                      key={i}
-                      component={motion.div}
-                      initial={{ 
-                        x: Math.random() * 100, 
-                        y: Math.random() * 100,
-                        opacity: Math.random() * 0.3 + 0.1
-                      }}
-                      animate={{ 
-                        x: [
-                          Math.random() * 300, 
-                          Math.random() * 300,
-                          Math.random() * 300
-                        ],
-                        y: [
-                          Math.random() * 300, 
-                          Math.random() * 300,
-                          Math.random() * 300
-                        ],
-                      }}
-                      transition={{ 
-                        duration: Math.random() * 15 + 15, 
-                        repeat: Infinity,
-                        ease: "linear"
-                      }}
-                      sx={{
-                        position: 'absolute',
-                        width: Math.random() * 3 + 1,
-                        height: Math.random() * 3 + 1,
-                        borderRadius: '50%',
-                        backgroundColor: i % 3 === 0 ? '#d92c4a' : i % 3 === 1 ? '#14bb87' : '#ffaf06',
-                        boxShadow: i % 3 === 0 ? '0 0 5px #d92c4a' : i % 3 === 1 ? '0 0 5px #14bb87' : '0 0 5px #ffaf06',
-                      }}
-                    />
-                  ))}
-                </Box>
+                {/* Animated particles inside the box - Client-side only rendering */}
+                <BoxParticles count={20} />
                 
                 {/* Glowing border */}
                 <Box
@@ -617,6 +542,168 @@ const AboutSection = () => {
           </Box>
         </Box>
       </Container>
+    </Box>
+  );
+};
+
+// Define types for our particle configurations
+interface FloatingParticleConfig {
+  initialX: number;
+  initialY: number;
+  initialOpacity: number;
+  animateX: number[];
+  animateY: number[];
+  animateOpacity: number[];
+  duration: number;
+  width: number;
+  height: number;
+  color: string;
+}
+
+interface BoxParticleConfig {
+  initialX: number;
+  initialY: number;
+  initialOpacity: number;
+  animateX: number[];
+  animateY: number[];
+  duration: number;
+  width: number;
+  height: number;
+  color: string;
+}
+
+// Client-side only component for floating particles
+const FloatingParticles = ({ count }: { count: number }) => {
+  const [isClient, setIsClient] = useState(false);
+  const particlesConfig = useRef<FloatingParticleConfig[]>([]);
+
+  // Pre-generate random values on component mount
+  useEffect(() => {
+    particlesConfig.current = Array(count).fill(0).map((_, i) => ({
+      initialX: Math.random() * 100,
+      initialY: Math.random() * 100,
+      initialOpacity: Math.random() * 0.5 + 0.3,
+      animateX: [
+        Math.random() * 500,
+        Math.random() * 500,
+        Math.random() * 500
+      ],
+      animateY: [
+        Math.random() * 500,
+        Math.random() * 500,
+        Math.random() * 500
+      ],
+      animateOpacity: [
+        Math.random() * 0.5 + 0.3,
+        Math.random() * 0.5 + 0.3,
+        Math.random() * 0.5 + 0.3
+      ],
+      duration: Math.random() * 20 + 20,
+      width: Math.random() * 6 + 2,
+      height: Math.random() * 6 + 2,
+      color: i % 3 === 0 ? '#d92c4a' : i % 3 === 1 ? '#14bb87' : '#ffaf06'
+    }));
+    setIsClient(true);
+  }, [count]);
+
+  if (!isClient) return null;
+
+  return (
+    <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', zIndex: 0 }}>
+      {particlesConfig.current.map((config, i) => (
+        <Box
+          key={i}
+          component={motion.div}
+          initial={{ 
+            x: config.initialX, 
+            y: config.initialY,
+            opacity: config.initialOpacity
+          }}
+          animate={{ 
+            x: config.animateX,
+            y: config.animateY,
+            opacity: config.animateOpacity
+          }}
+          transition={{ 
+            duration: config.duration, 
+            repeat: Infinity,
+            ease: "linear"
+          }}
+          sx={{
+            position: 'absolute',
+            width: config.width,
+            height: config.height,
+            borderRadius: '50%',
+            backgroundColor: config.color,
+            boxShadow: `0 0 10px ${config.color}`,
+          }}
+        />
+      ))}
+    </Box>
+  );
+};
+
+// Client-side only component for box particles
+const BoxParticles = ({ count }: { count: number }) => {
+  const [isClient, setIsClient] = useState(false);
+  const particlesConfig = useRef<BoxParticleConfig[]>([]);
+
+  // Pre-generate random values on component mount
+  useEffect(() => {
+    particlesConfig.current = Array(count).fill(0).map((_, i) => ({
+      initialX: Math.random() * 100,
+      initialY: Math.random() * 100,
+      initialOpacity: Math.random() * 0.3 + 0.1,
+      animateX: [
+        Math.random() * 300,
+        Math.random() * 300,
+        Math.random() * 300
+      ],
+      animateY: [
+        Math.random() * 300,
+        Math.random() * 300,
+        Math.random() * 300
+      ],
+      duration: Math.random() * 15 + 15,
+      width: Math.random() * 3 + 1,
+      height: Math.random() * 3 + 1,
+      color: i % 3 === 0 ? '#d92c4a' : i % 3 === 1 ? '#14bb87' : '#ffaf06'
+    }));
+    setIsClient(true);
+  }, [count]);
+
+  if (!isClient) return null;
+
+  return (
+    <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden' }}>
+      {particlesConfig.current.map((config, i) => (
+        <Box
+          key={i}
+          component={motion.div}
+          initial={{ 
+            x: config.initialX, 
+            y: config.initialY,
+            opacity: config.initialOpacity
+          }}
+          animate={{ 
+            x: config.animateX,
+            y: config.animateY,
+          }}
+          transition={{ 
+            duration: config.duration, 
+            repeat: Infinity,
+            ease: "linear"
+          }}
+          sx={{
+            position: 'absolute',
+            width: config.width,
+            height: config.height,
+            borderRadius: '50%',
+            backgroundColor: config.color,
+            boxShadow: `0 0 5px ${config.color}`,
+          }}
+        />
+      ))}
     </Box>
   );
 };

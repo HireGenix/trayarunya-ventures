@@ -12,6 +12,9 @@ import HealthcareIcon from '@mui/icons-material/HealthAndSafety';
 import CustomIcon from '@mui/icons-material/Build';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
+import LanguageIcon from '@mui/icons-material/Language';
+import CampaignIcon from '@mui/icons-material/Campaign';
+
 const solutions = [
   {
     id: 'enterprise',
@@ -54,6 +57,34 @@ const solutions = [
     ],
     color: '#d92c4a',
     link: '/solutions/healthcare',
+  },
+  {
+    id: 'overseas-business',
+    title: 'Overseas Business Registration',
+    icon: <LanguageIcon fontSize="large" />,
+    description: 'Comprehensive services to help you establish and register your business in international markets with full legal compliance and local expertise.',
+    benefits: [
+      'End-to-end business registration in multiple countries',
+      'Legal and regulatory compliance guidance',
+      'Tax optimization strategies for global operations',
+      'Local market insights and business setup support',
+    ],
+    color: '#0A66C2',
+    link: '/solutions/overseas-business',
+  },
+  {
+    id: 'digital-marketing',
+    title: 'Digital Marketing Services',
+    icon: <CampaignIcon fontSize="large" />,
+    description: 'Strategic digital marketing solutions to enhance your online presence, drive customer engagement, and boost conversion rates across all digital channels.',
+    benefits: [
+      'Comprehensive digital marketing strategy development',
+      'SEO, SEM, and content marketing expertise',
+      'Social media management and paid advertising campaigns',
+      'Performance analytics and ROI tracking',
+    ],
+    color: '#8E44AD',
+    link: '/solutions/digital-marketing',
   },
   {
     id: 'custom',
@@ -102,12 +133,7 @@ export default function SolutionsPage() {
 
   return (
     <Layout>
-      <Box
-        component={motion.div}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
+      <Box>
         {/* Hero Section */}
         <Box
           sx={{
@@ -132,12 +158,8 @@ export default function SolutionsPage() {
             }}
           />
           
-          {/* Animated gradient orbs */}
+          {/* Gradient orbs */}
           <Box
-            component={motion.div}
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 0.05 }}
-            transition={{ duration: 1.5 }}
             sx={{
               position: 'absolute',
               top: '20%',
@@ -158,11 +180,7 @@ export default function SolutionsPage() {
 
           <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
             <Box sx={{ textAlign: 'center', mb: 8 }}>
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-              >
+              <Box>
                 <Chip
                   label="SOLUTIONS"
                   sx={{
@@ -177,13 +195,9 @@ export default function SolutionsPage() {
                     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
                   }}
                 />
-              </motion.div>
+              </Box>
               
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-              >
+              <Box>
                 <Typography
                   variant="h1"
                   component="h1"
@@ -210,7 +224,7 @@ export default function SolutionsPage() {
                 >
                   We offer a range of AI-powered solutions designed to address the unique challenges of different industries and business sizes.
                 </Typography>
-              </motion.div>
+              </Box>
             </Box>
           </Container>
         </Box>
@@ -218,18 +232,10 @@ export default function SolutionsPage() {
         {/* Solutions Section */}
         <Box sx={{ py: { xs: 8, md: 12 }, backgroundColor: '#ffffff' }}>
           <Container maxWidth="lg">
-            <Box
-              component={motion.div}
-              variants={staggerContainer}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
+            <Box>
               {solutions.map((solution, index) => (
                 <Box
                   key={solution.id}
-                  component={motion.div}
-                  variants={fadeIn}
                   sx={{ mb: 8 }}
                 >
                   <Paper

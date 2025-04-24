@@ -11,6 +11,9 @@ import HealthcareIcon from '@mui/icons-material/HealthAndSafety';
 import CustomIcon from '@mui/icons-material/SettingsSuggest';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
+import LanguageIcon from '@mui/icons-material/Language';
+import CampaignIcon from '@mui/icons-material/Campaign';
+
 const solutions = [
   {
     id: 'enterprise',
@@ -38,6 +41,24 @@ const solutions = [
     color: '#d92c4a',
     link: '/solutions/healthcare',
     benefits: ['Improved Patient Care', 'Regulatory Compliance', 'Workflow Optimization', 'Cost Reduction'],
+  },
+  {
+    id: 'overseas-business',
+    name: 'Overseas Business Registration',
+    description: 'Comprehensive services to help you establish and register your business in international markets.',
+    icon: <LanguageIcon sx={{ fontSize: 40 }} />,
+    color: '#0A66C2',
+    link: '/solutions/overseas-business',
+    benefits: ['Global Market Access', 'Legal Compliance', 'Tax Optimization', 'Local Expertise'],
+  },
+  {
+    id: 'digital-marketing',
+    name: 'Digital Marketing',
+    description: 'Strategic digital marketing services to boost your online presence and drive customer engagement.',
+    icon: <CampaignIcon sx={{ fontSize: 40 }} />,
+    color: '#8E44AD',
+    link: '/solutions/digital-marketing',
+    benefits: ['Brand Awareness', 'Lead Generation', 'Conversion Optimization', 'Analytics & Reporting'],
   },
   {
     id: 'custom',
