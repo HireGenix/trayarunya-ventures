@@ -33,82 +33,82 @@ import Link from 'next/link';
 const technologies = [
   {
     id: 'ai-marketing',
-    title: 'AI-Powered Marketing',
+    title: 'AI-Driven Marketing',
     icon: <SmartToyIcon fontSize="large" />,
     color: '#4CAF50',
-    description: 'Leverage artificial intelligence to personalize customer experiences, optimize campaigns in real-time, and predict consumer behavior with unprecedented accuracy.',
+    description: 'Unlock the power of AI to deeply understand your customers, personalize their journeys, and make your campaigns smarter and more effective than ever.',
     benefits: [
-      'Hyper-personalized customer experiences',
-      'Predictive analytics for campaign optimization',
-      'Automated content generation and curation',
-      'Real-time bidding and ad placement optimization'
+      'Create truly personal customer connections',
+      'Make smarter decisions with predictive insights',
+      'Automate tasks and free up your team',
+      'Optimize ad spend for better returns'
     ],
     stats: [
-      { value: '37%', label: 'Conversion Increase' },
-      { value: '45%', label: 'Time Saved' },
-      { value: '68%', label: 'Targeting Accuracy' }
+      { value: 'Up to 25%', label: 'Conversion Lift' }, // Adjusted
+      { value: 'Measurable', label: 'Time Savings' }, // Adjusted
+      { value: 'Improved', label: 'Targeting' } // Adjusted
     ],
-    caseStudy: 'Increased conversion rates by 37% for an e-commerce client by implementing AI-driven product recommendations and personalized email campaigns.',
+    caseStudy: 'For an e-commerce partner, our AI-powered recommendations and personalized emails led to a notable increase in conversion rates and customer engagement.',
     image: 'https://images.unsplash.com/photo-1677442135136-760c813028c4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
   },
   {
     id: 'voice-search',
-    title: 'Voice Search Optimization',
+    title: 'Voice Search Readiness',
     icon: <PsychologyIcon fontSize="large" />,
     color: '#2196F3',
-    description: 'Optimize your digital presence for the rapidly growing voice search market, ensuring your brand is discoverable through smart speakers and voice assistants.',
+    description: 'As more people use voice assistants, make sure your business is heard. We help you optimize for voice search so customers can find you effortlessly.',
     benefits: [
-      'Capture featured snippets for voice search results',
-      'Local SEO optimization for voice queries',
-      'Conversational keyword strategy development',
-      'Voice app and skill development for major platforms'
+      'Be found in voice search results',
+      'Boost local discovery via voice',
+      'Align with natural, conversational queries',
+      'Explore voice apps for deeper engagement'
     ],
     stats: [
-      { value: '42%', label: 'Reservation Increase' },
-      { value: '58%', label: 'Local Search Visibility' },
-      { value: '3.5x', label: 'ROI' }
+      { value: 'Increased', label: 'Local Inquiries' }, // Adjusted
+      { value: 'Better', label: 'Visibility' }, // Adjusted
+      { value: 'Positive', label: 'User Experience' } // Adjusted
     ],
-    caseStudy: 'Helped a local restaurant chain increase reservations by 42% through voice search optimization and custom Alexa skill development.',
+    caseStudy: 'We helped a local service business see a clear rise in inquiries by optimizing for voice search and developing a helpful Alexa skill.',
     image: 'https://images.unsplash.com/photo-1622979135225-d2ba269cf1ac?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
   },
   {
     id: 'data-analytics',
-    title: 'Advanced Data Analytics',
+    title: 'Insightful Data Analytics',
     icon: <DataThresholdingIcon fontSize="large" />,
     color: '#FF9800',
-    description: 'Harness the power of big data and advanced analytics to gain deeper insights into customer behavior, campaign performance, and market trends.',
+    description: 'Turn your data into your superpower. We help you uncover valuable insights about your customers, campaigns, and market to make smarter, data-backed decisions.',
     benefits: [
-      'Multi-touch attribution modeling',
-      'Customer journey mapping and analysis',
-      'Predictive lifetime value calculations',
-      'Competitive intelligence gathering and analysis'
+      'Understand what truly drives conversions',
+      'Map and improve customer journeys',
+      'Predict future trends and customer needs',
+      'Gain an edge with competitor insights'
     ],
     stats: [
-      { value: '28%', label: 'Lead Quality Increase' },
-      { value: '40%', label: 'Marketing ROI' },
-      { value: '52%', label: 'Decision Accuracy' }
+      { value: 'Improved', label: 'Lead Quality' }, // Adjusted
+      { value: 'Enhanced', label: 'Marketing ROI' }, // Adjusted
+      { value: 'Smarter', label: 'Decisions' } // Adjusted
     ],
-    caseStudy: 'Developed a custom analytics dashboard for a B2B software company that revealed previously hidden conversion patterns, leading to a 28% increase in qualified leads.',
+    caseStudy: 'For a B2B client, our custom analytics dashboard highlighted key conversion pathways, leading to a significant improvement in lead quality and campaign focus.',
     image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
   },
   {
     id: 'ar-vr',
-    title: 'AR/VR Marketing Experiences',
+    title: 'Immersive AR/VR Experiences',
     icon: <VrpanoIcon fontSize="large" />,
     color: '#9C27B0',
-    description: 'Create immersive augmented and virtual reality experiences that captivate your audience and provide unique, memorable brand interactions.',
+    description: 'Step into the future of customer engagement. We create captivating AR and VR experiences that let your audience interact with your brand in unforgettable ways.',
     benefits: [
-      'Virtual product demonstrations and try-ons',
-      'Immersive brand storytelling experiences',
-      'Interactive AR advertisements and packaging',
-      'Virtual showrooms and event spaces'
+      'Offer virtual product try-ons & demos',
+      'Tell your brand story in immersive ways',
+      'Create buzz with interactive AR ads',
+      'Build virtual showrooms or event experiences'
     ],
     stats: [
-      { value: '56%', label: 'Purchase Increase' },
-      { value: '23%', label: 'Return Reduction' },
-      { value: '78%', label: 'Brand Engagement' }
+      { value: 'Higher', label: 'Purchase Intent' }, // Adjusted
+      { value: 'Reduced', label: 'Return Rates' }, // Adjusted
+      { value: 'Memorable', label: 'Brand Interaction' } // Adjusted
     ],
-    caseStudy: 'Created an AR furniture visualization app for a home decor brand that increased online purchases by 56% and reduced returns by 23%.',
+    caseStudy: 'An AR app allowing customers to visualize products in their own space helped a retail client boost online sales and see fewer returns.',
     image: 'https://images.unsplash.com/photo-1626379953822-baec19c3accd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80'
   },
 ];
@@ -301,7 +301,7 @@ const TrendingTechnologies = () => {
                   WebkitTextFillColor: 'transparent',
                 }}
               >
-                Trending in Digital Marketing
+                The Future of Marketing is Here
               </Typography>
             </motion.div>
             
@@ -314,11 +314,11 @@ const TrendingTechnologies = () => {
                   mx: 'auto', 
                   mb: 6,
                   fontSize: '1.1rem',
-                  lineHeight: 1.6
+                  lineHeight: 1.7 // Increased for readability
                 }}
               >
-                Stay ahead of the competition with our innovative approaches to the latest marketing technologies.
-                Our experts implement cutting-edge solutions that drive real business results.
+                We're passionate about leveraging the latest marketing technologies to give your business an edge. 
+                Explore how these innovations can create real results and exciting opportunities for growth.
               </Typography>
             </motion.div>
             
@@ -448,31 +448,446 @@ const TrendingTechnologies = () => {
                         }
                       }}
                     >
+                      {/* Interactive Technology Demonstration */}
                       <Box
-                        sx={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          backgroundColor: alpha(technologies[selectedTab].color, 0.1),
-                          zIndex: 1,
-                        }}
-                      />
-                      <Box
-                        component="img"
-                        src={technologies[selectedTab].image}
-                        alt={technologies[selectedTab].title}
                         sx={{
                           width: '100%',
                           height: '100%',
-                          objectFit: 'cover',
-                          transition: 'transform 0.5s ease',
-                          '&:hover': {
-                            transform: 'scale(1.05)',
-                          },
+                          background: `linear-gradient(135deg, 
+                            ${alpha('#0F1419', 0.95)} 0%, 
+                            ${alpha('#1A2332', 0.9)} 30%, 
+                            ${alpha('#2C3E50', 0.85)} 70%, 
+                            ${alpha(technologies[selectedTab].color, 0.9)} 100%)`,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          position: 'relative',
                         }}
-                      />
+                      >
+                        {/* AI-Powered Marketing Demo */}
+                        {selectedTab === 0 && (
+                          <>
+                            {/* AI Interface Header */}
+                            <Box
+                              sx={{
+                                p: 2,
+                                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                backgroundColor: 'rgba(255,255,255,0.05)',
+                              }}
+                            >
+                              <Typography variant="subtitle2" sx={{ color: '#fff', fontWeight: 600 }}>
+                                AI Marketing Engine
+                              </Typography>
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#4CAF50' }} />
+                                <Typography variant="caption" sx={{ color: '#4CAF50' }}>ACTIVE</Typography>
+                              </Box>
+                            </Box>
+
+                            {/* AI Processing Animation */}
+                            <Box sx={{ flex: 1, p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              {/* Customer Segments */}
+                              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
+                                {[
+                                  { label: 'High-Value Customers', count: '1,247', color: '#4CAF50' },
+                                  { label: 'At-Risk Customers', count: '89', color: '#FF9800' },
+                                  { label: 'New Prospects', count: '2,156', color: '#2196F3' },
+                                  { label: 'Champions', count: '312', color: '#9C27B0' },
+                                ].map((segment, idx) => (
+                                  <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: idx * 0.3, duration: 0.5 }}
+                                  >
+                                    <Paper
+                                      sx={{
+                                        p: 1.5,
+                                        backgroundColor: 'rgba(255,255,255,0.08)',
+                                        border: `1px solid ${alpha(segment.color, 0.3)}`,
+                                        borderRadius: 2,
+                                        textAlign: 'center',
+                                      }}
+                                    >
+                                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                                        {segment.label}
+                                      </Typography>
+                                      <Typography variant="h6" sx={{ color: segment.color, fontWeight: 700 }}>
+                                        {segment.count}
+                                      </Typography>
+                                    </Paper>
+                                  </motion.div>
+                                ))}
+                              </Box>
+
+                              {/* AI Recommendations */}
+                              <Box
+                                sx={{
+                                  flex: 1,
+                                  backgroundColor: 'rgba(255,255,255,0.05)',
+                                  borderRadius: 2,
+                                  p: 1.5,
+                                }}
+                              >
+                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, display: 'block' }}>
+                                  AI Recommendations
+                                </Typography>
+                                
+                                {[
+                                  { text: 'Send personalized email to high-value segment', confidence: 94 },
+                                  { text: 'Increase retargeting budget by 15%', confidence: 87 },
+                                  { text: 'A/B test new creative for millennials', confidence: 82 },
+                                ].map((rec, idx) => (
+                                  <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 1 + idx * 0.4, duration: 0.6 }}
+                                  >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, p: 1, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                                      <SmartToyIcon sx={{ color: '#4CAF50', fontSize: '1rem', mr: 1 }} />
+                                      <Box sx={{ flex: 1 }}>
+                                        <Typography variant="caption" sx={{ color: '#fff', fontSize: '0.7rem' }}>
+                                          {rec.text}
+                                        </Typography>
+                                        <Typography variant="caption" sx={{ color: '#4CAF50', fontSize: '0.6rem', display: 'block' }}>
+                                          {rec.confidence}% confidence
+                                        </Typography>
+                                      </Box>
+                                    </Box>
+                                  </motion.div>
+                                ))}
+                              </Box>
+                            </Box>
+                          </>
+                        )}
+
+                        {/* Voice Search Demo */}
+                        {selectedTab === 1 && (
+                          <>
+                            <Box
+                              sx={{
+                                p: 2,
+                                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                backgroundColor: 'rgba(255,255,255,0.05)',
+                              }}
+                            >
+                              <Typography variant="subtitle2" sx={{ color: '#fff', fontWeight: 600 }}>
+                                Voice Search Analytics
+                              </Typography>
+                              <motion.div
+                                animate={{
+                                  scale: [1, 1.2, 1],
+                                  opacity: [0.7, 1, 0.7],
+                                }}
+                                transition={{
+                                  duration: 2,
+                                  repeat: Infinity,
+                                  ease: "easeInOut"
+                                }}
+                              >
+                                <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#2196F3' }} />
+                              </motion.div>
+                            </Box>
+
+                            <Box sx={{ flex: 1, p: 2 }}>
+                              {/* Voice Query Visualization */}
+                              <Box sx={{ mb: 2 }}>
+                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, display: 'block' }}>
+                                  Top Voice Queries
+                                </Typography>
+                                {[
+                                  { query: '"Best Italian restaurant near me"', volume: 85 },
+                                  { query: '"Coffee shop open now"', volume: 72 },
+                                  { query: '"Book a table for two"', volume: 68 },
+                                ].map((item, idx) => (
+                                  <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, width: 0 }}
+                                    animate={{ opacity: 1, width: '100%' }}
+                                    transition={{ delay: idx * 0.5, duration: 1 }}
+                                  >
+                                    <Box sx={{ mb: 1.5 }}>
+                                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                        <Typography variant="caption" sx={{ color: '#fff', fontSize: '0.7rem' }}>
+                                          {item.query}
+                                        </Typography>
+                                        <Typography variant="caption" sx={{ color: '#2196F3' }}>
+                                          {item.volume}%
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2 }}>
+                                        <motion.div
+                                          initial={{ width: 0 }}
+                                          animate={{ width: `${item.volume}%` }}
+                                          transition={{ delay: idx * 0.5 + 0.5, duration: 1 }}
+                                          style={{
+                                            height: '100%',
+                                            backgroundColor: '#2196F3',
+                                            borderRadius: '2px',
+                                          }}
+                                        />
+                                      </Box>
+                                    </Box>
+                                  </motion.div>
+                                ))}
+                              </Box>
+
+                              {/* Voice Assistant Icons */}
+                              <Box sx={{ display: 'flex', justifyContent: 'space-around', mt: 3 }}>
+                                {['Alexa', 'Google', 'Siri'].map((assistant, idx) => (
+                                  <motion.div
+                                    key={idx}
+                                    animate={{
+                                      y: [0, -5, 0],
+                                      rotate: [0, 5, 0],
+                                    }}
+                                    transition={{
+                                      duration: 2 + idx,
+                                      repeat: Infinity,
+                                      ease: "easeInOut"
+                                    }}
+                                  >
+                                    <Paper
+                                      sx={{
+                                        p: 1.5,
+                                        backgroundColor: 'rgba(255,255,255,0.1)',
+                                        borderRadius: 2,
+                                        textAlign: 'center',
+                                      }}
+                                    >
+                                      <PsychologyIcon sx={{ color: '#2196F3', mb: 0.5 }} />
+                                      <Typography variant="caption" sx={{ color: '#fff', display: 'block' }}>
+                                        {assistant}
+                                      </Typography>
+                                    </Paper>
+                                  </motion.div>
+                                ))}
+                              </Box>
+                            </Box>
+                          </>
+                        )}
+
+                        {/* Data Analytics Demo */}
+                        {selectedTab === 2 && (
+                          <>
+                            <Box
+                              sx={{
+                                p: 2,
+                                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                backgroundColor: 'rgba(255,255,255,0.05)',
+                              }}
+                            >
+                              <Typography variant="subtitle2" sx={{ color: '#fff', fontWeight: 600 }}>
+                                Advanced Analytics Dashboard
+                              </Typography>
+                              <Chip size="small" label="Real-time" sx={{ backgroundColor: '#FF9800', color: '#fff' }} />
+                            </Box>
+
+                            <Box sx={{ flex: 1, p: 2 }}>
+                              {/* Interactive Chart */}
+                              <Box sx={{ height: '50%', mb: 2, position: 'relative' }}>
+                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, display: 'block' }}>
+                                  Customer Journey Analytics
+                                </Typography>
+                                <svg width="100%" height="100%" style={{ overflow: 'visible' }}>
+                                  {/* Animated flow lines */}
+                                  <motion.path
+                                    d="M 10 80 Q 50 40 100 60 T 200 30 T 280 50"
+                                    stroke="#FF9800"
+                                    strokeWidth="3"
+                                    fill="none"
+                                    initial={{ pathLength: 0 }}
+                                    animate={{ pathLength: 1 }}
+                                    transition={{ duration: 3, repeat: Infinity }}
+                                    style={{ filter: 'drop-shadow(0 0 6px #FF9800)' }}
+                                  />
+                                  {/* Data points */}
+                                  {[
+                                    { x: 50, y: 50, label: 'Awareness' },
+                                    { x: 120, y: 40, label: 'Interest' },
+                                    { x: 190, y: 35, label: 'Decision' },
+                                    { x: 260, y: 45, label: 'Purchase' },
+                                  ].map((point, idx) => (
+                                    <motion.circle
+                                      key={idx}
+                                      cx={point.x}
+                                      cy={point.y}
+                                      r="6"
+                                      fill="#FF9800"
+                                      initial={{ scale: 0 }}
+                                      animate={{ scale: 1 }}
+                                      transition={{ delay: idx * 0.5, duration: 0.5 }}
+                                      style={{ filter: 'drop-shadow(0 0 8px #FF9800)' }}
+                                    />
+                                  ))}
+                                </svg>
+                              </Box>
+
+                              {/* Attribution Model */}
+                              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1 }}>
+                                {[
+                                  { channel: 'Social', attribution: 35, color: '#4CAF50' },
+                                  { channel: 'Email', attribution: 28, color: '#2196F3' },
+                                  { channel: 'Paid', attribution: 37, color: '#FF9800' },
+                                ].map((item, idx) => (
+                                  <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 1 + idx * 0.3, duration: 0.6 }}
+                                  >
+                                    <Paper
+                                      sx={{
+                                        p: 1,
+                                        backgroundColor: 'rgba(255,255,255,0.08)',
+                                        textAlign: 'center',
+                                        borderTop: `3px solid ${item.color}`,
+                                      }}
+                                    >
+                                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                                        {item.channel}
+                                      </Typography>
+                                      <Typography variant="h6" sx={{ color: item.color, fontWeight: 700 }}>
+                                        {item.attribution}%
+                                      </Typography>
+                                    </Paper>
+                                  </motion.div>
+                                ))}
+                              </Box>
+                            </Box>
+                          </>
+                        )}
+
+                        {/* AR/VR Demo */}
+                        {selectedTab === 3 && (
+                          <>
+                            <Box
+                              sx={{
+                                p: 2,
+                                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                backgroundColor: 'rgba(255,255,255,0.05)',
+                              }}
+                            >
+                              <Typography variant="subtitle2" sx={{ color: '#fff', fontWeight: 600 }}>
+                                AR Experience Preview
+                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <VrpanoIcon sx={{ color: '#9C27B0', fontSize: '1rem' }} />
+                                <Typography variant="caption" sx={{ color: '#9C27B0' }}>LIVE</Typography>
+                              </Box>
+                            </Box>
+
+                            <Box sx={{ flex: 1, p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              {/* AR Product Visualization */}
+                              <Box
+                                sx={{
+                                  flex: 1,
+                                  backgroundColor: 'rgba(255,255,255,0.05)',
+                                  borderRadius: 2,
+                                  p: 2,
+                                  position: 'relative',
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, display: 'block' }}>
+                                  Virtual Product Placement
+                                </Typography>
+
+                                {/* 3D Visualization Simulation */}
+                                <Box sx={{ position: 'relative', height: '80px', mt: 1 }}>
+                                  {/* Room outline */}
+                                  <Box
+                                    sx={{
+                                      position: 'absolute',
+                                      top: '20%',
+                                      left: '10%',
+                                      right: '10%',
+                                      bottom: '20%',
+                                      border: '2px solid rgba(255,255,255,0.3)',
+                                      borderRadius: 1,
+                                    }}
+                                  />
+                                  
+                                  {/* Animated furniture pieces */}
+                                  {[
+                                    { x: '20%', y: '30%', size: 20, color: '#9C27B0' },
+                                    { x: '60%', y: '40%', size: 15, color: '#FF9800' },
+                                    { x: '40%', y: '60%', size: 12, color: '#4CAF50' },
+                                  ].map((item, idx) => (
+                                    <motion.div
+                                      key={idx}
+                                      initial={{ opacity: 0, scale: 0 }}
+                                      animate={{ 
+                                        opacity: 1, 
+                                        scale: 1,
+                                        y: [0, -2, 0]
+                                      }}
+                                      transition={{ 
+                                        delay: idx * 0.5,
+                                        duration: 0.8,
+                                        y: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+                                      }}
+                                      style={{
+                                        position: 'absolute',
+                                        left: item.x,
+                                        top: item.y,
+                                        width: item.size,
+                                        height: item.size,
+                                        backgroundColor: item.color,
+                                        borderRadius: '2px',
+                                        boxShadow: `0 4px 8px ${alpha(item.color, 0.4)}`,
+                                      }}
+                                    />
+                                  ))}
+                                </Box>
+                              </Box>
+
+                              {/* AR Metrics */}
+                              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
+                                {[
+                                  { label: 'Try-on Rate', value: '78%' },
+                                  { label: 'Conversion', value: '+56%' },
+                                ].map((metric, idx) => (
+                                  <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 2 + idx * 0.3, duration: 0.6 }}
+                                  >
+                                    <Paper
+                                      sx={{
+                                        p: 1,
+                                        backgroundColor: 'rgba(255,255,255,0.08)',
+                                        textAlign: 'center',
+                                        border: `1px solid ${alpha('#9C27B0', 0.3)}`,
+                                      }}
+                                    >
+                                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                                        {metric.label}
+                                      </Typography>
+                                      <Typography variant="body2" sx={{ color: '#9C27B0', fontWeight: 700 }}>
+                                        {metric.value}
+                                      </Typography>
+                                    </Paper>
+                                  </motion.div>
+                                ))}
+                              </Box>
+                            </Box>
+                          </>
+                        )}
+                      </Box>
 
                       {/* Stats overlay */}
                       <Box
@@ -489,14 +904,21 @@ const TrendingTechnologies = () => {
                         }}
                       >
                         {technologies[selectedTab].stats.map((stat, idx) => (
-                          <Box key={idx} sx={{ textAlign: 'center' }}>
-                            <Typography variant="h5" color="white" fontWeight={700}>
-                              {stat.value}
-                            </Typography>
-                            <Typography variant="caption" color="rgba(255,255,255,0.8)">
-                              {stat.label}
-                            </Typography>
-                          </Box>
+                          <motion.div
+                            key={idx}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 + idx * 0.2, duration: 0.6 }}
+                          >
+                            <Box sx={{ textAlign: 'center' }}>
+                              <Typography variant="h5" color="white" fontWeight={700}>
+                                {stat.value}
+                              </Typography>
+                              <Typography variant="caption" color="rgba(255,255,255,0.8)">
+                                {stat.label}
+                              </Typography>
+                            </Box>
+                          </motion.div>
                         ))}
                       </Box>
                     </Box>
@@ -618,7 +1040,7 @@ const TrendingTechnologies = () => {
                         transition: 'all 0.3s ease',
                       }}
                     >
-                      Implement This Technology
+                      Explore This Technology With Us
                     </Button>
                   </Box>
                 </Box>
@@ -675,7 +1097,7 @@ const TrendingTechnologies = () => {
                     color: primaryColor,
                   }}
                 >
-                  Ready to Innovate?
+                  Ready to Innovate Your Marketing?
                 </Typography>
                 
                 <Typography
@@ -686,11 +1108,11 @@ const TrendingTechnologies = () => {
                     mx: 'auto',
                     mb: 4,
                     fontSize: '1.1rem',
-                    lineHeight: 1.6
+                    lineHeight: 1.7 // Increased for readability
                   }}
                 >
-                  Our team of digital marketing experts can help you implement these cutting-edge technologies
-                  to give your business a competitive advantage.
+                  Our team is excited to show you how these cutting-edge technologies can give your business a real competitive advantage. 
+                  Let's talk about your goals.
                 </Typography>
                 
                 <Button
@@ -714,7 +1136,7 @@ const TrendingTechnologies = () => {
                     transition: 'all 0.3s ease',
                   }}
                 >
-                  Schedule a Technology Consultation
+                  Discuss Your Tech Strategy
                 </Button>
               </Box>
             </Paper>

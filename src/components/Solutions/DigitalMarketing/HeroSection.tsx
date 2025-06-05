@@ -30,25 +30,25 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 // Enhanced stats data
 const stats = [
   {
-    value: '250%',
-    label: 'Average ROI',
+    value: 'Up to 3X',
+    label: 'Typical ROI Boost',
     icon: <TrendingUpIcon />,
     color: '#FF6B6B',
-    description: 'Our clients see an average return of 250% on their marketing investment'
+    description: 'Our tailored strategies often help clients achieve up to a 3X return on their marketing spend.'
   },
   {
-    value: '10K+',
-    label: 'Leads Generated',
+    value: 'Thousands',
+    label: 'Quality Leads Delivered',
     icon: <PeopleIcon />,
     color: '#4ECDC4',
-    description: 'We have generated over 10,000 qualified leads for our clients in the past year'
+    description: 'We focus on generating genuinely interested leads that convert, numbering in the thousands for our partners.'
   },
   {
-    value: '98%',
-    label: 'Client Satisfaction',
+    value: 'High',
+    label: 'Client Retention',
     icon: <RocketLaunchIcon />,
     color: '#FFD166',
-    description: '98% of our clients continue working with us after their initial campaign'
+    description: 'We build lasting relationships, reflected in our high client retention rate year after year.'
   }
 ];
 
@@ -76,7 +76,11 @@ const services = [
   }
 ];
 
-const HeroSection = () => {
+interface HeroSectionProps {
+  onContactClick?: () => void;
+}
+
+const HeroSection: React.FC<HeroSectionProps> = ({ onContactClick }) => {
   const theme = useTheme();
   const primaryColor = '#8E44AD';
 
@@ -281,7 +285,7 @@ const HeroSection = () => {
           <motion.div variants={itemVariants}>
             <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
               <Chip
-                label="PREMIUM DIGITAL MARKETING SERVICES"
+                label="YOUR PARTNER IN DIGITAL GROWTH"
                 sx={{
                   py: 2.5,
                   px: 2,
@@ -306,7 +310,7 @@ const HeroSection = () => {
                   component="h1"
                   variant="h1"
                   sx={{
-                    fontSize: { xs: '2.75rem', md: '4rem' },
+                    fontSize: { xs: '2.75rem', md: '3.8rem' }, // Slightly adjusted for better fit with new text
                     fontWeight: 800,
                     mb: 2,
                     textAlign: { xs: 'center', md: 'left' },
@@ -318,7 +322,7 @@ const HeroSection = () => {
                     letterSpacing: '-0.02em',
                   }}
                 >
-                  Elevate Your Digital Marketing Strategy
+                  Real Digital Marketing That Drives Real Results
                 </Typography>
               </motion.div>
 
@@ -328,12 +332,12 @@ const HeroSection = () => {
                   color="textSecondary"
                   sx={{ 
                     mb: 4, 
-                    lineHeight: 1.6,
+                    lineHeight: 1.7, // Increased for readability
                     textAlign: { xs: 'center', md: 'left' },
                     fontSize: { xs: '1.1rem', md: '1.25rem' },
                   }}
                 >
-                  Transform your online presence with our comprehensive digital marketing solutions. We help businesses grow their audience, increase conversions, and maximize ROI through data-driven strategies and innovative campaigns.
+                  Tired of empty promises? We craft genuine digital marketing strategies that connect you with your audience, build trust, and deliver measurable growth. Let's make your brand shine online, authentically.
                 </Typography>
               </motion.div>
 
@@ -381,8 +385,7 @@ const HeroSection = () => {
                   <Button
                     variant="contained"
                     size="large"
-                    component={Link}
-                    href="/contact"
+                    onClick={onContactClick}
                     endIcon={<ArrowForwardIcon />}
                     sx={{
                       backgroundColor: primaryColor,
@@ -399,7 +402,7 @@ const HeroSection = () => {
                       transition: 'all 0.3s ease',
                     }}
                   >
-                    Get Started
+                    Start Your Growth Journey
                   </Button>
                 </motion.div>
                 
@@ -431,7 +434,7 @@ const HeroSection = () => {
                       transition: 'all 0.3s ease',
                     }}
                   >
-                    View Case Studies
+                    See Our Success Stories
                   </Button>
                 </motion.div>
               </Box>
@@ -605,20 +608,297 @@ const HeroSection = () => {
                     }}
                   />
                   
+                  {/* Interactive Digital Marketing Dashboard */}
                   <Box
-                    component="img"
-                    src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
-                    alt="Digital Marketing"
                     sx={{
                       width: '100%',
                       height: '100%',
-                      objectFit: 'cover',
-                      transition: 'transform 0.5s ease',
-                      '&:hover': {
-                        transform: 'scale(1.05)',
-                      },
+                      background: `linear-gradient(135deg, 
+                        ${alpha('#0F1419', 0.95)} 0%, 
+                        ${alpha('#1A2332', 0.9)} 30%, 
+                        ${alpha('#2C3E50', 0.85)} 70%, 
+                        ${alpha(primaryColor, 0.9)} 100%)`,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      position: 'relative',
+                      overflow: 'hidden',
                     }}
-                  />
+                  >
+                    {/* Dashboard Header */}
+                    <Box
+                      sx={{
+                        p: 2,
+                        borderBottom: '1px solid rgba(255,255,255,0.1)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        backgroundColor: 'rgba(255,255,255,0.05)',
+                        backdropFilter: 'blur(10px)',
+                      }}
+                    >
+                      <Typography variant="subtitle2" sx={{ color: '#fff', fontWeight: 600 }}>
+                        Digital Marketing Dashboard
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#FF6B6B' }} />
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#FFD166' }} />
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#4CAF50' }} />
+                      </Box>
+                    </Box>
+
+                    {/* Main Dashboard Content */}
+                    <Box sx={{ flex: 1, p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {/* Top Metrics Row */}
+                      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.5 }}>
+                        {[
+                          { label: 'Traffic', value: '142K', change: '+25%', color: '#4CAF50' },
+                          { label: 'Conversions', value: '3.2K', change: '+18%', color: '#2196F3' },
+                          { label: 'Revenue', value: '$89K', change: '+31%', color: '#FF9800' },
+                        ].map((metric, idx) => (
+                          <motion.div
+                            key={idx}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 + idx * 0.2, duration: 0.6 }}
+                          >
+                            <Paper
+                              sx={{
+                                p: 1.5,
+                                backgroundColor: 'rgba(255,255,255,0.08)',
+                                border: `1px solid ${alpha(metric.color, 0.3)}`,
+                                borderRadius: 2,
+                                textAlign: 'center',
+                              }}
+                            >
+                              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                                {metric.label}
+                              </Typography>
+                              <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700, fontSize: '1rem' }}>
+                                {metric.value}
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: metric.color, fontWeight: 600 }}>
+                                {metric.change}
+                              </Typography>
+                            </Paper>
+                          </motion.div>
+                        ))}
+                      </Box>
+
+                      {/* Animated Chart Area */}
+                      <Box
+                        sx={{
+                          flex: 1,
+                          backgroundColor: 'rgba(255,255,255,0.05)',
+                          borderRadius: 2,
+                          p: 1.5,
+                          position: 'relative',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1, display: 'block' }}>
+                          Campaign Performance
+                        </Typography>
+                        
+                        {/* Animated Chart Lines */}
+                        <Box sx={{ position: 'relative', height: '120px', mt: 1 }}>
+                          {/* Grid Lines */}
+                          {[...Array(4)].map((_, i) => (
+                            <Box
+                              key={i}
+                              sx={{
+                                position: 'absolute',
+                                top: `${i * 25}%`,
+                                left: 0,
+                                right: 0,
+                                height: '1px',
+                                backgroundColor: 'rgba(255,255,255,0.1)',
+                              }}
+                            />
+                          ))}
+                          
+                          {/* Animated Performance Line */}
+                          <Box
+                            component={motion.div}
+                            initial={{ pathLength: 0 }}
+                            animate={{ pathLength: 1 }}
+                            transition={{ duration: 3, delay: 1 }}
+                            sx={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                            }}
+                          >
+                            <svg width="100%" height="100%" style={{ overflow: 'visible' }}>
+                              <motion.path
+                                d="M 0 80 Q 30 60 60 40 T 120 30 T 180 20 T 240 10"
+                                stroke="#4CAF50"
+                                strokeWidth="3"
+                                fill="none"
+                                initial={{ pathLength: 0 }}
+                                animate={{ pathLength: 1 }}
+                                transition={{ duration: 3, delay: 1 }}
+                                style={{
+                                  filter: 'drop-shadow(0 0 6px #4CAF50)',
+                                }}
+                              />
+                              <motion.path
+                                d="M 0 70 Q 30 65 60 50 T 120 45 T 180 35 T 240 25"
+                                stroke="#2196F3"
+                                strokeWidth="2"
+                                fill="none"
+                                initial={{ pathLength: 0 }}
+                                animate={{ pathLength: 1 }}
+                                transition={{ duration: 3, delay: 1.5 }}
+                                style={{
+                                  filter: 'drop-shadow(0 0 4px #2196F3)',
+                                }}
+                              />
+                            </svg>
+                          </Box>
+                          
+                          {/* Animated Data Points */}
+                          {[
+                            { x: '15%', y: '60%', color: '#4CAF50', delay: 2 },
+                            { x: '35%', y: '40%', color: '#4CAF50', delay: 2.2 },
+                            { x: '55%', y: '25%', color: '#4CAF50', delay: 2.4 },
+                            { x: '75%', y: '15%', color: '#4CAF50', delay: 2.6 },
+                          ].map((point, idx) => (
+                            <motion.div
+                              key={idx}
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ delay: point.delay, duration: 0.5 }}
+                              style={{
+                                position: 'absolute',
+                                left: point.x,
+                                top: point.y,
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: point.color,
+                                boxShadow: `0 0 10px ${point.color}`,
+                                transform: 'translate(-50%, -50%)',
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+
+                      {/* Bottom Analytics Cards */}
+                      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
+                        <motion.div
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 3, duration: 0.6 }}
+                        >
+                          <Paper
+                            sx={{
+                              p: 1.5,
+                              backgroundColor: 'rgba(255,255,255,0.05)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              borderRadius: 2,
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                              <SearchIcon sx={{ color: '#4CAF50', fontSize: '1rem', mr: 0.5 }} />
+                              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                                SEO Ranking
+                              </Typography>
+                            </Box>
+                            <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600 }}>
+                              #3 → #1
+                            </Typography>
+                          </Paper>
+                        </motion.div>
+                        
+                        <motion.div
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 3.2, duration: 0.6 }}
+                        >
+                          <Paper
+                            sx={{
+                              p: 1.5,
+                              backgroundColor: 'rgba(255,255,255,0.05)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              borderRadius: 2,
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                              <CampaignIcon sx={{ color: '#FF9800', fontSize: '1rem', mr: 0.5 }} />
+                              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                                Ad Spend ROI
+                              </Typography>
+                            </Box>
+                            <Typography variant="body2" sx={{ color: '#fff', fontWeight: 600 }}>
+                              4.2x Return
+                            </Typography>
+                          </Paper>
+                        </motion.div>
+                      </Box>
+                    </Box>
+
+                    {/* Floating Notification */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 50 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 4, duration: 0.8 }}
+                      style={{
+                        position: 'absolute',
+                        bottom: '20px',
+                        right: '20px',
+                        zIndex: 10,
+                      }}
+                    >
+                      <Paper
+                        sx={{
+                          p: 1.5,
+                          backgroundColor: 'rgba(76, 175, 80, 0.9)',
+                          borderRadius: 2,
+                          boxShadow: '0 4px 20px rgba(76, 175, 80, 0.3)',
+                          border: '1px solid rgba(76, 175, 80, 0.5)',
+                          backdropFilter: 'blur(10px)',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <CheckCircleIcon sx={{ color: '#fff', fontSize: '1rem', mr: 1 }} />
+                          <Box>
+                            <Typography variant="caption" sx={{ color: '#fff', fontWeight: 600, display: 'block' }}>
+                              Campaign Optimized
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                              CTR increased by 23%
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Paper>
+                    </motion.div>
+
+                    {/* Pulsing Activity Indicator */}
+                    <motion.div
+                      animate={{
+                        scale: [1, 1.2, 1],
+                        opacity: [0.7, 1, 0.7],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: '10px',
+                        left: '10px',
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        backgroundColor: '#4CAF50',
+                        boxShadow: '0 0 10px #4CAF50',
+                      }}
+                    />
+                  </Box>
                   
                   {/* Enhanced bottom caption */}
                   <Box
@@ -633,10 +913,10 @@ const HeroSection = () => {
                     }}
                   >
                     <Typography variant="h6" color="#ffffff" fontWeight={700}>
-                      Data-driven strategies for measurable results
+                      Smart Strategies, Clear Results, Happy Clients
                     </Typography>
                     <Typography variant="body2" color="rgba(255,255,255,0.8)" sx={{ mt: 0.5 }}>
-                      We focus on ROI and performance metrics that matter to your business
+                      We're committed to transparent, effective marketing that truly benefits your business.
                     </Typography>
                   </Box>
                   
@@ -772,17 +1052,17 @@ const HeroSection = () => {
               >
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <VerifiedIcon sx={{ color: primaryColor, mr: 1 }} />
-                  <Typography variant="body2" fontWeight={600}>Certified Experts</Typography>
+                  <Typography variant="body2" fontWeight={600}>Proven Expertise</Typography>
                 </Box>
                 <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <SpeedIcon sx={{ color: '#FF6B6B', mr: 1 }} />
-                  <Typography variant="body2" fontWeight={600}>Fast Results</Typography>
+                  <Typography variant="body2" fontWeight={600}>Efficient Campaigns</Typography>
                 </Box>
                 <Divider orientation="vertical" flexItem sx={{ height: 20 }} />
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <CheckCircleIcon sx={{ color: '#4CAF50', mr: 1 }} />
-                  <Typography variant="body2" fontWeight={600}>Guaranteed ROI</Typography>
+                  <Typography variant="body2" fontWeight={600}>Focus on Your ROI</Typography>
                 </Box>
               </Box>
             </Box>

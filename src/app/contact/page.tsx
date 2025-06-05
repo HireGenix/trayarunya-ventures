@@ -356,7 +356,7 @@ export default function ContactPage() {
                   >
                     <Box component="form" onSubmit={handleSubmit}>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', mx: -1.5 }}>
-                        <Box sx={{ width: '100%', px: 1.5, mb: 3, flex: { xs: '0 0 100%', sm: '0 0 50%' } }}>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 3, mb: 3 }}>
                           <TextField
                             name="name"
                             label="Your Name"
@@ -369,11 +369,16 @@ export default function ContactPage() {
                             sx={{
                               '& .MuiOutlinedInput-root': {
                                 borderRadius: 2,
+                                '&.Mui-focused fieldset': {
+                                  borderColor: theme.palette.primary.main,
+                                  borderWidth: '2px',
+                                },
+                              },
+                              '& .MuiInputLabel-root.Mui-focused': {
+                                color: theme.palette.primary.main,
                               },
                             }}
                           />
-                        </Box>
-                        <Box sx={{ width: '100%', px: 1.5, mb: 3, flex: { xs: '0 0 100%', sm: '0 0 50%' } }}>
                           <TextField
                             name="email"
                             label="Your Email"
@@ -386,11 +391,16 @@ export default function ContactPage() {
                             sx={{
                               '& .MuiOutlinedInput-root': {
                                 borderRadius: 2,
+                                '&.Mui-focused fieldset': {
+                                  borderColor: theme.palette.primary.main,
+                                  borderWidth: '2px',
+                                },
+                              },
+                              '& .MuiInputLabel-root.Mui-focused': {
+                                color: theme.palette.primary.main,
                               },
                             }}
                           />
-                        </Box>
-                        <Box sx={{ width: '100%', px: 1.5, mb: 3, flex: { xs: '0 0 100%', sm: '0 0 50%' } }}>
                           <TextField
                             name="company"
                             label="Company (Optional)"
@@ -401,11 +411,16 @@ export default function ContactPage() {
                             sx={{
                               '& .MuiOutlinedInput-root': {
                                 borderRadius: 2,
+                                '&.Mui-focused fieldset': {
+                                  borderColor: theme.palette.primary.main,
+                                  borderWidth: '2px',
+                                },
+                              },
+                              '& .MuiInputLabel-root.Mui-focused': {
+                                color: theme.palette.primary.main,
                               },
                             }}
                           />
-                        </Box>
-                        <Box sx={{ width: '100%', px: 1.5, mb: 3, flex: { xs: '0 0 100%', sm: '0 0 50%' } }}>
                           <TextField
                             name="phone"
                             label="Phone (Optional)"
@@ -416,11 +431,18 @@ export default function ContactPage() {
                             sx={{
                               '& .MuiOutlinedInput-root': {
                                 borderRadius: 2,
+                                '&.Mui-focused fieldset': {
+                                  borderColor: theme.palette.primary.main,
+                                  borderWidth: '2px',
+                                },
+                              },
+                              '& .MuiInputLabel-root.Mui-focused': {
+                                color: theme.palette.primary.main,
                               },
                             }}
                           />
                         </Box>
-                        <Box sx={{ width: '100%', px: 1.5, mb: 3 }}>
+                        <Box sx={{ mb: 3 }}>
                           <TextField
                             name="subject"
                             label="Subject"
@@ -433,11 +455,18 @@ export default function ContactPage() {
                             sx={{
                               '& .MuiOutlinedInput-root': {
                                 borderRadius: 2,
+                                '&.Mui-focused fieldset': {
+                                  borderColor: theme.palette.primary.main,
+                                  borderWidth: '2px',
+                                },
+                              },
+                              '& .MuiInputLabel-root.Mui-focused': {
+                                color: theme.palette.primary.main,
                               },
                             }}
                           />
                         </Box>
-                        <Box sx={{ width: '100%', px: 1.5, mb: 3 }}>
+                        <Box sx={{ mb: 3 }}>
                           <TextField
                             name="message"
                             label="Your Message"
@@ -452,11 +481,18 @@ export default function ContactPage() {
                             sx={{
                               '& .MuiOutlinedInput-root': {
                                 borderRadius: 2,
+                                '&.Mui-focused fieldset': {
+                                  borderColor: theme.palette.primary.main,
+                                  borderWidth: '2px',
+                                },
+                              },
+                              '& .MuiInputLabel-root.Mui-focused': {
+                                color: theme.palette.primary.main,
                               },
                             }}
                           />
                         </Box>
-                        <Box sx={{ width: '100%', px: 1.5, mb: 3 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
                           <Button
                             type="submit"
                             variant="contained"
@@ -466,7 +502,7 @@ export default function ContactPage() {
                             disabled={isSubmitting}
                             sx={{
                               py: 1.5,
-                              px: 4,
+                              px: 5,
                               fontWeight: 600,
                               fontSize: '1rem',
                               borderRadius: '50px',
@@ -477,6 +513,7 @@ export default function ContactPage() {
                               },
                               transition: 'all 0.3s ease',
                               position: 'relative',
+                              minWidth: '180px',
                             }}
                           >
                             {isSubmitting ? (

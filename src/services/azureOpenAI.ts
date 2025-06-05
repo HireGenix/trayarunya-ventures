@@ -4,19 +4,25 @@
  */
 
 // Azure OpenAI API configuration
-const AZURE_OPENAI_ENDPOINT = process.env.NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT || '';
-const AZURE_OPENAI_API_KEY = process.env.NEXT_PUBLIC_AZURE_OPENAI_API_KEY || '';
-const AZURE_OPENAI_API_VERSION = process.env.NEXT_PUBLIC_AZURE_OPENAI_API_VERSION || '2025-01-01-preview';
-const AZURE_OPENAI_DEPLOYMENT_NAME = process.env.NEXT_PUBLIC_AZURE_OPENAI_DEPLOYMENT_NAME || 'gpt-4.1';
+const AZURE_OPENAI_ENDPOINT = 'https://sumit-m3hjubps-switzerlandnorth.openai.azure.com';
+const AZURE_OPENAI_API_KEY = '1gl8yCyBwnLpcj8deWz1iPQVSd5LwYTg4uFPbNyjeRsic7LexEV3JQQJ99AKACI8hq2XJ3w3AAABACOGyC9d';
+const AZURE_OPENAI_API_VERSION = '2025-01-01-preview';
+const AZURE_OPENAI_DEPLOYMENT_NAME = 'gpt-4.1';
 const AZURE_OPENAI_MODEL_ID = 'azureml://registries/azure-openai/models/gpt-4.1/versions/2025-04-14';
 
 interface GenerateICPParams {
+  businessName: string;
+  businessDescription: string;
+  productServiceDetails: string;
   industry: string;
   companySize: string;
   targetMarket: string;
   productType: string;
   businessGoals: string;
   competitorInfo: string;
+  targetRole?: string;
+  businessModel?: string;
+  painPoints?: string;
 }
 
 interface ICPResponse {
@@ -70,18 +76,26 @@ interface ICPResponse {
  */
 export const generateICP = async (params: GenerateICPParams): Promise<ICPResponse> => {
   if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY) {
-    throw new Error('Azure OpenAI credentials not configured. Please check your environment variables.');
+    throw new Error('Azure OpenAI credentials not configured. Please check your configuration.');
   }
 
   const prompt = `
     Generate a detailed Ideal Customer Profile (ICP) for a business with the following characteristics:
     
+    Business Name: ${params.businessName}
+    Business Description: ${params.businessDescription}
+    Product/Service Details: ${params.productServiceDetails}
     Industry: ${params.industry}
     Company Size: ${params.companySize}
     Target Market: ${params.targetMarket}
     Product/Service Type: ${params.productType}
     Business Goals: ${params.businessGoals}
     Competitor Information: ${params.competitorInfo}
+    Target Role: ${params.targetRole || 'Not specified'}
+    Business Model: ${params.businessModel || 'Not specified'}
+    Pain Points: ${params.painPoints || 'Not specified'}
+    
+    Based on this comprehensive business information, analyze the specific business context, industry dynamics, and product/service offerings to create a highly tailored ICP that reflects the unique value proposition and target market of this business.
     
     Please provide a comprehensive ICP with the following sections:
     
@@ -188,96 +202,185 @@ export const generateICP = async (params: GenerateICPParams): Promise<ICPRespons
   const content = data.choices[0].message.content;
   console.log('Raw API response content:', content);
   
-  try {
-    // Parse the JSON response
-    const icpData = JSON.parse(content);
-    console.log('Parsed ICP data:', icpData);
+  // Function to sanitize JSON string
+  const sanitizeJsonString = (str: string): string => {
+    // Extract JSON object from the string (between first { and last })
+    const firstBrace = str.indexOf('{');
+    const lastBrace = str.lastIndexOf('}');
     
-    // Create a default structure to ensure all required fields exist
-    const defaultICP: ICPResponse = {
-      demographic: {
-        age: 'Not specified',
-        gender: 'Not specified',
-        income: 'Not specified',
-        education: 'Not specified',
-        occupation: 'Not specified',
-        location: 'Not specified',
-        jobTitle: 'Not specified',
-        industryExperience: 'Not specified',
-        companySize: 'Not specified',
-        familyStatus: 'Not specified'
-      },
-      psychographic: {
-        values: [],
-        interests: [],
-        painPoints: [],
-        goals: [],
-        motivations: [],
-        fears: [],
-        aspirations: [],
-        personalityTraits: []
-      },
-      behavioral: {
-        purchaseProcess: 'Not specified',
-        brandInteractions: 'Not specified',
-        contentPreferences: 'Not specified',
-        decisionFactors: [],
-        buyingFrequency: 'Not specified',
-        preferredChannels: [],
-        researchMethods: [],
-        influencers: [],
-        budgetConsiderations: 'Not specified',
-        loyaltyFactors: []
-      },
-      technographic: {
-        deviceUsage: [],
-        softwarePlatforms: [],
-        techAdoptionStage: 'Not specified',
-        socialMediaUsage: [],
-        onlineActivityLevel: 'Not specified'
+    if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+      console.error('Could not find valid JSON object in string');
+      return '{}'; // Return empty object if no valid JSON structure found
+    }
+    
+    let jsonStr = str.substring(firstBrace, lastBrace + 1);
+    
+    try {
+      // First try: see if it's already valid JSON
+      JSON.parse(jsonStr);
+      return jsonStr;
+    } catch (e) {
+      console.log('Initial JSON string is invalid, attempting to sanitize...');
+      
+      // Replace any invalid JSON patterns
+      jsonStr = jsonStr
+        // Fix trailing commas in objects
+        .replace(/,\s*}/g, '}')
+        // Fix trailing commas in arrays
+        .replace(/,\s*]/g, ']')
+        // Add missing commas between properties (fix for the specific error)
+        .replace(/}(\s*){/g, '},\n{')
+        .replace(/"([^"]+)"(\s*)"([^"]+)"/g, '"$1",\n"$3"')
+        // Ensure property names are double-quoted
+        .replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3')
+        // Ensure property values that should be strings are quoted
+        .replace(/:(\s*)([a-zA-Z][a-zA-Z0-9_\s-]*[a-zA-Z0-9])([,}])/g, ':"$2"$3')
+        // Fix unescaped quotes in string values
+        .replace(/"([^"]*)(")([^"]*)"([,}])/g, '"$1\\"$3"$4')
+        // Fix missing commas between properties
+        .replace(/"([^"]+)"\s*:\s*("[^"]*"|[0-9]+|true|false|null)\s*"([^"]+)"/g, '"$1": $2,\n"$3"');
+      
+      // Try to parse the sanitized JSON
+      try {
+        JSON.parse(jsonStr);
+        return jsonStr;
+      } catch (e2) {
+        console.error('Failed to sanitize JSON, returning empty object');
+        return '{}';
       }
-    };
-    
-    // Merge the API response with the default structure
-    const mergedICP: ICPResponse = {
-      demographic: {
-        ...defaultICP.demographic,
-        ...(icpData.demographic || {}),
-      },
-      psychographic: {
-        ...defaultICP.psychographic,
-        ...(icpData.psychographic || {}),
-        values: icpData.psychographic?.values || defaultICP.psychographic.values,
-        interests: icpData.psychographic?.interests || defaultICP.psychographic.interests,
-        painPoints: icpData.psychographic?.painPoints || defaultICP.psychographic.painPoints,
-        goals: icpData.psychographic?.goals || defaultICP.psychographic.goals,
-        motivations: icpData.psychographic?.motivations || defaultICP.psychographic.motivations,
-        fears: icpData.psychographic?.fears || defaultICP.psychographic.fears,
-        aspirations: icpData.psychographic?.aspirations || defaultICP.psychographic.aspirations,
-        personalityTraits: icpData.psychographic?.personalityTraits || defaultICP.psychographic.personalityTraits,
-      },
-      behavioral: {
-        ...defaultICP.behavioral,
-        ...(icpData.behavioral || {}),
-        decisionFactors: icpData.behavioral?.decisionFactors || defaultICP.behavioral.decisionFactors,
-        preferredChannels: icpData.behavioral?.preferredChannels || defaultICP.behavioral.preferredChannels,
-        researchMethods: icpData.behavioral?.researchMethods || defaultICP.behavioral.researchMethods,
-        influencers: icpData.behavioral?.influencers || defaultICP.behavioral.influencers,
-        loyaltyFactors: icpData.behavioral?.loyaltyFactors || defaultICP.behavioral.loyaltyFactors,
-      },
-      technographic: {
-        ...defaultICP.technographic,
-        ...(icpData.technographic || {}),
-        deviceUsage: icpData.technographic?.deviceUsage || defaultICP.technographic.deviceUsage,
-        softwarePlatforms: icpData.technographic?.softwarePlatforms || defaultICP.technographic.softwarePlatforms,
-        socialMediaUsage: icpData.technographic?.socialMediaUsage || defaultICP.technographic.socialMediaUsage,
-      },
-    };
-    
-    console.log('Processed ICP data:', mergedICP);
-    return mergedICP;
+    }
+  };
+
+  // Create a default empty ICP data structure
+  const emptyICP = {
+    demographic: {},
+    psychographic: {
+      values: [],
+      interests: [],
+      painPoints: [],
+      goals: [],
+      motivations: [],
+      fears: [],
+      aspirations: [],
+      personalityTraits: []
+    },
+    behavioral: {
+      decisionFactors: [],
+      preferredChannels: [],
+      researchMethods: [],
+      influencers: [],
+      loyaltyFactors: []
+    },
+    technographic: {
+      deviceUsage: [],
+      softwarePlatforms: [],
+      socialMediaUsage: []
+    }
+  };
+
+  // Try to parse the response with multiple fallback strategies
+  let icpData: any = emptyICP;
+  
+  try {
+    // First try: direct parse
+    icpData = JSON.parse(content);
+    console.log('Successfully parsed ICP data directly');
   } catch (error) {
-    console.error('Error parsing ICP data:', error);
-    throw new Error('Failed to parse ICP data from API response. Please check the console for details.');
+    console.log('Direct parsing failed, trying sanitization...');
+    
+    try {
+      // Second try: sanitize then parse
+      const sanitized = sanitizeJsonString(content);
+      icpData = JSON.parse(sanitized);
+      console.log('Successfully parsed sanitized ICP data');
+    } catch (e) {
+      console.error('Failed to parse even after sanitization:', e);
+      console.log('Using default empty ICP structure');
+      // We'll use the emptyICP object defined above
+    }
   }
+
+  // Create a default structure to ensure all required fields exist
+  const defaultICP: ICPResponse = {
+    demographic: {
+      age: 'Not specified',
+      gender: 'Not specified',
+      income: 'Not specified',
+      education: 'Not specified',
+      occupation: 'Not specified',
+      location: 'Not specified',
+      jobTitle: 'Not specified',
+      industryExperience: 'Not specified',
+      companySize: 'Not specified',
+      familyStatus: 'Not specified'
+    },
+    psychographic: {
+      values: [],
+      interests: [],
+      painPoints: [],
+      goals: [],
+      motivations: [],
+      fears: [],
+      aspirations: [],
+      personalityTraits: []
+    },
+    behavioral: {
+      purchaseProcess: 'Not specified',
+      brandInteractions: 'Not specified',
+      contentPreferences: 'Not specified',
+      decisionFactors: [],
+      buyingFrequency: 'Not specified',
+      preferredChannels: [],
+      researchMethods: [],
+      influencers: [],
+      budgetConsiderations: 'Not specified',
+      loyaltyFactors: []
+    },
+    technographic: {
+      deviceUsage: [],
+      softwarePlatforms: [],
+      techAdoptionStage: 'Not specified',
+      socialMediaUsage: [],
+      onlineActivityLevel: 'Not specified'
+    }
+  };
+
+  // Merge the API response with the default structure
+  const mergedICP: ICPResponse = {
+    demographic: {
+      ...defaultICP.demographic,
+      ...(icpData.demographic || {}),
+    },
+    psychographic: {
+      ...defaultICP.psychographic,
+      ...(icpData.psychographic || {}),
+      values: icpData.psychographic?.values || defaultICP.psychographic.values,
+      interests: icpData.psychographic?.interests || defaultICP.psychographic.interests,
+      painPoints: icpData.psychographic?.painPoints || defaultICP.psychographic.painPoints,
+      goals: icpData.psychographic?.goals || defaultICP.psychographic.goals,
+      motivations: icpData.psychographic?.motivations || defaultICP.psychographic.motivations,
+      fears: icpData.psychographic?.fears || defaultICP.psychographic.fears,
+      aspirations: icpData.psychographic?.aspirations || defaultICP.psychographic.aspirations,
+      personalityTraits: icpData.psychographic?.personalityTraits || defaultICP.psychographic.personalityTraits,
+    },
+    behavioral: {
+      ...defaultICP.behavioral,
+      ...(icpData.behavioral || {}),
+      decisionFactors: icpData.behavioral?.decisionFactors || defaultICP.behavioral.decisionFactors,
+      preferredChannels: icpData.behavioral?.preferredChannels || defaultICP.behavioral.preferredChannels,
+      researchMethods: icpData.behavioral?.researchMethods || defaultICP.behavioral.researchMethods,
+      influencers: icpData.behavioral?.influencers || defaultICP.behavioral.influencers,
+      loyaltyFactors: icpData.behavioral?.loyaltyFactors || defaultICP.behavioral.loyaltyFactors,
+    },
+    technographic: {
+      ...defaultICP.technographic,
+      ...(icpData.technographic || {}),
+      deviceUsage: icpData.technographic?.deviceUsage || defaultICP.technographic.deviceUsage,
+      softwarePlatforms: icpData.technographic?.softwarePlatforms || defaultICP.technographic.softwarePlatforms,
+      socialMediaUsage: icpData.technographic?.socialMediaUsage || defaultICP.technographic.socialMediaUsage,
+    },
+  };
+
+  console.log('Processed ICP data:', mergedICP);
+  return mergedICP;
 };

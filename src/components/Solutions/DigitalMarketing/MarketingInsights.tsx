@@ -34,50 +34,50 @@ import { MarketingNewsletter } from '.';
 const insights = [
   {
     id: 'content-marketing-2025',
-    title: 'Content Marketing Trends for 2025',
-    excerpt: 'Discover the emerging content marketing strategies that will dominate the digital landscape in 2025 and beyond.',
+    title: 'Future-Proof Your Content: Key Trends for 2025',
+    excerpt: 'Stay ahead of the curve. We explore the content strategies that will captivate audiences and drive results in the coming year and beyond.',
     image: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
     author: {
       name: 'Priya Sharma',
       avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-      title: 'Content Strategy Director'
+      title: 'Head of Content Strategy'
     },
     category: 'Content Marketing',
-    readTime: '5 min read',
+    readTime: '6 min read',
     date: 'Apr 15, 2025',
-    views: '2.4K',
+    views: '2.1K', // Adjusted
     trending: true
   },
   {
     id: 'seo-algorithm-updates',
-    title: 'Navigating the Latest Search Algorithm Updates',
-    excerpt: 'How to adapt your SEO strategy to the latest search engine algorithm changes and maintain your rankings.',
+    title: 'Decoding Search Algorithms: Stay Visible, Stay Ahead',
+    excerpt: 'Search engines are always evolving. Learn how to adapt your SEO approach to the latest algorithm shifts and keep your rankings strong.',
     image: 'https://images.unsplash.com/photo-1562577309-4932fdd64cd1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
     author: {
       name: 'Rahul Kapoor',
       avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-      title: 'SEO Specialist'
+      title: 'Senior SEO Strategist'
     },
     category: 'SEO',
-    readTime: '7 min read',
+    readTime: '8 min read',
     date: 'Apr 8, 2025',
-    views: '1.8K',
+    views: '1.6K', // Adjusted
     trending: false
   },
   {
     id: 'social-media-engagement',
-    title: 'Boosting Social Media Engagement in a Saturated Market',
-    excerpt: 'Innovative strategies to cut through the noise and create meaningful connections with your audience on social platforms.',
+    title: 'Connect & Convert: Mastering Social Media Engagement Today',
+    excerpt: 'It\'s a noisy world out there. Discover fresh, innovative ways to truly connect with your audience on social media and turn engagement into growth.',
     image: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
     author: {
       name: 'Ananya Desai',
       avatar: 'https://randomuser.me/api/portraits/women/68.jpg',
-      title: 'Social Media Manager'
+      title: 'Social Media Lead'
     },
     category: 'Social Media',
-    readTime: '6 min read',
+    readTime: '7 min read',
     date: 'Mar 29, 2025',
-    views: '3.2K',
+    views: '2.9K', // Adjusted
     trending: true
   }
 ];
@@ -85,23 +85,23 @@ const insights = [
 // Featured insight data
 const featuredInsight = {
   id: 'ai-marketing-revolution',
-  title: 'The AI Revolution in Digital Marketing: What You Need to Know',
-  excerpt: 'Artificial intelligence is transforming how brands connect with consumers. From predictive analytics to automated content creation, AI is revolutionizing every aspect of digital marketing. Learn how forward-thinking companies are leveraging these technologies to gain a competitive edge.',
+  title: 'AI in Marketing: Separating Hype from Real Impact',
+  excerpt: 'Artificial intelligence is reshaping how businesses reach customers. We cut through the noise to show you how AI tools, from smart analytics to content creation, are practically changing digital marketing. See how smart companies are using AI to get ahead.',
   image: 'https://images.unsplash.com/photo-1633613286991-611fe299c4be?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80',
   author: {
     name: 'Vikram Mehta',
     avatar: 'https://randomuser.me/api/portraits/men/75.jpg',
-    title: 'Chief Innovation Officer'
+    title: 'Lead Digital Innovator'
   },
-  category: 'AI & Technology',
-  readTime: '10 min read',
+  category: 'AI & Marketing Tech',
+  readTime: '9 min read',
   date: 'Apr 20, 2025',
-  views: '5.7K',
+  views: '4.8K', // Adjusted
   highlights: [
-    'How AI is personalizing customer experiences at scale',
-    'Predictive analytics for more effective campaign planning',
-    'The role of machine learning in optimizing ad spend',
-    'Ethical considerations when implementing AI in marketing'
+    'Practical ways AI can personalize your customer interactions.',
+    'Using predictive insights for smarter campaign decisions.',
+    'How machine learning helps you get more from your ad budget.',
+    'Important ethical points to consider with AI in marketing.'
   ]
 };
 
@@ -269,7 +269,7 @@ const MarketingInsights = () => {
                   WebkitTextFillColor: 'transparent',
                 }}
               >
-                Marketing Insights & Trends
+                Stay Ahead: Marketing Insights & Trends
               </Typography>
             </motion.div>
             
@@ -282,11 +282,11 @@ const MarketingInsights = () => {
                   mx: 'auto', 
                   mb: 6,
                   fontSize: '1.1rem',
-                  lineHeight: 1.6
+                  lineHeight: 1.7 // Increased for readability
                 }}
               >
-                Stay informed with our latest thinking on digital marketing strategies, trends, and best practices.
-                Our experts share actionable insights to help your business thrive in the digital landscape.
+                The digital world moves fast. Our experts share their latest thinking on strategies, trends, and best practices 
+                to help your business not just keep up, but lead the way.
               </Typography>
             </motion.div>
           </Box>

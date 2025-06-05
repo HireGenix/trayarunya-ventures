@@ -10,13 +10,13 @@ import {
   alpha,
   Button,
   Chip,
-  Divider,
   Grid,
-  Rating,
+  Stack,
+  LinearProgress,
   Avatar,
-  IconButton
+  AvatarGroup
 } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import SearchIcon from '@mui/icons-material/Search';
 import LanguageIcon from '@mui/icons-material/Language';
@@ -25,94 +25,168 @@ import BrushIcon from '@mui/icons-material/Brush';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import StarIcon from '@mui/icons-material/Star';
-import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import SecurityIcon from '@mui/icons-material/Security';
 import SpeedIcon from '@mui/icons-material/Speed';
-import PeopleIcon from '@mui/icons-material/People';
+import AutoGraphIcon from '@mui/icons-material/AutoGraph';
+import GroupsIcon from '@mui/icons-material/Groups';
+import LaunchIcon from '@mui/icons-material/Launch';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import Link from 'next/link';
 
-// Service data
+// Enhanced service data with new structure
 const services = [
   {
+    id: 'seo',
     title: 'Search Engine Optimization',
-    description: 'Improve your website visibility in search engines with our comprehensive SEO strategies tailored to your business goals.',
-    icon: <SearchIcon fontSize="large" />,
+    shortTitle: 'SEO',
+    description: 'Dominate search results with our proven SEO strategies. We help your business rank higher, attract quality traffic, and convert visitors into customers.',
+    icon: <SearchIcon />,
     color: '#4CAF50',
-    benefits: [
-      'Higher organic search rankings',
-      'Increased website traffic',
-      'Better user experience',
-      'Improved conversion rates'
+    bgGradient: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+    features: [
+      'Keyword Research & Strategy',
+      'On-Page Optimization',
+      'Technical SEO Audits',
+      'Link Building Campaigns',
+      'Local SEO Enhancement',
+      'Performance Tracking'
     ],
-    results: '35% average increase in organic traffic within 3 months',
-    rating: 4.9,
-    clients: 124
+    metrics: {
+      avgIncrease: '250%',
+      timeframe: '6 months',
+      successRate: '94%'
+    },
+    clientLogos: ['/api/placeholder/32/32', '/api/placeholder/32/32', '/api/placeholder/32/32'],
+    isPopular: true
   },
   {
+    id: 'social',
     title: 'Social Media Marketing',
-    description: 'Build a strong social media presence with targeted campaigns that engage your audience and drive conversions.',
-    icon: <CampaignIcon fontSize="large" />,
+    shortTitle: 'Social Media',
+    description: 'Build authentic connections and grow your community across all major social platforms with engaging content and strategic campaigns.',
+    icon: <CampaignIcon />,
     color: '#2196F3',
-    benefits: [
-      'Increased brand awareness',
-      'Better audience engagement',
-      'Higher conversion rates',
-      'Improved customer loyalty'
+    bgGradient: 'linear-gradient(135deg, #2196F3 0%, #1976d2 100%)',
+    features: [
+      'Content Strategy & Creation',
+      'Community Management',
+      'Paid Social Advertising',
+      'Influencer Partnerships',
+      'Social Commerce Setup',
+      'Analytics & Reporting'
     ],
-    results: '320% average increase in social engagement and 45% increase in leads',
-    rating: 4.8,
-    clients: 98
+    metrics: {
+      avgIncrease: '180%',
+      timeframe: '3 months',
+      successRate: '91%'
+    },
+    clientLogos: ['/api/placeholder/32/32', '/api/placeholder/32/32', '/api/placeholder/32/32'],
+    isPopular: false
   },
   {
+    id: 'content',
     title: 'Content Marketing',
-    description: 'Create compelling content that resonates with your audience and establishes your brand as an industry authority.',
-    icon: <BrushIcon fontSize="large" />,
+    shortTitle: 'Content',
+    description: 'Transform your brand story into compelling content that educates, engages, and converts your target audience across all channels.',
+    icon: <BrushIcon />,
     color: '#FF9800',
-    benefits: [
-      'Establish thought leadership',
-      'Build brand credibility',
-      'Increase organic traffic',
-      'Generate quality leads'
+    bgGradient: 'linear-gradient(135deg, #FF9800 0%, #f57c00 100%)',
+    features: [
+      'Content Strategy Development',
+      'Blog Writing & SEO',
+      'Video Content Production',
+      'Email Campaigns',
+      'Whitepapers & eBooks',
+      'Content Distribution'
     ],
-    results: '210% average increase in content engagement and 45% increase in lead quality',
-    rating: 4.9,
-    clients: 87
+    metrics: {
+      avgIncrease: '320%',
+      timeframe: '4 months',
+      successRate: '96%'
+    },
+    clientLogos: ['/api/placeholder/32/32', '/api/placeholder/32/32', '/api/placeholder/32/32'],
+    isPopular: true
   },
   {
-    title: 'Website Development',
-    description: 'Get a custom-designed, responsive website that provides an exceptional user experience and drives conversions.',
-    icon: <LanguageIcon fontSize="large" />,
+    id: 'webdev',
+    title: 'Website Design & Development',
+    shortTitle: 'Web Development',
+    description: 'Create stunning, high-converting websites that represent your brand perfectly and provide exceptional user experiences across all devices.',
+    icon: <LanguageIcon />,
     color: '#9C27B0',
-    benefits: [
-      'Professional brand image',
-      'Improved user experience',
-      'Higher conversion rates',
-      'Mobile-friendly design'
+    bgGradient: 'linear-gradient(135deg, #9C27B0 0%, #7b1fa2 100%)',
+    features: [
+      'Custom Website Design',
+      'Mobile-First Development',
+      'E-commerce Integration',
+      'CMS Implementation',
+      'Performance Optimization',
+      'Ongoing Maintenance'
     ],
-    results: '85% average increase in conversion rates after website redesign',
-    rating: 4.8,
-    clients: 76
+    metrics: {
+      avgIncrease: '200%',
+      timeframe: '2 months',
+      successRate: '98%'
+    },
+    clientLogos: ['/api/placeholder/32/32', '/api/placeholder/32/32', '/api/placeholder/32/32'],
+    isPopular: false
   },
   {
-    title: 'Analytics & Reporting',
-    description: 'Gain valuable insights into your digital marketing performance with comprehensive analytics and regular reporting.',
-    icon: <BarChartIcon fontSize="large" />,
+    id: 'analytics',
+    title: 'Data Analytics & Insights',
+    shortTitle: 'Analytics',
+    description: 'Make data-driven decisions with comprehensive analytics, reporting, and insights that reveal what\'s working and what needs improvement.',
+    icon: <BarChartIcon />,
     color: '#F44336',
-    benefits: [
-      'Data-driven decision making',
-      'Performance optimization',
-      'ROI measurement',
-      'Competitive insights'
+    bgGradient: 'linear-gradient(135deg, #F44336 0%, #d32f2f 100%)',
+    features: [
+      'Advanced Analytics Setup',
+      'Custom Dashboard Creation',
+      'Conversion Tracking',
+      'A/B Testing Framework',
+      'ROI Measurement',
+      'Strategic Recommendations'
     ],
-    results: '42% average improvement in marketing ROI through data-driven optimization',
-    rating: 4.7,
-    clients: 65
+    metrics: {
+      avgIncrease: '280%',
+      timeframe: '1 month',
+      successRate: '99%'
+    },
+    clientLogos: ['/api/placeholder/32/32', '/api/placeholder/32/32', '/api/placeholder/32/32'],
+    isPopular: false
   },
+  {
+    id: 'ppc',
+    title: 'Pay-Per-Click Advertising',
+    shortTitle: 'PPC Ads',
+    description: 'Maximize your advertising ROI with expertly managed PPC campaigns across Google, Facebook, LinkedIn, and other platforms.',
+    icon: <AutoGraphIcon />,
+    color: '#607D8B',
+    bgGradient: 'linear-gradient(135deg, #607D8B 0%, #455a64 100%)',
+    features: [
+      'Campaign Strategy & Setup',
+      'Keyword Research & Bidding',
+      'Ad Creative Development',
+      'Landing Page Optimization',
+      'Conversion Tracking',
+      'Performance Optimization'
+    ],
+    metrics: {
+      avgIncrease: '340%',
+      timeframe: '1 month',
+      successRate: '93%'
+    },
+    clientLogos: ['/api/placeholder/32/32', '/api/placeholder/32/32', '/api/placeholder/32/32'],
+    isPopular: true
+  }
 ];
 
 const ServicesSection = () => {
   const theme = useTheme();
   const primaryColor = '#8E44AD';
-  const [activeService, setActiveService] = useState<number | null>(null);
+  const [activeService, setActiveService] = useState<string | null>('seo');
+  const [hoveredService, setHoveredService] = useState<string | null>(null);
 
   // Animation variants
   const containerVariants = {
@@ -126,28 +200,16 @@ const ServicesSection = () => {
     }
   };
 
-  const headerVariants = {
-    hidden: { y: -50, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: { duration: 0.8, ease: "easeOut" }
-    }
-  };
-
   const cardVariants = {
     hidden: { y: 50, opacity: 0 },
     visible: {
       y: 0,
       opacity: 1,
       transition: { duration: 0.6, ease: "easeOut" }
-    },
-    hover: {
-      y: -10,
-      boxShadow: '0 15px 35px rgba(0,0,0,0.1)',
-      transition: { duration: 0.3, ease: "easeOut" }
     }
   };
+
+  const activeService_data = services.find(s => s.id === activeService) || services[0];
 
   return (
     <Box 
@@ -159,113 +221,104 @@ const ServicesSection = () => {
         py: { xs: 8, md: 12 },
         position: 'relative',
         overflow: 'hidden',
-        background: `linear-gradient(135deg, ${alpha(primaryColor, 0.05)} 0%, rgba(255,255,255,1) 100%)`,
+        background: `linear-gradient(135deg, ${alpha('#1a1a2e', 0.95)} 0%, ${alpha('#16213e', 0.95)} 50%, ${alpha('#0f3460', 0.95)} 100%)`,
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'radial-gradient(circle at 30% 20%, rgba(138, 68, 173, 0.1) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(33, 150, 243, 0.1) 0%, transparent 50%)',
+          zIndex: 0
+        }
       }}
     >
-      <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+      <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 1 }}>
         <motion.div variants={containerVariants}>
+          {/* Header Section */}
           <Box sx={{ textAlign: 'center', mb: 8 }}>
-            <motion.div variants={headerVariants}>
+            <motion.div variants={cardVariants}>
               <Chip
-                label="PREMIUM SERVICES"
+                label="OUR DIGITAL MARKETING TOOLKIT"
+                icon={<StarIcon />}
                 sx={{
                   mb: 3,
                   py: 1.5,
-                  px: 2,
+                  px: 3,
                   borderRadius: '50px',
                   background: `linear-gradient(90deg, ${primaryColor}, #6C3483)`,
                   color: '#ffffff',
                   fontWeight: 700,
-                  fontSize: '0.75rem',
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
+                  fontSize: '0.85rem',
+                  boxShadow: '0 8px 32px rgba(142, 68, 173, 0.3)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
                 }}
               />
             </motion.div>
             
-            <motion.div variants={headerVariants}>
+            <motion.div variants={cardVariants}>
               <Typography
                 variant="h2"
                 component="h2"
                 sx={{
-                  fontWeight: 700,
-                  mb: 2,
-                  background: `linear-gradient(90deg, ${primaryColor} 0%, #333333 100%)`,
+                  fontWeight: 800,
+                  mb: 3,
+                  background: `linear-gradient(90deg, #ffffff 0%, rgba(255,255,255,0.8) 100%)`,
                   backgroundClip: 'text',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
+                  fontSize: { xs: '2.5rem', md: '3.5rem' }
                 }}
               >
-                Digital Marketing Solutions
+                Powerful Tools for Digital Growth
               </Typography>
             </motion.div>
             
-            <motion.div variants={headerVariants}>
+            <motion.div variants={cardVariants}>
               <Typography
                 variant="h6"
-                color="textSecondary"
                 sx={{ 
-                  maxWidth: 800, 
+                  maxWidth: 700, 
                   mx: 'auto',
-                  mb: 4,
-                  fontSize: '1.1rem',
-                  lineHeight: 1.6
+                  mb: 6,
+                  fontSize: '1.2rem',
+                  lineHeight: 1.7,
+                  color: 'rgba(255, 255, 255, 0.8)'
                 }}
               >
-                Comprehensive digital marketing strategies tailored to your business goals.
-                Our data-driven approach ensures measurable results and maximum ROI.
+                Choose from our comprehensive suite of digital marketing services, each designed to drive measurable results and accelerate your business growth.
               </Typography>
             </motion.div>
 
-            {/* Service highlights */}
-            <Box 
-              sx={{ 
-                display: 'flex', 
-                flexWrap: 'wrap', 
-                justifyContent: 'center', 
-                gap: 3,
-                mb: 6
-              }}
-            >
+            {/* Stats Row */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 4, mb: 6 }}>
               {[
-                { icon: <SpeedIcon />, text: 'Data-Driven Approach', color: '#4CAF50' },
-                { icon: <PeopleIcon />, text: 'Expert Team', color: '#2196F3' },
-                { icon: <StarIcon />, text: 'Proven Results', color: '#FF9800' },
-                { icon: <LocalOfferIcon />, text: 'Competitive Pricing', color: '#F44336' }
-              ].map((item, index) => (
-                <motion.div
-                  key={index}
-                  variants={cardVariants}
-                  whileHover={{ scale: 1.05 }}
-                >
+                { label: 'Active Clients', value: '500+', icon: <GroupsIcon /> },
+                { label: 'Avg ROI Increase', value: '280%', icon: <TrendingUpIcon /> },
+                { label: 'Success Rate', value: '96%', icon: <SecurityIcon /> },
+                { label: 'Avg Growth Time', value: '3 Months', icon: <SpeedIcon /> }
+              ].map((stat, index) => (
+                <motion.div key={index} variants={cardVariants}>
                   <Paper
                     elevation={0}
                     sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5,
-                      px: 2.5,
-                      py: 1.5,
-                      borderRadius: 6,
-                      backgroundColor: alpha(item.color, 0.1),
-                      border: `1px solid ${alpha(item.color, 0.2)}`,
+                      p: 3,
+                      textAlign: 'center',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: 3,
                     }}
                   >
-                    <Box 
-                      component={motion.div}
-                      animate={{ 
-                        rotate: [0, 10, 0, -10, 0],
-                      }}
-                      transition={{ 
-                        repeat: Infinity, 
-                        duration: 5,
-                        ease: "easeInOut"
-                      }}
-                      sx={{ color: item.color }}
-                    >
-                      {item.icon}
+                    <Box sx={{ color: primaryColor, mb: 1 }}>
+                      {stat.icon}
                     </Box>
-                    <Typography variant="subtitle2" fontWeight={600}>
-                      {item.text}
+                    <Typography variant="h4" fontWeight={700} color="white" gutterBottom>
+                      {stat.value}
+                    </Typography>
+                    <Typography variant="body2" color="rgba(255, 255, 255, 0.7)">
+                      {stat.label}
                     </Typography>
                   </Paper>
                 </motion.div>
@@ -273,232 +326,275 @@ const ServicesSection = () => {
             </Box>
           </Box>
 
-          {/* Service cards */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 4, mb: 8 }}>
-            {services.map((service, index) => (
-              <motion.div
-                key={index}
-                variants={cardVariants}
-                whileHover="hover"
-                custom={index}
-              >
-                <Paper
-                  elevation={0}
-                  onClick={() => setActiveService(activeService === index ? null : index)}
-                  sx={{
-                    height: '100%',
-                    borderRadius: 4,
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
-                    border: `1px solid ${alpha(service.color, activeService === index ? 0.3 : 0.1)}`,
-                    transition: 'all 0.3s ease',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                    backgroundColor: activeService === index ? alpha(service.color, 0.05) : 'white',
-                    '&:hover': {
-                      borderColor: alpha(service.color, 0.3),
-                    }
-                  }}
+          {/* Main Services Section */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 2fr' }, gap: 4 }}>
+            {/* Service Navigation */}
+            <Box>
+              <Box sx={{ position: 'sticky', top: 100 }}>
+                <Typography variant="h5" fontWeight={600} color="white" gutterBottom sx={{ mb: 3 }}>
+                  Select a Service
+                </Typography>
+                <Stack spacing={2}>
+                  {services.map((service) => (
+                    <motion.div
+                      key={service.id}
+                      whileHover={{ x: 5 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Paper
+                        onClick={() => setActiveService(service.id)}
+                        onMouseEnter={() => setHoveredService(service.id)}
+                        onMouseLeave={() => setHoveredService(null)}
+                        elevation={0}
+                        sx={{
+                          p: 3,
+                          cursor: 'pointer',
+                          background: activeService === service.id 
+                            ? `linear-gradient(135deg, ${alpha(service.color, 0.2)} 0%, ${alpha(service.color, 0.1)} 100%)`
+                            : 'rgba(255, 255, 255, 0.05)',
+                          backdropFilter: 'blur(10px)',
+                          border: activeService === service.id 
+                            ? `2px solid ${service.color}`
+                            : '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: 3,
+                          transition: 'all 0.3s ease',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          '&:hover': {
+                            background: `linear-gradient(135deg, ${alpha(service.color, 0.15)} 0%, ${alpha(service.color, 0.05)} 100%)`,
+                            borderColor: service.color,
+                          }
+                        }}
+                      >
+                        {service.isPopular && (
+                          <Chip
+                            label="Popular"
+                            size="small"
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 8,
+                              background: service.color,
+                              color: 'white',
+                              fontSize: '0.7rem'
+                            }}
+                          />
+                        )}
+                        
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Box
+                            sx={{
+                              p: 1.5,
+                              borderRadius: 2,
+                              background: alpha(service.color, 0.2),
+                              color: service.color,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {service.icon}
+                          </Box>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="h6" fontWeight={600} color="white" gutterBottom>
+                              {service.shortTitle}
+                            </Typography>
+                            <LinearProgress
+                              variant="determinate"
+                              value={parseInt(service.metrics.successRate)}
+                              sx={{
+                                height: 4,
+                                borderRadius: 2,
+                                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                '& .MuiLinearProgress-bar': {
+                                  backgroundColor: service.color,
+                                }
+                              }}
+                            />
+                            <Typography variant="caption" color="rgba(255, 255, 255, 0.7)" sx={{ mt: 0.5 }}>
+                              {service.metrics.successRate} Success Rate
+                            </Typography>
+                          </Box>
+                          <ArrowForwardIcon 
+                            sx={{ 
+                              color: activeService === service.id ? service.color : 'rgba(255, 255, 255, 0.5)',
+                              transform: hoveredService === service.id ? 'translateX(5px)' : 'translateX(0)',
+                              transition: 'all 0.3s ease'
+                            }} 
+                          />
+                        </Box>
+                      </Paper>
+                    </motion.div>
+                  ))}
+                </Stack>
+              </Box>
+            </Box>
+
+            {/* Service Details */}
+            <Box>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeService}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  {/* Colored accent */}
-                  <Box
+                  <Paper
+                    elevation={0}
                     sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: 6,
-                      height: '100%',
-                      backgroundColor: service.color,
-                    }}
-                  />
-                  
-                  {/* Service badge */}
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 20,
-                      right: 20,
-                      zIndex: 2,
+                      p: 5,
+                      borderRadius: 4,
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      backdropFilter: 'blur(20px)',
+                      border: `1px solid ${alpha(activeService_data.color, 0.3)}`,
+                      position: 'relative',
+                      overflow: 'hidden',
                     }}
                   >
-                    <Chip
-                      size="small"
-                      label={`${service.clients}+ Clients`}
+                    {/* Background Pattern */}
+                    <Box
                       sx={{
-                        backgroundColor: alpha(service.color, 0.1),
-                        color: service.color,
-                        fontWeight: 600,
-                        border: `1px solid ${alpha(service.color, 0.2)}`,
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        width: '200px',
+                        height: '200px',
+                        background: activeService_data.bgGradient,
+                        borderRadius: '50%',
+                        opacity: 0.1,
+                        transform: 'translate(50%, -50%)',
                       }}
                     />
-                  </Box>
-                  
-                  {/* Header section */}
-                  <Box sx={{ p: 4 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2, pl: 2 }}>
-                      <Box
+
+                    {/* Header */}
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 4 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                          <Box
+                            sx={{
+                              p: 2,
+                              borderRadius: 3,
+                              background: activeService_data.bgGradient,
+                              color: 'white',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              boxShadow: `0 8px 32px ${alpha(activeService_data.color, 0.3)}`
+                            }}
+                          >
+                            {activeService_data.icon}
+                          </Box>
+                          <Box>
+                            <Typography variant="h4" fontWeight={700} color="white" gutterBottom>
+                              {activeService_data.title}
+                            </Typography>
+                            <AvatarGroup max={3} sx={{ justifyContent: 'flex-start' }}>
+                              {activeService_data.clientLogos.map((logo, index) => (
+                                <Avatar key={index} src={logo} sx={{ width: 24, height: 24 }} />
+                              ))}
+                            </AvatarGroup>
+                          </Box>
+                        </Box>
+                        <Typography variant="body1" color="rgba(255, 255, 255, 0.8)" sx={{ lineHeight: 1.7, mb: 3 }}>
+                          {activeService_data.description}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Metrics */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3, mb: 4 }}>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h3" fontWeight={700} color={activeService_data.color}>
+                          {activeService_data.metrics.avgIncrease}
+                        </Typography>
+                        <Typography variant="body2" color="rgba(255, 255, 255, 0.7)">
+                          Avg. Growth
+                        </Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h3" fontWeight={700} color={activeService_data.color}>
+                          {activeService_data.metrics.timeframe}
+                        </Typography>
+                        <Typography variant="body2" color="rgba(255, 255, 255, 0.7)">
+                          Timeframe
+                        </Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="h3" fontWeight={700} color={activeService_data.color}>
+                          {activeService_data.metrics.successRate}
+                        </Typography>
+                        <Typography variant="body2" color="rgba(255, 255, 255, 0.7)">
+                          Success Rate
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Features */}
+                    <Box sx={{ mb: 4 }}>
+                      <Typography variant="h6" fontWeight={600} color="white" gutterBottom sx={{ mb: 2 }}>
+                        What's Included
+                      </Typography>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+                        {activeService_data.features.map((feature, index) => (
+                          <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <CheckCircleIcon sx={{ color: activeService_data.color, fontSize: 20 }} />
+                            <Typography variant="body2" color="rgba(255, 255, 255, 0.8)">
+                              {feature}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+
+                    {/* Action Buttons */}
+                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                      <Button
+                        variant="contained"
+                        size="large"
+                        component={Link}
+                        href="/contact"
+                        startIcon={<LaunchIcon />}
                         sx={{
-                          mr: 2,
-                          p: 2,
-                          borderRadius: '16px',
-                          backgroundColor: alpha(service.color, 0.1),
-                          color: service.color,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: activeService === index ? `0 10px 20px ${alpha(service.color, 0.2)}` : 'none',
+                          background: activeService_data.bgGradient,
+                          py: 1.5,
+                          px: 4,
+                          borderRadius: 3,
+                          fontWeight: 600,
+                          '&:hover': {
+                            transform: 'translateY(-3px)',
+                            boxShadow: `0 8px 32px ${alpha(activeService_data.color, 0.4)}`,
+                          },
                           transition: 'all 0.3s ease',
                         }}
                       >
-                        {service.icon}
-                      </Box>
-                      <Box>
-                        <Typography 
-                          variant="h5" 
-                          component="h3" 
-                          fontWeight={600} 
-                          gutterBottom
-                          sx={{ 
-                            color: activeService === index ? service.color : 'inherit',
-                            transition: 'color 0.3s ease'
-                          }}
-                        >
-                          {service.title}
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                          {service.description}
-                        </Typography>
-                      </Box>
+                        Get Started
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="large"
+                        startIcon={<PlayArrowIcon />}
+                        sx={{
+                          borderColor: activeService_data.color,
+                          color: activeService_data.color,
+                          py: 1.5,
+                          px: 4,
+                          borderRadius: 3,
+                          fontWeight: 600,
+                          '&:hover': {
+                            backgroundColor: alpha(activeService_data.color, 0.1),
+                            borderColor: activeService_data.color,
+                          },
+                        }}
+                      >
+                        View Case Study
+                      </Button>
                     </Box>
-
-                    {/* Rating */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, pl: 2 }}>
-                      <Rating 
-                        value={service.rating} 
-                        precision={0.1} 
-                        readOnly 
-                        size="small"
-                        sx={{ color: service.color }}
-                      />
-                      <Typography variant="body2" sx={{ ml: 1, fontWeight: 600 }}>
-                        {service.rating}
-                      </Typography>
-                    </Box>
-
-                    {/* Results highlight */}
-                    <Box 
-                      sx={{ 
-                        p: 2, 
-                        borderRadius: 2, 
-                        backgroundColor: alpha(service.color, 0.05),
-                        border: `1px solid ${alpha(service.color, 0.1)}`,
-                        mb: 2
-                      }}
-                    >
-                      <Typography variant="body2" fontWeight={600} sx={{ color: service.color }}>
-                        <CheckCircleIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'text-bottom' }} />
-                        {service.results}
-                      </Typography>
-                    </Box>
-                    
-                    <Button
-                      variant="contained"
-                      size="medium"
-                      component={Link}
-                      href="/contact"
-                      endIcon={<ArrowForwardIcon />}
-                      sx={{
-                        mt: 2,
-                        backgroundColor: service.color,
-                        '&:hover': {
-                          backgroundColor: alpha(service.color, 0.9),
-                          transform: 'translateY(-3px)',
-                          boxShadow: `0 8px 20px ${alpha(service.color, 0.3)}`,
-                        },
-                        transition: 'all 0.3s ease',
-                      }}
-                    >
-                      Get Started
-                    </Button>
-                  </Box>
-                </Paper>
-              </motion.div>
-            ))}
+                  </Paper>
+                </motion.div>
+              </AnimatePresence>
+            </Box>
           </Box>
-          
-          {/* CTA Section */}
-          <motion.div
-            variants={cardVariants}
-            whileHover={{ 
-              y: -5,
-              transition: { duration: 0.3 }
-            }}
-          >
-            <Paper
-              elevation={0}
-              sx={{
-                p: 5,
-                borderRadius: 4,
-                boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
-                border: `1px solid ${alpha(primaryColor, 0.1)}`,
-                background: `linear-gradient(135deg, ${alpha(primaryColor, 0.05)} 0%, rgba(255,255,255,0.9) 100%)`,
-                position: 'relative',
-                overflow: 'hidden',
-                textAlign: 'center',
-              }}
-            >
-              <Typography
-                variant="h3"
-                component="h3"
-                sx={{
-                  fontWeight: 700,
-                  mb: 2,
-                  color: primaryColor,
-                }}
-              >
-                Ready to Grow Your Business?
-              </Typography>
-              
-              <Typography
-                variant="h6"
-                color="textSecondary"
-                sx={{ 
-                  maxWidth: 800,
-                  mx: 'auto',
-                  mb: 4,
-                  fontSize: '1.1rem',
-                  lineHeight: 1.6
-                }}
-              >
-                Our team of digital marketing experts is ready to help you achieve your business goals.
-                Get in touch today for a free consultation and personalized strategy.
-              </Typography>
-              
-              <Button
-                variant="contained"
-                size="large"
-                component={Link}
-                href="/contact"
-                endIcon={<ArrowForwardIcon />}
-                sx={{
-                  backgroundColor: primaryColor,
-                  py: 1.5,
-                  px: 4,
-                  borderRadius: '50px',
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  '&:hover': {
-                    backgroundColor: alpha(primaryColor, 0.9),
-                    transform: 'translateY(-3px)',
-                    boxShadow: `0 8px 20px ${alpha(primaryColor, 0.4)}`,
-                  },
-                  transition: 'all 0.3s ease',
-                }}
-              >
-                Schedule a Consultation
-              </Button>
-            </Paper>
-          </motion.div>
         </motion.div>
       </Container>
     </Box>

@@ -17,6 +17,8 @@ import {
   MarketingInsights,
   ClientTestimonials
 } from '@/components/Solutions/DigitalMarketing';
+import { ServiceContactModal } from '@/components/Common';
+import { useServiceContactModal } from '@/hooks/useServiceContactModal';
 
 // Case studies data
 const caseStudies = [
@@ -49,6 +51,7 @@ const caseStudies = [
 export default function DigitalMarketingPage() {
   const theme = useTheme();
   const primaryColor = '#8E44AD';
+  const { isOpen, serviceData, openModal, closeModal } = useServiceContactModal();
 
   // Animation variants
   const containerVariants = {
@@ -71,11 +74,21 @@ export default function DigitalMarketingPage() {
     }
   };
 
+  const handleContactClick = () => {
+    openModal({
+      serviceName: 'Digital Marketing',
+      serviceType: 'Digital Marketing',
+      pageUrl: '/solutions/digital-marketing',
+      formType: 'Digital Marketing Service Inquiry',
+      source: 'Digital Marketing Service Page',
+    });
+  };
+
   return (
     <Layout>
       <Box component="main">
         {/* Hero Section */}
-        <HeroSection />
+        <HeroSection onContactClick={handleContactClick} />
 
         {/* Services Section */}
         <ServicesSection />
@@ -359,14 +372,14 @@ export default function DigitalMarketingPage() {
                           title: 'Implementation',
                           description: 'Our team executes the strategy across all relevant digital channels.',
                           color: '#FF9800',
-                          icon: '🚀'
+                          icon: '�'
                         },
                         {
                           step: '04',
                           title: 'Monitoring & Optimization',
                           description: 'We continuously track performance and optimize for better results.',
                           color: '#9C27B0',
-                          icon: '📊'
+                          icon: '�'
                         },
                       ].map((process, index) => (
                         <motion.div
@@ -797,8 +810,7 @@ export default function DigitalMarketingPage() {
                 <Button
                   variant="contained"
                   size="large"
-                  component={Link}
-                  href="/contact"
+                  onClick={handleContactClick}
                   endIcon={<ArrowForwardIcon />}
                   sx={{
                     backgroundColor: primaryColor,
@@ -1008,8 +1020,7 @@ export default function DigitalMarketingPage() {
                     <Button
                       variant="contained"
                       size="large"
-                      component={Link}
-                      href="/contact"
+                      onClick={handleContactClick}
                       endIcon={<ArrowForwardIcon />}
                       sx={{
                         backgroundColor: '#ffffff',
@@ -1192,6 +1203,13 @@ export default function DigitalMarketingPage() {
             </Box>
           </Container>
         </Box>
+
+        {/* Service Contact Modal */}
+        <ServiceContactModal
+          open={isOpen}
+          onClose={closeModal}
+          serviceData={serviceData}
+        />
       </Box>
     </Layout>
   );

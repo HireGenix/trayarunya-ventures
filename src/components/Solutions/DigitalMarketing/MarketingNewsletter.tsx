@@ -23,11 +23,37 @@ export const MarketingNewsletter = () => {
     setEmail(event.target.value);
   };
 
-  const handleSubscribe = () => {
-    // Handle subscription logic here
-    console.log('Subscribed with email:', email);
-    setEmail('');
-    // Show success message or notification
+  const handleSubscribe = async () => {
+    if (!email) return;
+
+    try {
+      const response = await fetch('/api/leads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Newsletter Subscriber (Marketing)',
+          email: email,
+          subject: 'Newsletter Subscription from Marketing Page',
+          message: 'User subscribed to the newsletter via the Marketing Newsletter section.',
+          formType: 'Newsletter Marketing',
+          pageUrl: window.location.pathname,
+        }),
+      });
+
+      if (response.ok) {
+        console.log('Marketing Newsletter subscription successful');
+        // Optionally, show a success message to the user
+      } else {
+        console.error('Marketing Newsletter subscription failed');
+        // Optionally, show an error message
+      }
+    } catch (error) {
+      console.error('Error submitting Marketing newsletter subscription:', error);
+    } finally {
+      setEmail('');
+    }
   };
 
   const itemVariants = {
@@ -87,11 +113,11 @@ export const MarketingNewsletter = () => {
               WebkitTextFillColor: 'transparent',
             }}
           >
-            Stay Ahead of the Curve
+            Get Smarter Marketing, Straight to Your Inbox
           </Typography>
           
-          <Typography variant="body1" color="textSecondary" sx={{ mb: 4, maxWidth: 700 }}>
-            Subscribe to our newsletter for exclusive marketing insights, industry trends, and actionable tips delivered straight to your inbox. Join our community of marketing professionals and never miss an update.
+          <Typography variant="body1" color="textSecondary" sx={{ mb: 4, maxWidth: 700, lineHeight: 1.7 }}>
+            Want the latest digital marketing wisdom, practical tips, and industry news? Join our newsletter community and get valuable insights delivered directly to you. Let's grow together!
           </Typography>
           
           <Box 
@@ -105,27 +131,38 @@ export const MarketingNewsletter = () => {
               flexDirection: { xs: 'column', sm: 'row' },
               gap: { xs: 2, sm: 0 },
               maxWidth: 600,
+              position: 'relative',
+              zIndex: 1,
             }}
           >
             <TextField
               fullWidth
               variant="outlined"
-              placeholder="Enter your email address"
+              placeholder="Your best email address"
               value={email}
               onChange={handleEmailChange}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: { xs: 2, sm: '50px 0 0 50px' },
                   backgroundColor: 'white',
+                  height: '56px',
                   '& fieldset': {
                     borderColor: alpha(primaryColor, 0.2),
+                    borderWidth: '2px',
+                    borderRight: { xs: '2px solid', sm: 'none' },
+                    borderRightColor: { xs: alpha(primaryColor, 0.2), sm: 'transparent' },
                   },
                   '&:hover fieldset': {
-                    borderColor: alpha(primaryColor, 0.3),
+                    borderColor: alpha(primaryColor, 0.5),
                   },
                   '&.Mui-focused fieldset': {
                     borderColor: primaryColor,
+                    borderWidth: '2px',
                   },
+                },
+                '& .MuiInputBase-input': {
+                  padding: '16px 20px',
+                  fontSize: '1rem',
                 },
               }}
               InputProps={{
@@ -137,6 +174,7 @@ export const MarketingNewsletter = () => {
                       sx={{ 
                         display: { xs: 'none', sm: 'block' },
                         color: alpha(primaryColor, 0.5),
+                        mr: 1,
                       }}
                     >
                       <SendIcon />
@@ -151,9 +189,11 @@ export const MarketingNewsletter = () => {
               sx={{
                 backgroundColor: primaryColor,
                 borderRadius: { xs: 2, sm: '0 50px 50px 0' },
+                height: '56px',
                 py: 1.5,
-                px: 4,
+                px: { xs: 3, sm: 4 },
                 fontWeight: 600,
+                fontSize: '1rem',
                 '&:hover': {
                   backgroundColor: alpha(primaryColor, 0.9),
                   transform: 'translateY(-3px)',
@@ -167,7 +207,7 @@ export const MarketingNewsletter = () => {
           </Box>
           
           <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 2 }}>
-            By subscribing, you agree to our Privacy Policy and consent to receive marketing communications.
+            We respect your privacy. Unsubscribe anytime.
           </Typography>
         </Box>
       </Paper>

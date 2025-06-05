@@ -3,6 +3,7 @@ import { Lead, LeadSource, LeadPriority, LeadStatus } from '@/app/admin/leads/ty
 import { headers } from 'next/headers';
 import { z } from 'zod'; // For validation
 import { db } from '@/lib/db';
+import nodemailer from 'nodemailer';
 
 // Define validation schema for lead submission
 const leadSchema = z.object({
@@ -105,6 +106,44 @@ export async function POST(request: NextRequest) {
 
     // Save to database
     const savedLead = await db.leads.create(newLead);
+
+    // Send email notification to admin
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      const mailOptions = {
+        from: process.env.SMTP_FROM,
+        to: process.env.SMTP_TO,
+        subject: `New Lead: ${validData.subject}`,
+        text: `
+A new lead has been submitted:
+
+Name: ${validData.name}
+Email: ${validData.email}
+Company: ${validData.company || '-'}
+Phone: ${validData.phone || '-'}
+Subject: ${validData.subject}
+Message: ${validData.message}
+Source: ${validData.source || '-'}
+Priority: ${validData.priority || '-'}
+Form Type: ${validData.formType || '-'}
+Page URL: ${validData.pageUrl || '-'}
+        `.trim(),
+      };
+
+      await transporter.sendMail(mailOptions);
+    } catch (emailError) {
+      console.error('Failed to send lead notification email:', emailError);
+      // Optionally, you could return a 500 here, or just log and continue
+    }
 
     // Return a success response
     return NextResponse.json(

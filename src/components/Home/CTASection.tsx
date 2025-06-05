@@ -58,11 +58,38 @@ const CTASection = () => {
     setEmail(e.target.value);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle newsletter subscription
-    console.log('Email submitted:', email);
-    setEmail('');
+    if (!email) return;
+
+    try {
+      const response = await fetch('/api/leads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Newsletter Subscriber (CTA)',
+          email: email,
+          subject: 'Newsletter Subscription from CTA',
+          message: 'User subscribed to the newsletter via the CTA section.',
+          formType: 'Newsletter CTA',
+          pageUrl: window.location.pathname, 
+        }),
+      });
+
+      if (response.ok) {
+        console.log('CTA Newsletter subscription successful');
+        // Optionally, show a success message to the user
+      } else {
+        console.error('CTA Newsletter subscription failed');
+        // Optionally, show an error message
+      }
+    } catch (error) {
+      console.error('Error submitting CTA newsletter subscription:', error);
+    } finally {
+      setEmail('');
+    }
   };
 
   return (
