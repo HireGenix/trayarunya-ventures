@@ -11,8 +11,8 @@ const contactInfo = [
   {
     icon: <LocationOnIcon fontSize="large" />,
     title: 'USA Office',
-    details: '1050 North 3rd Street Ste B, Laramie, WY 82072, USA',
-    link: 'https://maps.google.com/?q=1050+North+3rd+Street+Ste+B,+Laramie,+WY+82072,+USA',
+    details: 'Trayarunya Ventures LLC, 1621 CENTRAL AVE STE 9876, CHEYENNE, WY 82001, USA',
+    link: 'https://maps.google.com/?q=Trayarunya+Ventures+LLC,+1621+CENTRAL+AVE+Ste+9876,+CHEYENNE,+WY+82001,+USA',
     linkText: 'View on Google Maps'
   },
   {

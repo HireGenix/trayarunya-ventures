@@ -48,6 +48,7 @@ const footerLinks = [
     links: [
       { name: 'About Us', href: '/about' },
       { name: 'Leadership', href: '/about/leadership' },
+      { name: 'Blog', href: '/blog' },
       { name: 'Careers', href: '/careers' },
       { name: 'Contact', href: '/contact' },
     ]
@@ -90,7 +91,7 @@ const socialLinks = [
 ];
 
 const contactInfo = [
-  { icon: <LocationOnIcon />, text: '1050 North 3rd Street Ste B, Laramie, WY 82072' },
+  { icon: <LocationOnIcon />, text: 'Trayarunya Ventures LLC, 1621 CENTRAL AVE STE 9876, CHEYENNE, WY 82001' },
   { icon: <LocationOnIcon />, text: '2/1201 Behind S.A.M Inter College, Ramnagar, Saharanpur (U.P)-247001' },
   { icon: <PhoneIcon />, text: '+1 (971) 512-1701 (US)' },
   { icon: <PhoneIcon />, text: '+91-8954333390 (India)' },
