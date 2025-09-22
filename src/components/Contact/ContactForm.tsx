@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { 
-  Box, Typography, Paper, TextField, Button, 
+import {
+  Box, Typography, Paper, TextField, Button,
   FormControlLabel, Checkbox, alpha, useTheme,
   CircularProgress, Alert, Snackbar
 } from '@mui/material';
@@ -14,7 +14,7 @@ interface ContactFormProps {
 
 const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
   const theme = useTheme();
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -26,7 +26,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
     subscribe: false,
     preferredContact: 'email',
   });
-  
+
   const [errors, setErrors] = useState({
     name: false,
     email: false,
@@ -36,25 +36,25 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
     phone: false,
     file: false,
   });
-  
+
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'success' as 'success' | 'error',
   });
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileUploading, setFileUploading] = useState(false);
   const [fileName, setFileName] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type, checked } = e.target as HTMLInputElement;
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
     }));
-    
+
     // Clear error when user types
     if (errors[name as keyof typeof errors]) {
       setErrors(prev => ({
@@ -63,7 +63,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
       }));
     }
   };
-  
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -80,13 +80,13 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
         });
         return;
       }
-      
+
       setFormData(prev => ({
         ...prev,
         file,
       }));
       setFileName(file.name);
-      
+
       // Simulate file upload
       setFileUploading(true);
       setTimeout(() => {
@@ -94,7 +94,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
       }, 1500);
     }
   };
-  
+
   const handleRemoveFile = () => {
     setFormData(prev => ({
       ...prev,
@@ -113,17 +113,17 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
       phone: formData.preferredContact === 'phone' && !formData.phone.trim() ? true : false,
       file: false, // Optional field
     };
-    
+
     setErrors(newErrors);
     return !Object.values(newErrors).some(error => error);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (validateForm()) {
       setIsSubmitting(true);
-      
+
       try {
         // Create a lead object that matches the Lead type in the admin panel
         const leadData = {
@@ -143,11 +143,11 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
           subscribe: formData.subscribe,
           // We would handle file upload separately in a production environment
         };
-        
+
         // Send the form data to our API endpoint with timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-        
+
         try {
           const response = await fetch('/api/leads', {
             method: 'POST',
@@ -155,22 +155,22 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
             body: JSON.stringify(leadData),
             signal: controller.signal
           });
-          
+
           clearTimeout(timeoutId);
-          
+
           const result = await response.json();
-          
+
           if (!response.ok) {
             throw new Error(result.error || 'Failed to submit form');
           }
-          
+
           // Show success message
           setSnackbar({
             open: true,
-            message: 'Your message has been sent successfully! We will get back to you soon.',
+            message: 'Your message has been sent successfully! You will receive a confirmation email shortly, and we will get back to you within 24-48 hours.',
             severity: 'success',
           });
-          
+
           // Reset form
           setFormData({
             name: '',
@@ -183,14 +183,14 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
             subscribe: false,
             preferredContact: 'email',
           });
-          
+
           setFileName('');
-          
+
           // Call the success callback if provided
           if (onSubmitSuccess) {
             onSubmitSuccess();
           }
-          
+
           // Track form submission event (in production, use analytics)
           if (typeof window !== 'undefined' && typeof (window as any).gtag === 'function') {
             (window as any).gtag('event', 'form_submission', {
@@ -204,10 +204,10 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
         }
       } catch (error) {
         console.error('Error submitting form:', error);
-        
+
         // Provide more specific error messages
         let errorMessage = 'There was an error sending your message. Please try again later.';
-        
+
         if (error instanceof Error) {
           if (error.name === 'AbortError') {
             errorMessage = 'Request timed out. Please check your internet connection and try again.';
@@ -217,7 +217,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
             errorMessage = error.message;
           }
         }
-        
+
         setSnackbar({
           open: true,
           message: errorMessage,
@@ -255,7 +255,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
         >
           Send Us a Message
         </Typography>
-        
+
         <Paper
           elevation={0}
           sx={{
@@ -394,7 +394,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
                   required
                 />
               </Box>
-              
+
               <Box sx={{ mb: 3, width: '100%' }}>
                 <Typography variant="subtitle2" gutterBottom sx={{ ml: 1 }}>
                   Preferred Contact Method
@@ -424,7 +424,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
                   />
                 </Box>
               </Box>
-              
+
               <Box sx={{ mb: 3, width: '100%' }}>
                 <TextField
                   name="message"
@@ -452,7 +452,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
                   required
                 />
               </Box>
-              
+
               {/* File Upload */}
               <Box sx={{ mb: 3, width: '100%' }}>
                 <Typography variant="subtitle2" gutterBottom sx={{ ml: 1 }}>
@@ -517,7 +517,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
                   )}
                 </Box>
               </Box>
-              
+
               {/* Newsletter Subscription */}
               <Box sx={{ mb: 3, width: '100%' }}>
                 <FormControlLabel
@@ -532,7 +532,27 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
                   label="Subscribe to our newsletter for updates on our products and services"
                 />
               </Box>
-              
+
+              {/* Email Information */}
+              <Box sx={{ mb: 3, width: '100%' }}>
+                <Paper
+                  sx={{
+                    p: 2,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                    borderRadius: 2,
+                  }}
+                >
+                  <Typography variant="body2" color="primary" sx={{ fontWeight: 600, mb: 1 }}>
+                    📧 Email Confirmation
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    After submitting this form, you'll receive an email confirmation at the address you provided.
+                    Our team will also be notified and will respond to your inquiry within 24-48 hours.
+                  </Typography>
+                </Paper>
+              </Box>
+
               <Box sx={{ display: 'flex', justifyContent: 'flex-start', width: '100%' }}>
                 <Button
                   type="submit"
@@ -587,7 +607,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onSubmitSuccess }) => {
           </Box>
         </Paper>
       </motion.div>
-      
+
       {/* Success Snackbar */}
       <Snackbar
         open={snackbar.open}

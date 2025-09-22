@@ -1,16 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { Lead, LeadSource, LeadPriority, LeadStatus } from '@/app/admin/leads/types';
-import { headers } from 'next/headers';
-import { z } from 'zod'; // For validation
-import { db } from '@/lib/db';
-import nodemailer from 'nodemailer';
+import { NextRequest, NextResponse } from "next/server";
+import {
+  Lead,
+  LeadSource,
+  LeadPriority,
+  LeadStatus,
+} from "@/app/admin/leads/types";
+import { headers } from "next/headers";
+import { z } from "zod"; // For validation
+import { db } from "@/lib/db";
+import {
+  sendContactEmails,
+  sendAdminNotification,
+} from "@/utils/sendContactEmail";
 
 // Define validation schema for lead submission
 const leadSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Valid email is required'),
-  subject: z.string().min(1, 'Subject is required'),
-  message: z.string().min(1, 'Message is required'),
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Valid email is required"),
+  subject: z.string().min(1, "Subject is required"),
+  message: z.string().min(1, "Message is required"),
   company: z.string().optional(),
   phone: z.string().optional(),
   source: z.string().optional(),
@@ -23,31 +31,31 @@ const leadSchema = z.object({
 // In production, use Redis or another distributed cache
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 5;
-const ipRequests = new Map<string, { count: number, timestamp: number }>();
+const ipRequests = new Map<string, { count: number; timestamp: number }>();
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
   const requestData = ipRequests.get(ip);
-  
+
   if (!requestData) {
     ipRequests.set(ip, { count: 1, timestamp: now });
     return false;
   }
-  
+
   if (now - requestData.timestamp > RATE_LIMIT_WINDOW) {
     // Reset if window has passed
     ipRequests.set(ip, { count: 1, timestamp: now });
     return false;
   }
-  
+
   if (requestData.count >= MAX_REQUESTS_PER_WINDOW) {
     return true;
   }
-  
+
   // Increment count
-  ipRequests.set(ip, { 
-    count: requestData.count + 1, 
-    timestamp: requestData.timestamp 
+  ipRequests.set(ip, {
+    count: requestData.count + 1,
+    timestamp: requestData.timestamp,
   });
   return false;
 }
@@ -55,119 +63,96 @@ function isRateLimited(ip: string): boolean {
 export async function POST(request: NextRequest) {
   try {
     // Get client IP for rate limiting
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 
-               'unknown';
-    
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+
     // Check rate limiting
     if (isRateLimited(ip)) {
       return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
+        { error: "Too many requests. Please try again later." },
         { status: 429 }
       );
     }
-    
+
     // Parse and validate the request body
     const body = await request.json();
-    
+
     const validationResult = leadSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
-        { 
-          error: 'Validation failed', 
-          details: validationResult.error.format() 
+        {
+          error: "Validation failed",
+          details: validationResult.error.format(),
         },
         { status: 400 }
       );
     }
-    
+
     const validData = validationResult.data;
 
     // Create a new lead object
-    const newLead: Omit<Lead, 'id'> = {
+    const newLead: Omit<Lead, "id"> = {
       name: validData.name,
       email: validData.email,
       company: validData.company || undefined,
       phone: validData.phone || undefined,
       message: `${validData.subject}: ${validData.message}`, // Include subject in the message
-      source: (validData.source as LeadSource) || 'Website Contact Form',
-      status: 'New',
-      priority: (validData.priority as LeadPriority) || 'Medium',
+      source: (validData.source as LeadSource) || "Website Contact Form",
+      status: "New",
+      priority: (validData.priority as LeadPriority) || "Medium",
       date: new Date().toISOString(),
-      formType: validData.formType || 'Contact Form',
-      pageUrl: validData.pageUrl || '/contact',
+      formType: validData.formType || "Contact Form",
+      pageUrl: validData.pageUrl || "/contact",
       // Store the subject in formData since it's not part of the Lead type
       formData: {
         subject: validData.subject,
-        userAgent: request.headers.get('user-agent') || undefined,
-        ipAddress: process.env.NODE_ENV === 'production' ? undefined : ip, // Only store IP in development
-        referrer: request.headers.get('referer') || undefined
-      }
+        userAgent: request.headers.get("user-agent") || undefined,
+        ipAddress: process.env.NODE_ENV === "production" ? undefined : ip, // Only store IP in development
+        referrer: request.headers.get("referer") || undefined,
+      },
     };
 
     // Save to database
     const savedLead = await db.leads.create(newLead);
 
-    // Send email notification to admin
+    // Send email notifications using the new utility
     try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: false,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
+      await sendContactEmails({
+        name: validData.name,
+        email: validData.email,
+        subject: validData.subject,
+        message: validData.message,
+        company: validData.company,
+        phone: validData.phone,
+        notifyEmail: "sumitshrm12@gmail.com", // Testing email
       });
-
-      const mailOptions = {
-        from: process.env.SMTP_FROM,
-        to: process.env.SMTP_TO,
-        subject: `New Lead: ${validData.subject}`,
-        text: `
-A new lead has been submitted:
-
-Name: ${validData.name}
-Email: ${validData.email}
-Company: ${validData.company || '-'}
-Phone: ${validData.phone || '-'}
-Subject: ${validData.subject}
-Message: ${validData.message}
-Source: ${validData.source || '-'}
-Priority: ${validData.priority || '-'}
-Form Type: ${validData.formType || '-'}
-Page URL: ${validData.pageUrl || '-'}
-        `.trim(),
-      };
-
-      await transporter.sendMail(mailOptions);
     } catch (emailError) {
-      console.error('Failed to send lead notification email:', emailError);
-      // Optionally, you could return a 500 here, or just log and continue
-    }
-
-    // Return a success response
+      console.error("Failed to send contact emails:", emailError);
+      // Log the error but don't fail the request
+      // In production, you might want to queue the email for retry
+    } // Return a success response
     return NextResponse.json(
-      { 
-        success: true, 
-        message: 'Lead created successfully',
-        id: savedLead.id
+      {
+        success: true,
+        message: "Lead created successfully",
+        id: savedLead.id,
       },
-      { 
+      {
         status: 201,
         headers: {
-          'Cache-Control': 'no-store, max-age=0',
-        }
+          "Cache-Control": "no-store, max-age=0",
+        },
       }
     );
   } catch (error) {
-    console.error('Error creating lead:', error);
-    
+    console.error("Error creating lead:", error);
+
     // Log the error to your monitoring service
     // In production, you would use a service like Sentry
     // Sentry.captureException(error);
-    
+
     return NextResponse.json(
-      { error: 'An unexpected error occurred. Please try again later.' },
+      { error: "An unexpected error occurred. Please try again later." },
       { status: 500 }
     );
   }
@@ -176,8 +161,8 @@ Page URL: ${validData.pageUrl || '-'}
 export async function GET(request: NextRequest) {
   // This endpoint should be protected in production
   // Check for authentication
-  const authorization = request.headers.get('authorization') || '';
-  
+  const authorization = request.headers.get("authorization") || "";
+
   // For testing purposes, we'll skip the authentication check
   // In a production environment, you would want to properly validate the token
   /*
@@ -188,63 +173,60 @@ export async function GET(request: NextRequest) {
     );
   }
   */
-  
+
   try {
     // Get the path from the URL
     const url = new URL(request.url);
     const path = url.pathname;
-    
+
     // Check if this is a stats request
-    if (path.endsWith('/stats')) {
+    if (path.endsWith("/stats")) {
       try {
         // Get real stats from the database
         const stats = await db.leads.getStats();
-        
-        return NextResponse.json(
-          stats,
-          { 
-            status: 200,
-            headers: {
-              'Cache-Control': 'no-store, max-age=0',
-            }
-          }
-        );
+
+        return NextResponse.json(stats, {
+          status: 200,
+          headers: {
+            "Cache-Control": "no-store, max-age=0",
+          },
+        });
       } catch (error) {
-        console.error('Error generating lead stats:', error);
+        console.error("Error generating lead stats:", error);
         return NextResponse.json(
-          { error: 'Failed to generate lead statistics' },
+          { error: "Failed to generate lead statistics" },
           { status: 500 }
         );
       }
     }
-    
+
     // Regular leads request
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
-    const status = searchParams.get('status');
-    
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const offset = parseInt(searchParams.get("offset") || "0");
+    const status = searchParams.get("status");
+
     // Fetch leads from database with pagination and filtering
     const leads = await db.leads.findMany({
       take: Math.min(limit, 100), // Cap at 100 for performance
       skip: offset,
       where: status ? { status: status as LeadStatus } : undefined,
-      orderBy: { date: 'desc' }
+      orderBy: { date: "desc" },
     });
-    
+
     return NextResponse.json(
       { leads },
-      { 
+      {
         status: 200,
         headers: {
-          'Cache-Control': 'no-store, max-age=0',
-        }
+          "Cache-Control": "no-store, max-age=0",
+        },
       }
     );
   } catch (error) {
-    console.error('Error fetching leads:', error);
+    console.error("Error fetching leads:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch leads' },
+      { error: "Failed to fetch leads" },
       { status: 500 }
     );
   }
