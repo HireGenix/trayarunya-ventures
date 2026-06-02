@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { isTavilyConfigured } from '@/lib/realtimeConfig';
+import { webSearch } from '@/lib/webTools';
 
 export const runtime = 'nodejs';
 
@@ -21,14 +21,6 @@ function limited(ip: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  if (!isTavilyConfigured()) {
-    // Soft-fail: the AI can continue without research.
-    return NextResponse.json(
-      { ok: false, brief: '', reason: 'research_unavailable' },
-      { status: 200 }
-    );
-  }
-
   const hdrs = await headers();
   const ip =
     hdrs.get('x-forwarded-for')?.split(',')[0]?.trim() ||
@@ -59,30 +51,17 @@ export async function POST(req: NextRequest) {
     : `Company overview, industry, products and target customers of ${name}`;
 
   try {
-    const res = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: process.env.TAVILY_API_KEY,
-        query,
-        search_depth: 'basic',
-        include_answer: true,
-        max_results: 5,
-      }),
-    });
+    const sr = await webSearch(query, 5);
 
-    if (!res.ok) {
-      console.error('[ai-marketer/research] tavily error', res.status);
+    if (!sr.ok) {
+      console.error('[ai-marketer/research] search failed', sr.reason);
       return NextResponse.json({ ok: false, brief: '', reason: 'search_failed' }, { status: 200 });
     }
 
-    const data = await res.json();
-    const answer: string = (data?.answer || '').toString();
-    const sources = (Array.isArray(data?.results) ? data.results : [])
+    const answer: string = (sr.answer || '').toString();
+    const sources = sr.results
       .slice(0, 3)
-      .map((r: { title?: string; content?: string }) =>
-        `${r.title || ''}: ${(r.content || '').slice(0, 220)}`
-      )
+      .map((r) => `${r.title || ''}: ${(r.content || '').slice(0, 220)}`)
       .join('\n');
 
     const brief = [answer, sources].filter(Boolean).join('\n').slice(0, 1500);

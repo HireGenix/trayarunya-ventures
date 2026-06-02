@@ -4,6 +4,7 @@
  */
 import { isTavilyConfigured } from '@/lib/realtimeConfig';
 import { nativeScrape } from '@/lib/nativeScrape';
+import { freeSearch } from '@/lib/freeSearch';
 
 export interface WebSearchResult {
   ok: boolean;
@@ -16,37 +17,44 @@ export interface WebSearchResult {
 export async function webSearch(query: string, maxResults = 5): Promise<WebSearchResult> {
   const q = query.trim().slice(0, 300);
   if (!q) return { ok: false, query: q, results: [], reason: 'empty_query' };
-  if (!isTavilyConfigured()) {
-    return { ok: false, query: q, results: [], reason: 'tavily_not_configured' };
+
+  // Prefer Tavily when configured (richer, includes an answer summary).
+  if (isTavilyConfigured()) {
+    try {
+      const res = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: process.env.TAVILY_API_KEY,
+          query: q,
+          search_depth: 'advanced',
+          include_answer: true,
+          max_results: maxResults,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const results = (Array.isArray(data?.results) ? data.results : [])
+          .slice(0, maxResults)
+          .map((r: { title?: string; url?: string; content?: string }) => ({
+            title: (r.title || '').slice(0, 200),
+            url: r.url || '',
+            content: (r.content || '').slice(0, 500),
+          }));
+        if (results.length) {
+          return { ok: true, query: q, answer: (data?.answer || '').toString(), results };
+        }
+      }
+      // Tavily errored or returned nothing — fall through to the free engine.
+    } catch (err) {
+      console.error('[webTools] tavily error, falling back to free search', err);
+    }
   }
 
-  try {
-    const res = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: process.env.TAVILY_API_KEY,
-        query: q,
-        search_depth: 'advanced',
-        include_answer: true,
-        max_results: maxResults,
-      }),
-    });
-    if (!res.ok) return { ok: false, query: q, results: [], reason: `tavily_${res.status}` };
-
-    const data = await res.json();
-    const results = (Array.isArray(data?.results) ? data.results : [])
-      .slice(0, maxResults)
-      .map((r: { title?: string; url?: string; content?: string }) => ({
-        title: (r.title || '').slice(0, 200),
-        url: r.url || '',
-        content: (r.content || '').slice(0, 500),
-      }));
-    return { ok: true, query: q, answer: (data?.answer || '').toString(), results };
-  } catch (err) {
-    console.error('[webTools] search error', err);
-    return { ok: false, query: q, results: [], reason: 'server_error' };
-  }
+  // Free DuckDuckGo search — no API key required.
+  const free = await freeSearch(q, maxResults);
+  if (free.ok) return { ok: true, query: q, results: free.results };
+  return { ok: false, query: q, results: [], reason: free.reason || 'search_failed' };
 }
 
 export interface ScrapeOutput {

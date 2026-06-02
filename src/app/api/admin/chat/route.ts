@@ -91,10 +91,7 @@ export async function POST(req: NextRequest) {
             emit('tool', {
               tool: 'web_search',
               status: 'error',
-              label:
-                sr.reason === 'tavily_not_configured'
-                  ? 'Web search is not configured (set TAVILY_API_KEY).'
-                  : 'Web search failed.',
+              label: 'Web search failed. Please try again.',
             });
           }
         }
