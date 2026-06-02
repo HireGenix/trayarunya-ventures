@@ -33,14 +33,29 @@ function TypingDots() {
 }
 
 export default function ChatThread({ messages, typing, toolLabel }: ChatThreadProps) {
-  const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Track whether the user is pinned to the bottom so we never yank the page/view
+  // away while they scroll up to re-read. We only auto-scroll the inner container.
+  const pinnedRef = useRef(true);
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    pinnedRef.current = distanceFromBottom < 80;
+  };
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = scrollRef.current;
+    if (!el || !pinnedRef.current) return;
+    // Scroll ONLY the chat container, never the page (avoids the jump-down bug).
+    el.scrollTop = el.scrollHeight;
   }, [messages, typing, toolLabel]);
 
   return (
     <Box
+      ref={scrollRef}
+      onScroll={handleScroll}
       sx={{
         display: 'flex',
         flexDirection: 'column',
@@ -130,8 +145,6 @@ export default function ChatThread({ messages, typing, toolLabel }: ChatThreadPr
           </Box>
         </Box>
       )}
-
-      <div ref={endRef} />
     </Box>
   );
 }

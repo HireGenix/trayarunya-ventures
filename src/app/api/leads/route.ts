@@ -25,6 +25,10 @@ const leadSchema = z.object({
   priority: z.string().optional(),
   formType: z.string().optional(),
   pageUrl: z.string().optional(),
+  country: z.string().optional(),
+  aiCustomerHtml: z.string().optional(),
+  aiEmailSubject: z.string().optional(),
+  aiTeamSummary: z.string().optional(),
 });
 
 // Rate limiting helper (simple in-memory implementation)
@@ -124,6 +128,11 @@ export async function POST(request: NextRequest) {
         message: validData.message,
         company: validData.company,
         phone: validData.phone,
+        country: validData.country,
+        source: validData.source,
+        aiCustomerHtml: validData.aiCustomerHtml,
+        aiEmailSubject: validData.aiEmailSubject,
+        aiTeamSummary: validData.aiTeamSummary,
         notifyEmail: "sumitsharmaa@trayarunyaventures.com", // Leads inbox
       });
     } catch (emailError) {

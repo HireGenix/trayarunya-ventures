@@ -6,6 +6,7 @@ import {
   buildChatInstructions,
   chatTools,
 } from '@/lib/chatSalesConfig';
+import { generateLeadEmail } from '@/lib/leadEmail';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -49,6 +50,7 @@ async function runTool(
   name: string,
   args: Record<string, unknown>,
   origin: string,
+  transcript: string,
   emit: (event: string, data: unknown) => void
 ): Promise<string> {
   if (name === 'update_icp') {
@@ -104,6 +106,25 @@ async function runTool(
     ]
       .filter(Boolean)
       .join('\n');
+
+    // Draft a personalised, on-brand email with GPT-5.5 from the chat so far.
+    let aiEmail: Awaited<ReturnType<typeof generateLeadEmail>> = null;
+    try {
+      aiEmail = await generateLeadEmail({
+        name: args.name as string | undefined,
+        email: args.email as string | undefined,
+        company: args.company as string | undefined,
+        phone: args.phone as string | undefined,
+        country: args.country as string | undefined,
+        segment: args.segment as string | undefined,
+        industry: args.industry as string | undefined,
+        notes: args.notes as string | undefined,
+        transcript,
+      });
+    } catch {
+      /* personalised email is best-effort; fall back to branded default */
+    }
+
     try {
       const res = await fetch(`${origin}/api/leads`, {
         method: 'POST',
@@ -115,8 +136,12 @@ async function runTool(
           message: summary || 'Lead captured via the AI Sales Partner chat.',
           company: args.company,
           phone: args.phone,
+          country: args.country,
           source: 'ai-chat',
           formType: 'ai-chat',
+          aiCustomerHtml: aiEmail?.customerHtml,
+          aiEmailSubject: aiEmail?.subject,
+          aiTeamSummary: aiEmail?.teamSummary,
         }),
       });
       const ok = res.ok;
@@ -161,6 +186,10 @@ export async function POST(req: NextRequest) {
   const messages = Array.isArray(body.messages) ? body.messages.slice(-30) : [];
   const origin = new URL(req.url).origin;
   const input = toInput(messages);
+  const transcript = messages
+    .filter((m) => m.text?.trim())
+    .map((m) => `${m.role === 'assistant' ? 'AI' : 'Prospect'}: ${m.text.trim()}`)
+    .join('\n');
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -266,7 +295,7 @@ export async function POST(req: NextRequest) {
             } catch {
               /* ignore */
             }
-            const output = await runTool(fc.name, args, origin, emit);
+            const output = await runTool(fc.name, args, origin, transcript, emit);
             input.push({ type: 'function_call_output', call_id: fc.call_id, output });
           }
         }

@@ -7,6 +7,23 @@ const SMTP_PORT = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587;
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const FROM_EMAIL = process.env.FROM_EMAIL || "noreply@trayarunyaventures.com";
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL || "https://trayarunyaventures.com"
+).replace(/\/$/, "");
+const LOGO_URL = `${SITE_URL}/Trayarunya-ventures-logo-Transparent.png`;
+const LINKEDIN_URL = "https://www.linkedin.com/company/trayarunya-ventures";
+
+// Brand palette
+const BRAND = {
+  amber: "#ffaf06",
+  orange: "#ff7a06",
+  green: "#14bb87",
+  ink: "#0f1320",
+  slate: "#475569",
+  muted: "#94a3b8",
+  line: "#e9eef6",
+  bg: "#f4f7fc",
+};
 
 interface ContactEmailParams {
   name: string;
@@ -16,6 +33,12 @@ interface ContactEmailParams {
   company?: string;
   phone?: string;
   notifyEmail?: string; // Email to receive notifications (admin email)
+  country?: string;
+  source?: string;
+  // AI-personalised content (from GPT-5.5) — optional
+  aiCustomerHtml?: string; // inner HTML body for the customer email
+  aiEmailSubject?: string; // personalised subject line for the customer email
+  aiTeamSummary?: string; // briefing for the sales team (admin email)
 }
 
 interface EmailTemplate {
@@ -51,147 +74,230 @@ async function createTransporter() {
   }
 }
 
-function generateEmailTemplates(params: ContactEmailParams): EmailTemplate {
-  const { name, email, subject, message, company, phone } = params;
+function esc(v: string): string {
+  return v
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
 
-  // Admin notification email
+/** Wrap inner content in the branded, responsive Trayarunya email shell. */
+function brandedShell(preheader: string, innerHtml: string): string {
+  const year = new Date().getFullYear();
+  return `
+  <div style="margin:0;padding:0;background:${BRAND.bg};">
+    <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">${esc(
+      preheader
+    )}</span>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${
+      BRAND.bg
+    };padding:28px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 12px 40px rgba(15,19,32,0.10);font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+            <!-- Header -->
+            <tr>
+              <td style="background:linear-gradient(135deg,${BRAND.amber},${
+    BRAND.orange
+  });padding:26px 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td align="left" style="vertical-align:middle;">
+                      <img src="${LOGO_URL}" alt="Trayarunya Ventures" height="40" style="height:40px;display:block;border:0;outline:none;" />
+                    </td>
+                    <td align="right" style="vertical-align:middle;">
+                      <span style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#1a1206;text-transform:uppercase;">Growth Partners</span>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <!-- Body -->
+            <tr>
+              <td style="padding:34px 32px 12px 32px;color:${
+                BRAND.ink
+              };font-size:15px;line-height:1.65;">
+                ${innerHtml}
+              </td>
+            </tr>
+            <!-- Divider -->
+            <tr><td style="padding:8px 32px;"><div style="height:1px;background:${
+              BRAND.line
+            };"></div></td></tr>
+            <!-- Footer -->
+            <tr>
+              <td style="padding:14px 32px 30px 32px;">
+                <p style="margin:0 0 6px 0;font-size:14px;font-weight:800;color:${
+                  BRAND.ink
+                };">Trayarunya Ventures</p>
+                <p style="margin:0 0 12px 0;font-size:12.5px;color:${
+                  BRAND.slate
+                };line-height:1.6;">
+                  Your B2B Growth Partner — LinkedIn-led high-ticket pipeline.<br/>
+                  <a href="mailto:info@trayarunyaventures.com" style="color:${
+                    BRAND.orange
+                  };text-decoration:none;">info@trayarunyaventures.com</a>
+                  &nbsp;·&nbsp;
+                  <a href="${SITE_URL}" style="color:${
+    BRAND.orange
+  };text-decoration:none;">trayarunyaventures.com</a>
+                  &nbsp;·&nbsp;
+                  <a href="${LINKEDIN_URL}" style="color:${
+    BRAND.orange
+  };text-decoration:none;">LinkedIn</a>
+                </p>
+                <p style="margin:0;font-size:11px;color:${
+                  BRAND.muted
+                };">© ${year} Trayarunya Ventures. USA &amp; India.</p>
+              </td>
+            </tr>
+          </table>
+          <p style="max-width:600px;margin:16px auto 0;font-size:11px;color:${
+            BRAND.muted
+          };text-align:center;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+            You're receiving this because you connected with us at trayarunyaventures.com.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+}
+
+function infoRow(label: string, value: string, link?: string): string {
+  const val = link
+    ? `<a href="${link}" style="color:${BRAND.orange};text-decoration:none;">${esc(
+        value
+      )}</a>`
+    : esc(value);
+  return `
+    <tr>
+      <td style="padding:9px 0;border-bottom:1px solid ${BRAND.line};font-size:13px;font-weight:700;color:${BRAND.ink};width:120px;vertical-align:top;">${esc(
+    label
+  )}</td>
+      <td style="padding:9px 0;border-bottom:1px solid ${BRAND.line};font-size:13px;color:${BRAND.slate};">${val}</td>
+    </tr>`;
+}
+
+function generateEmailTemplates(params: ContactEmailParams): EmailTemplate {
+  const {
+    name,
+    email,
+    subject,
+    message,
+    company,
+    phone,
+    country,
+    source,
+    aiCustomerHtml,
+    aiEmailSubject,
+    aiTeamSummary,
+  } = params;
+
+  const firstName = (name || "there").split(/\s+/)[0];
+
+  // ---------- Admin notification (branded) ----------
+  const adminInner = `
+    <div style="display:inline-block;padding:5px 12px;border-radius:99px;background:rgba(20,187,135,0.12);color:#0f7a57;font-size:11px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;margin-bottom:14px;">
+      ${esc(source === "ai-chat" ? "New AI-Chat Lead" : "New Website Lead")}
+    </div>
+    <h1 style="margin:0 0 6px 0;font-size:22px;color:${BRAND.ink};font-weight:800;">${esc(
+    name
+  )} just reached out</h1>
+    <p style="margin:0 0 20px 0;font-size:14px;color:${BRAND.slate};">${esc(
+    subject
+  )}</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:18px;">
+      ${infoRow("Name", name)}
+      ${infoRow("Email", email, `mailto:${email}`)}
+      ${infoRow("Company", company || "—")}
+      ${infoRow("Phone", phone || "—")}
+      ${country ? infoRow("Country", country) : ""}
+      ${infoRow("Source", source || "Website")}
+    </table>
+
+    ${
+      aiTeamSummary
+        ? `<div style="background:${BRAND.bg};border-radius:12px;padding:16px 18px;border-left:4px solid ${BRAND.amber};margin-bottom:16px;">
+             <p style="margin:0 0 6px 0;font-size:12px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;color:${BRAND.orange};">AI Sales Briefing</p>
+             <p style="margin:0;font-size:13.5px;line-height:1.6;color:${BRAND.ink};">${esc(
+            aiTeamSummary
+          ).replace(/\n/g, "<br/>")}</p>
+           </div>`
+        : ""
+    }
+
+    <p style="margin:0 0 8px 0;font-size:12px;font-weight:800;letter-spacing:0.5px;text-transform:uppercase;color:${BRAND.slate};">Message / Notes</p>
+    <div style="background:#ffffff;border:1px solid ${BRAND.line};border-radius:12px;padding:15px 16px;">
+      <p style="margin:0;font-size:14px;line-height:1.65;color:${BRAND.ink};">${esc(
+    message
+  ).replace(/\n/g, "<br/>")}</p>
+    </div>
+
+    <div style="margin-top:20px;">
+      <a href="mailto:${email}" style="display:inline-block;background:linear-gradient(135deg,${BRAND.amber},${BRAND.orange});color:#1a1206;font-weight:800;font-size:14px;text-decoration:none;padding:12px 26px;border-radius:99px;">Reply to ${esc(
+    firstName
+  )} →</a>
+    </div>`;
+
   const adminNotification = {
-    subject: `New Lead: ${subject}`,
-    text: `
-New contact form submission received:
+    subject: `${source === "ai-chat" ? "🔥 AI-Chat Lead" : "New Lead"}: ${name}${
+      company ? ` — ${company}` : ""
+    }`,
+    text: `New lead received:
 
 Name: ${name}
 Email: ${email}
 Company: ${company || "Not provided"}
 Phone: ${phone || "Not provided"}
+Country: ${country || "Not provided"}
+Source: ${source || "Website"}
 Subject: ${subject}
-
+${aiTeamSummary ? `\nAI Sales Briefing:\n${aiTeamSummary}\n` : ""}
 Message:
 ${message}
 
-Please respond to this inquiry promptly.
-    `.trim(),
-    html: `
-      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0070f3, #0051cc); padding: 20px; border-radius: 8px 8px 0 0;">
-          <h2 style="color: white; margin: 0;">Lead Inquiry</h2>
-        </div>
-        
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px;">
-          <h3 style="color: #0070f3; margin-top: 0;">Contact Details</h3>
-          
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 8px 0; font-weight: bold; color: #333;">Name:</td>
-              <td style="padding: 8px 0; color: #666;">${name}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; font-weight: bold; color: #333;">Email:</td>
-              <td style="padding: 8px 0; color: #666;"><a href="mailto:${email}" style="color: #0070f3;">${email}</a></td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; font-weight: bold; color: #333;">Company:</td>
-              <td style="padding: 8px 0; color: #666;">${
-                company || "Not provided"
-              }</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; font-weight: bold; color: #333;">Phone:</td>
-              <td style="padding: 8px 0; color: #666;">${
-                phone || "Not provided"
-              }</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; font-weight: bold; color: #333;">Subject:</td>
-              <td style="padding: 8px 0; color: #666;">${subject}</td>
-            </tr>
-          </table>
-          
-          <h3 style="color: #0070f3; margin-bottom: 10px;">Message</h3>
-          <div style="background: white; padding: 15px; border-radius: 5px; border-left: 4px solid #0070f3;">
-            <p style="margin: 0; line-height: 1.6; color: #333;">${message.replace(
-              /\n/g,
-              "<br>"
-            )}</p>
-          </div>
-          
-          <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 5px;">
-            <p style="margin: 0; font-size: 14px; color: #1976d2;">
-              <strong>Action Required:</strong> Please respond to this inquiry promptly to maintain our high customer service standards.
-            </p>
-          </div>
-        </div>
-      </div>
-    `,
+Respond promptly.`.trim(),
+    html: brandedShell(`New lead: ${name}${company ? ` from ${company}` : ""}`, adminInner),
   };
 
-  // Customer confirmation email
+  // ---------- Customer confirmation (branded + personalised) ----------
+  const defaultCustomerBody = `
+    <p style="margin:0 0 14px 0;">Hi ${esc(firstName)},</p>
+    <p style="margin:0 0 14px 0;">Thank you for reaching out to <strong>Trayarunya Ventures</strong>. We've received your note${
+      subject ? ` about <em>${esc(subject)}</em>` : ""
+    } and a senior growth strategist is already reviewing it.</p>
+    <p style="margin:0 0 14px 0;">We don't treat you as just another client — we work as your growth partner, owning your pipeline goals as if the company were ours. Expect a personal reply within <strong>24 hours</strong> with concrete next steps.</p>
+    <p style="margin:0 0 14px 0;">— The Trayarunya Ventures Growth Team</p>`;
+
+  const customerInner = `
+    <h1 style="margin:0 0 4px 0;font-size:23px;color:${BRAND.ink};font-weight:800;">Welcome aboard, ${esc(
+    firstName
+  )} 👋</h1>
+    <p style="margin:0 0 20px 0;font-size:13px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:${BRAND.orange};">Your B2B growth partner</p>
+    ${aiCustomerHtml || defaultCustomerBody}
+    <div style="margin-top:22px;">
+      <a href="${SITE_URL}/contact" style="display:inline-block;background:linear-gradient(135deg,${BRAND.amber},${BRAND.orange});color:#1a1206;font-weight:800;font-size:14px;text-decoration:none;padding:13px 28px;border-radius:99px;">Book your strategy call →</a>
+    </div>`;
+
   const customerConfirmation = {
-    subject: `Thank you for contacting Trayarunya Ventures - We've received your message`,
-    text: `
-Dear ${name},
+    subject:
+      aiEmailSubject ||
+      `Welcome to Trayarunya Ventures, ${firstName} — let's grow your pipeline`,
+    text: `Hi ${firstName},
 
-Thank you for reaching out to Trayarunya Ventures. We have received your message regarding "${subject}" and appreciate you taking the time to contact us.
+Thank you for connecting with Trayarunya Ventures. A senior growth strategist is reviewing your message and will reach out within 24 hours with concrete next steps.
 
-Our team will review your inquiry and get back to you within 24-48 hours. If your matter is urgent, please feel free to call us directly.
+We work as your growth partner — owning your pipeline goals as if the company were ours.
 
-Here's a summary of your message:
-Subject: ${subject}
-Message: ${message}
+Book a strategy call: ${SITE_URL}/contact
 
-Best regards,
-Trayarunya Ventures Team
-
----
-This is an automated confirmation email. Please do not reply to this email.
-    `.trim(),
-    html: `
-      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #0070f3, #0051cc); padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
-          <h2 style="color: white; margin: 0;">Thank You for Contacting Us</h2>
-        </div>
-        
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px;">
-          <p style="font-size: 16px; color: #333; margin-top: 0;">Dear <strong>${name}</strong>,</p>
-          
-          <p style="font-size: 16px; line-height: 1.6; color: #333;">
-            Thank you for reaching out to <strong>Trayarunya Ventures</strong>. We have received your message regarding 
-            "<em>${subject}</em>" and appreciate you taking the time to contact us.
-          </p>
-          
-          <div style="background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #4caf50;">
-            <p style="margin: 0; color: #2e7d32;">
-              <strong>✓ Message Received Successfully</strong><br>
-              Our team will review your inquiry and get back to you within 24-48 hours.
-            </p>
-          </div>
-          
-          <h3 style="color: #0070f3; margin-bottom: 10px;">Your Message Summary</h3>
-          <div style="background: white; padding: 15px; border-radius: 5px; border: 1px solid #e0e0e0;">
-            <p style="margin: 0 0 10px 0; color: #666;"><strong>Subject:</strong> ${subject}</p>
-            <p style="margin: 0; color: #666;"><strong>Message:</strong></p>
-            <p style="margin: 5px 0 0 0; line-height: 1.6; color: #333; font-style: italic;">"${message}"</p>
-          </div>
-          
-          <div style="margin-top: 20px; padding: 15px; background: #fff3e0; border-radius: 5px; border-left: 4px solid #ff9800;">
-            <p style="margin: 0; font-size: 14px; color: #e65100;">
-              <strong>Need Immediate Assistance?</strong><br>
-              If your matter is urgent, please feel free to call us directly or visit our contact page for more options.
-            </p>
-          </div>
-          
-          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center;">
-            <p style="margin: 0; color: #666; font-size: 14px;">
-              Best regards,<br>
-              <strong style="color: #0070f3;">Trayarunya Ventures Team</strong>
-            </p>
-            <p style="margin: 10px 0 0 0; color: #999; font-size: 12px;">
-              This is an automated confirmation email. Please do not reply to this email.
-            </p>
-          </div>
-        </div>
-      </div>
-    `,
+— The Trayarunya Ventures Growth Team
+trayarunyaventures.com`.trim(),
+    html: brandedShell(
+      `Welcome to Trayarunya Ventures, ${firstName}`,
+      customerInner
+    ),
   };
 
   return {

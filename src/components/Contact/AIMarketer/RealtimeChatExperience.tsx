@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useCallback, useRef, useState } from 'react';
-import { Box, Typography, Button } from '@mui/material';
+import { Box, Typography, Button, IconButton, Tooltip } from '@mui/material';
 import { motion } from 'framer-motion';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ChatThread, { type ChatMessage } from './ChatThread';
 import ICPPanel, { type ICP } from './ICPPanel';
 import ChatInput from './ChatInput';
@@ -19,7 +22,12 @@ function uid(role: string) {
   return `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
-export default function RealtimeChatExperience() {
+interface RealtimeChatExperienceProps {
+  /** When rendered as a dedicated full-page route, hide the open-in-new-tab control. */
+  standalone?: boolean;
+}
+
+export default function RealtimeChatExperience({ standalone = false }: RealtimeChatExperienceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [icp, setIcp] = useState<ICP>({});
   const [typing, setTyping] = useState(false);
@@ -27,6 +35,7 @@ export default function RealtimeChatExperience() {
   const [started, setStarted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const messagesRef = useRef<ChatMessage[]>([]);
   messagesRef.current = messages;
@@ -156,14 +165,22 @@ export default function RealtimeChatExperience() {
   return (
     <Box
       sx={{
-        borderRadius: 4,
-        overflow: 'hidden',
+        borderRadius: fullscreen ? 0 : 4,
+        overflow: fullscreen ? 'auto' : 'hidden',
         background: '#ffffff',
-        border: '1px solid rgba(15,23,42,0.08)',
-        boxShadow: '0 10px 40px rgba(15,23,42,0.07)',
+        border: fullscreen ? 'none' : '1px solid rgba(15,23,42,0.08)',
+        boxShadow: fullscreen ? 'none' : '0 10px 40px rgba(15,23,42,0.07)',
+        ...(fullscreen
+          ? {
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1400,
+              borderRadius: 0,
+            }
+          : {}),
       }}
     >
-      <Box sx={{ p: { xs: 2.5, md: 3.5 } }}>
+      <Box sx={{ p: { xs: 2.5, md: 3.5 }, maxWidth: fullscreen ? 1280 : 'none', mx: 'auto' }}>
         <Box
           sx={{
             display: 'grid',
@@ -174,34 +191,59 @@ export default function RealtimeChatExperience() {
         >
           {/* Left: chat */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
-              <Box
-                sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 0.8,
-                  px: 1.4,
-                  py: 0.5,
-                  borderRadius: 99,
-                  border: '1px solid rgba(255,175,6,0.3)',
-                  background: 'rgba(255,175,6,0.08)',
-                }}
-              >
-                <AutoAwesomeIcon sx={{ fontSize: 15, color: '#ffaf06' }} />
-                <Typography sx={{ fontSize: '0.68rem', fontWeight: 900, letterSpacing: 1, color: '#b8730a' }}>
-                  LIVE AI SALES PARTNER
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+              <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
                 <Box
-                  component={motion.span}
-                  animate={{ opacity: [1, 0.3, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                  sx={{ width: 8, height: 8, borderRadius: '50%', background: '#14bb87' }}
-                />
-                <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#0f7a57' }}>
-                  Online
-                </Typography>
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.8,
+                    px: 1.4,
+                    py: 0.5,
+                    borderRadius: 99,
+                    border: '1px solid rgba(255,175,6,0.3)',
+                    background: 'rgba(255,175,6,0.08)',
+                  }}
+                >
+                  <AutoAwesomeIcon sx={{ fontSize: 15, color: '#ffaf06' }} />
+                  <Typography sx={{ fontSize: '0.68rem', fontWeight: 900, letterSpacing: 1, color: '#b8730a' }}>
+                    LIVE AI SALES PARTNER
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box
+                    component={motion.span}
+                    animate={{ opacity: [1, 0.3, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                    sx={{ width: 8, height: 8, borderRadius: '50%', background: '#14bb87' }}
+                  />
+                  <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: '#0f7a57' }}>
+                    Online
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Tooltip title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+                  <IconButton
+                    size="small"
+                    onClick={() => setFullscreen((v) => !v)}
+                    sx={{ color: '#64748b', '&:hover': { color: '#b8730a', background: 'rgba(255,175,6,0.1)' } }}
+                  >
+                    {fullscreen ? <FullscreenExitIcon fontSize="small" /> : <FullscreenIcon fontSize="small" />}
+                  </IconButton>
+                </Tooltip>
+                {!standalone && (
+                  <Tooltip title="Open in new tab">
+                    <IconButton
+                      size="small"
+                      onClick={() => window.open('/ai-chat', '_blank', 'noopener')}
+                      sx={{ color: '#64748b', '&:hover': { color: '#b8730a', background: 'rgba(255,175,6,0.1)' } }}
+                    >
+                      <OpenInNewIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </Box>
             </Box>
 
