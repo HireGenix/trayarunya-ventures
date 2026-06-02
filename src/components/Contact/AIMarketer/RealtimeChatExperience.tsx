@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useRef, useState } from 'react';
-import { Box, Typography, Button, IconButton, Tooltip } from '@mui/material';
+import { Box, Typography, Button, IconButton, Tooltip, Dialog } from '@mui/material';
 import { motion } from 'framer-motion';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
@@ -162,25 +162,8 @@ export default function RealtimeChatExperience({ standalone = false }: RealtimeC
 
   const hasIcp = Object.values(icp).some((v) => (Array.isArray(v) ? v.length : Boolean(v)));
 
-  return (
-    <Box
-      sx={{
-        borderRadius: fullscreen ? 0 : 4,
-        overflow: fullscreen ? 'auto' : 'hidden',
-        background: '#ffffff',
-        border: fullscreen ? 'none' : '1px solid rgba(15,23,42,0.08)',
-        boxShadow: fullscreen ? 'none' : '0 10px 40px rgba(15,23,42,0.07)',
-        ...(fullscreen
-          ? {
-              position: 'fixed',
-              inset: 0,
-              zIndex: 1400,
-              borderRadius: 0,
-            }
-          : {}),
-      }}
-    >
-      <Box sx={{ p: { xs: 2.5, md: 3.5 }, maxWidth: fullscreen ? 1280 : 'none', mx: 'auto' }}>
+  const inner = (
+    <Box sx={{ p: { xs: 2.5, md: 3.5 }, maxWidth: fullscreen ? 1280 : 'none', mx: 'auto', width: '100%' }}>
         <Box
           sx={{
             display: 'grid',
@@ -333,6 +316,32 @@ export default function RealtimeChatExperience({ standalone = false }: RealtimeC
           </Box>
         </Box>
       </Box>
+  );
+
+  if (fullscreen) {
+    return (
+      <Dialog
+        fullScreen
+        open
+        onClose={() => setFullscreen(false)}
+        PaperProps={{ sx: { background: 'linear-gradient(180deg,#fbfdff 0%,#f1f6ff 100%)' } }}
+      >
+        <Box sx={{ overflowY: 'auto', height: '100%' }}>{inner}</Box>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        borderRadius: 4,
+        overflow: 'hidden',
+        background: '#ffffff',
+        border: '1px solid rgba(15,23,42,0.08)',
+        boxShadow: '0 10px 40px rgba(15,23,42,0.07)',
+      }}
+    >
+      {inner}
     </Box>
   );
 }
