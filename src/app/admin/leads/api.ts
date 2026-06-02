@@ -199,12 +199,7 @@ export async function deleteLead(id: string): Promise<void> {
     if (!id) {
       throw new APIError('Lead ID is required', 400);
     }
-    
-    // Confirm deletion with the user
-    if (!confirm('Are you sure you want to delete this lead? This action cannot be undone.')) {
-      throw new APIError('Deletion cancelled by user', 400);
-    }
-    
+
     return fetchAPI<void>(`/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });

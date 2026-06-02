@@ -36,6 +36,8 @@ import {
   ContactPage as ContactPageIcon,
   ChevronLeft as ChevronLeftIcon,
   Person as PersonIcon,
+  People as PeopleIcon,
+  SmartToy as SmartToyIcon,
   Notifications as NotificationsIcon,
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
@@ -110,10 +112,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   // Define menu items based on user role
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin' },
+    { text: 'AI Assistant', icon: <SmartToyIcon />, path: '/admin/assistant' },
     { text: 'SEO Management', icon: <SearchIcon />, path: '/admin/seo' },
     { text: 'Blog Posts', icon: <ArticleIcon />, path: '/admin/blog' },
     { text: 'Analytics', icon: <AnalyticsIcon />, path: '/admin/analytics' },
     { text: 'Lead Submissions', icon: <ContactPageIcon />, path: '/admin/leads' },
+    ...(isSuperAdminUser
+      ? [{ text: 'User Management', icon: <PeopleIcon />, path: '/admin/users' }]
+      : []),
     { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
   ];
   

@@ -82,3 +82,35 @@ the visitor's company live (Tavily), and captures lead details on screen.
 npm install
 npm run dev   # http://localhost:3000/contact
 ```
+
+---
+
+## Admin platform — Users + internal AI Assistant
+
+### Internal AI Assistant (Claude Opus via Azure Anthropic)
+
+| Variable | Notes |
+|---|---|
+| `AZURE_ANTHROPIC_ENDPOINT` | Full Messages URL, e.g. `https://<resource>.services.ai.azure.com/anthropic/v1/messages` |
+| `AZURE_ANTHROPIC_KEY` | Anthropic key. Falls back to `AZURE_GPT5_KEY` / realtime key if unset |
+| `AZURE_ANTHROPIC_MODEL` | Defaults to `claude-opus-4-7` |
+
+The admin AI Assistant (`/admin/assistant`) lets staff switch between **GPT-5.5** (Azure
+Responses API, reuses `AZURE_GPT5_*`) and **Claude Opus** (above) per conversation.
+
+### Admin auth
+
+| Variable | Notes |
+|---|---|
+| `JWT_SECRET` | Secret used to sign admin JWTs. **Set a strong value in production.** Falls back to a built-in default if unset |
+
+### Server storage (file-based)
+
+- Users live in `data/users.json` (passwords hashed with Node `crypto.scrypt`). Seeded on
+  first run with `admin@trayarunyaventures.com` / `admin123` and
+  `superadmin@trayarunyaventures.com` / `superadmin123` — **change these**.
+- Conversations live in `data/conversations/<userId>.json`.
+- Super admins manage unlimited users at `/admin/users`.
+
+> ⚠️ **Vercel note:** the serverless filesystem is **ephemeral** — `data/*.json` resets on
+> every redeploy. For durable storage, move these stores to a database or blob/volume.

@@ -1,29 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { headers } from 'next/headers';
 import { z } from 'zod';
-import { sign, verify } from 'jsonwebtoken';
+import { signToken, verifyToken } from '@/lib/authToken';
+import { userStore, verifyPassword } from '@/lib/userStore';
 
-// In a real app, this would be stored in a database
-// For demo purposes, we'll use a hardcoded list of users
-const USERS = [
-  {
-    id: '1',
-    email: 'admin@trayarunyaventures.com',
-    password: 'admin123', // In a real app, this would be hashed
-    name: 'Admin User',
-    role: 'admin'
-  },
-  {
-    id: '2',
-    email: 'superadmin@trayarunyaventures.com',
-    password: 'superadmin123', // In a real app, this would be hashed
-    name: 'Super Admin',
-    role: 'superadmin'
-  }
-];
-
-// JWT secret key - in a real app, this would be an environment variable
-const JWT_SECRET = 'trayarunya-ventures-jwt-secret-key';
+export const runtime = 'nodejs';
 
 // Define validation schema for login
 const loginSchema = z.object({
@@ -92,29 +72,25 @@ export async function POST(request: NextRequest) {
     }
     
     const { email, password } = validationResult.data;
-    
-    // Find user by email
-    const user = USERS.find(u => u.email === email);
-    
-    // Check if user exists and password matches
-    if (!user || user.password !== password) {
+
+    // Find user by email in the server-side user store
+    const user = userStore.findByEmail(email);
+
+    // Check if user exists, is active, and password matches
+    if (!user || !user.active || !verifyPassword(password, user.passwordHash)) {
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
       );
     }
-    
+
     // Generate JWT token
-    const token = sign(
-      { 
-        id: user.id, 
-        email: user.email, 
-        name: user.name, 
-        role: user.role 
-      },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const token = signToken({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    });
     
     // Return user info and token
     return NextResponse.json({
@@ -149,18 +125,16 @@ export async function GET(request: NextRequest) {
     }
     
     const token = authHeader.split(' ')[1];
-    
-    try {
-      // Verify token
-      const decoded = verify(token, JWT_SECRET);
-      
-      return NextResponse.json({ valid: true, user: decoded });
-    } catch (err) {
+
+    const decoded = verifyToken(token);
+    if (!decoded) {
       return NextResponse.json(
         { error: 'Invalid or expired token' },
         { status: 401 }
       );
     }
+
+    return NextResponse.json({ valid: true, user: decoded });
   } catch (error) {
     console.error('Error in verify token API:', error);
     return NextResponse.json(

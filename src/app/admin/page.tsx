@@ -1,95 +1,135 @@
 'use client';
 
-import React from 'react';
-import { 
-  Box, 
-  Grid, 
-  Paper, 
-  Typography, 
-  useTheme, 
-  alpha, 
-  Card, 
-  CardContent, 
-  Divider, 
-  Button, 
-  List, 
-  ListItem, 
-  ListItemText, 
-  ListItemAvatar, 
-  Avatar, 
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  Box,
+  Typography,
+  useTheme,
+  alpha,
+  Card,
+  CardContent,
+  Divider,
+  Button,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  Avatar,
   IconButton,
   Chip,
-  LinearProgress,
-  Tooltip
+  Tooltip,
+  CircularProgress,
+  Skeleton,
+  Snackbar,
+  Alert,
 } from '@mui/material';
-import { 
+import {
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
   People as PeopleIcon,
-  Visibility as VisibilityIcon,
+  EmojiEvents as EmojiEventsIcon,
   ShoppingCart as ShoppingCartIcon,
-  Email as EmailIcon,
   ArrowForward as ArrowForwardIcon,
-  Edit as EditIcon,
   Delete as DeleteIcon,
+  Visibility as VisibilityIcon,
   Article as ArticleIcon,
   Search as SearchIcon,
   Analytics as AnalyticsIcon,
   ContactPage as ContactPageIcon,
-  Settings as SettingsIcon,
+  SmartToy as SmartToyIcon,
+  People as UsersIcon,
+  Refresh as RefreshIcon,
+  GroupAdd as GroupAddIcon,
 } from '@mui/icons-material';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, PieLabelRenderProps } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  PieLabelRenderProps,
+} from 'recharts';
+import { checkAuth, User } from '@/services/auth';
+import { deleteLead } from '@/app/admin/leads/api';
 
-// Mock data for charts and statistics
-const visitData = [
-  { name: 'Mon', visits: 4000 },
-  { name: 'Tue', visits: 3000 },
-  { name: 'Wed', visits: 2000 },
-  { name: 'Thu', visits: 2780 },
-  { name: 'Fri', visits: 1890 },
-  { name: 'Sat', visits: 2390 },
-  { name: 'Sun', visits: 3490 },
-];
+interface RecentLead {
+  id: string;
+  name: string;
+  email: string;
+  company: string;
+  date: string;
+  status: string;
+  source: string;
+}
 
-const trafficSourceData = [
-  { name: 'Direct', value: 400 },
-  { name: 'Organic Search', value: 300 },
-  { name: 'Referral', value: 300 },
-  { name: 'Social Media', value: 200 },
-];
+interface DashboardData {
+  leads: {
+    total: number;
+    newLeads: number;
+    qualifiedLeads: number;
+    wonLeads: number;
+    conversionRate: number;
+    averageResponseTime: number;
+    bySource: { source: string; count: number; percentage: number }[];
+    byStatus: { status: string; count: number; percentage: number }[];
+    trend: { date: string; count: number }[];
+    recent: RecentLead[];
+  };
+  users: { total: number; admins: number; superadmins: number };
+  conversations: { total: number };
+}
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+const STATUS_COLORS: Record<string, string> = {
+  New: '#0A66C2',
+  Contacted: '#00B8D9',
+  Qualified: '#14bb87',
+  Proposal: '#ffaf06',
+  Negotiation: '#ff7a06',
+  Won: '#2e7d32',
+  Lost: '#d92c4a',
+  'On Hold': '#6c757d',
+};
 
-const recentLeads = [
-  { id: 1, name: 'John Doe', email: 'john.doe@example.com', company: 'ABC Corp', date: '2025-03-04', status: 'New' },
-  { id: 2, name: 'Jane Smith', email: 'jane.smith@example.com', company: 'XYZ Inc', date: '2025-03-03', status: 'Contacted' },
-  { id: 3, name: 'Robert Johnson', email: 'robert@example.com', company: 'Acme Ltd', date: '2025-03-02', status: 'Qualified' },
-  { id: 4, name: 'Emily Davis', email: 'emily@example.com', company: 'Tech Solutions', date: '2025-03-01', status: 'New' },
-];
-
-const recentBlogPosts = [
-  { id: 1, title: 'The Future of AI in Business', author: 'Admin', date: '2025-03-04', status: 'Published' },
-  { id: 2, title: 'How to Optimize Your Website for SEO', author: 'Admin', date: '2025-03-02', status: 'Draft' },
-  { id: 3, title: '10 Tips for Better Customer Engagement', author: 'Admin', date: '2025-02-28', status: 'Published' },
-];
+const PIE_FALLBACK = ['#0A66C2', '#14bb87', '#ffaf06', '#ff7a06', '#d92c4a', '#00B8D9'];
 
 const quickActions = [
-  { title: 'Manage SEO', icon: <SearchIcon />, color: '#0A66C2', path: '/admin/seo' },
-  { title: 'New Blog Post', icon: <ArticleIcon />, color: '#14bb87', path: '/admin/blog/new' },
-  { title: 'View Analytics', icon: <AnalyticsIcon />, color: '#d92c4a', path: '/admin/analytics' },
-  { title: 'Lead Submissions', icon: <ContactPageIcon />, color: '#ffaf06', path: '/admin/leads' },
-  { title: 'Settings', icon: <SettingsIcon />, color: '#6c757d', path: '/admin/settings' },
+  { title: 'View Leads', icon: <ContactPageIcon />, color: '#ffaf06', path: '/admin/leads' },
+  { title: 'AI Assistant', icon: <SmartToyIcon />, color: '#0A66C2', path: '/admin/assistant' },
+  { title: 'Analytics', icon: <AnalyticsIcon />, color: '#d92c4a', path: '/admin/analytics' },
+  { title: 'SEO', icon: <SearchIcon />, color: '#14bb87', path: '/admin/seo' },
+  { title: 'New Blog Post', icon: <ArticleIcon />, color: '#ff7a06', path: '/admin/blog/new' },
 ];
 
-const StatCard = ({ title, value, icon, change, isPositive, color }: any) => {
-  const theme = useTheme();
-  
+function StatCard({
+  title,
+  value,
+  icon,
+  change,
+  isPositive,
+  color,
+  loading,
+}: {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  change?: string;
+  isPositive?: boolean;
+  color: string;
+  loading?: boolean;
+}) {
   return (
-    <Card 
+    <Card
       elevation={0}
-      sx={{ 
+      sx={{
         height: '100%',
         borderRadius: 4,
         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
@@ -113,53 +153,159 @@ const StatCard = ({ title, value, icon, change, isPositive, color }: any) => {
           p: 2,
         }}
       >
-        <Box sx={{ color: color }}>
-          {icon}
-        </Box>
+        <Box sx={{ color }}>{icon}</Box>
       </Box>
       <CardContent sx={{ p: 3 }}>
         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
           {title}
         </Typography>
-        <Typography variant="h4" component="div" fontWeight={700} sx={{ mb: 1 }}>
-          {value}
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          {isPositive ? (
-            <TrendingUpIcon sx={{ color: 'success.main', fontSize: 16, mr: 0.5 }} />
-          ) : (
-            <TrendingDownIcon sx={{ color: 'error.main', fontSize: 16, mr: 0.5 }} />
-          )}
-          <Typography 
-            variant="body2" 
-            color={isPositive ? 'success.main' : 'error.main'}
-            fontWeight={500}
-          >
-            {change}
+        {loading ? (
+          <Skeleton width={80} height={48} />
+        ) : (
+          <Typography variant="h4" component="div" fontWeight={700} sx={{ mb: 1 }}>
+            {value}
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
-            vs last week
-          </Typography>
-        </Box>
+        )}
+        {change && !loading && (
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {isPositive ? (
+              <TrendingUpIcon sx={{ color: 'success.main', fontSize: 16, mr: 0.5 }} />
+            ) : (
+              <TrendingDownIcon sx={{ color: 'error.main', fontSize: 16, mr: 0.5 }} />
+            )}
+            <Typography
+              variant="body2"
+              color={isPositive ? 'success.main' : 'error.main'}
+              fontWeight={500}
+            >
+              {change}
+            </Typography>
+          </Box>
+        )}
       </CardContent>
     </Card>
   );
-};
+}
+
+function EmptyChart({ label }: { label: string }) {
+  return (
+    <Box
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'text.secondary',
+        textAlign: 'center',
+        px: 2,
+      }}
+    >
+      <AnalyticsIcon sx={{ fontSize: 40, mb: 1, opacity: 0.4 }} />
+      <Typography variant="body2">{label}</Typography>
+    </Box>
+  );
+}
 
 export default function AdminDashboard() {
   const theme = useTheme();
-  
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [snack, setSnack] = useState<string | null>(null);
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/stats', {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      if (!res.ok) throw new Error('Failed to load dashboard data');
+      setData(await res.json());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    setUser(checkAuth().user);
+    load();
+  }, [load]);
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this lead? This cannot be undone.')) return;
+    try {
+      await deleteLead(id);
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              leads: {
+                ...prev.leads,
+                total: Math.max(0, prev.leads.total - 1),
+                recent: prev.leads.recent.filter((l) => l.id !== id),
+              },
+            }
+          : prev
+      );
+      setSnack('Lead deleted');
+    } catch {
+      setSnack('Could not delete lead');
+    }
+  };
+
+  const leads = data?.leads;
+  const trendData = (leads?.trend || []).map((t) => ({
+    name: new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    leads: t.count,
+  }));
+  const statusData = (leads?.byStatus || []).map((s) => ({ name: s.status, value: s.count }));
+  const hasLeads = (leads?.total || 0) > 0;
+
   return (
     <Box>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" fontWeight={700} gutterBottom>
-          Dashboard
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Welcome to the Trayarunya Ventures admin panel. Here's an overview of your website's performance.
-        </Typography>
+      <Box
+        sx={{
+          mb: 4,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography variant="h4" component="h1" fontWeight={700} gutterBottom>
+            Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''} 👋
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Live overview of your leads, pipeline, and team — straight from your data.
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          startIcon={loading ? <CircularProgress size={16} /> : <RefreshIcon />}
+          onClick={load}
+          disabled={loading}
+        >
+          Refresh
+        </Button>
       </Box>
-      
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} action={<Button onClick={load}>Retry</Button>}>
+          {error}
+        </Alert>
+      )}
+
       {/* Quick Actions */}
       <Box
         component={motion.div}
@@ -171,36 +317,36 @@ export default function AdminDashboard() {
         <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
           Quick Actions
         </Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(5, 1fr)' }, gap: 2 }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(5, 1fr)' },
+            gap: 2,
+          }}
+        >
           {quickActions.map((action, index) => (
-            <Box key={index}>
-              <motion.div
-                whileHover={{ y: -5 }}
-                transition={{ type: 'spring', stiffness: 300 }}
+            <motion.div key={index} whileHover={{ y: -5 }} transition={{ type: 'spring', stiffness: 300 }}>
+              <Button
+                component={Link}
+                href={action.path}
+                variant="outlined"
+                fullWidth
+                sx={{
+                  p: 2,
+                  borderRadius: 4,
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1,
+                  borderColor: alpha(action.color, 0.3),
+                  color: action.color,
+                  '&:hover': { backgroundColor: alpha(action.color, 0.05), borderColor: action.color },
+                }}
               >
-                <Button
-                  component={Link}
-                  href={action.path}
-                  variant="outlined"
-                  fullWidth
+                <Box
                   sx={{
-                    p: 2,
-                    borderRadius: 4,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 1,
-                    borderColor: alpha(action.color, 0.3),
-                    color: action.color,
-                    '&:hover': {
-                      backgroundColor: alpha(action.color, 0.05),
-                      borderColor: action.color,
-                    },
-                  }}
-                >
-                  <Box sx={{ 
                     backgroundColor: alpha(action.color, 0.1),
                     borderRadius: '50%',
                     width: 50,
@@ -209,19 +355,19 @@ export default function AdminDashboard() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     mb: 1,
-                  }}>
-                    {action.icon}
-                  </Box>
-                  <Typography variant="body2" fontWeight={500}>
-                    {action.title}
-                  </Typography>
-                </Button>
-              </motion.div>
-            </Box>
+                  }}
+                >
+                  {action.icon}
+                </Box>
+                <Typography variant="body2" fontWeight={500}>
+                  {action.title}
+                </Typography>
+              </Button>
+            </motion.div>
           ))}
         </Box>
       </Box>
-      
+
       {/* Stats Cards */}
       <Box
         component={motion.div}
@@ -231,52 +377,85 @@ export default function AdminDashboard() {
         sx={{ mb: 4 }}
       >
         <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-          Website Statistics
+          Lead & Pipeline Metrics
         </Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 3 }}>
-          <Box>
-            <StatCard 
-              title="Total Visitors" 
-              value="12,345" 
-              icon={<VisibilityIcon />} 
-              change="+12.5%" 
-              isPositive={true}
-              color={theme.palette.primary.main}
-            />
-          </Box>
-          <Box>
-            <StatCard 
-              title="New Leads" 
-              value="286" 
-              icon={<PeopleIcon />} 
-              change="+8.2%" 
-              isPositive={true}
-              color="#14bb87"
-            />
-          </Box>
-          <Box>
-            <StatCard 
-              title="Conversion Rate" 
-              value="3.2%" 
-              icon={<ShoppingCartIcon />} 
-              change="-0.5%" 
-              isPositive={false}
-              color="#d92c4a"
-            />
-          </Box>
-          <Box>
-            <StatCard 
-              title="Avg. Session Duration" 
-              value="2m 45s" 
-              icon={<TrendingUpIcon />} 
-              change="+15.3%" 
-              isPositive={true}
-              color="#ffaf06"
-            />
-          </Box>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+            gap: 3,
+          }}
+        >
+          <StatCard
+            title="Total Leads"
+            value={leads?.total ?? 0}
+            icon={<PeopleIcon />}
+            color={theme.palette.primary.main}
+            loading={loading}
+          />
+          <StatCard
+            title="New (Last 7 Days)"
+            value={leads?.newLeads ?? 0}
+            icon={<GroupAddIcon />}
+            color="#14bb87"
+            loading={loading}
+          />
+          <StatCard
+            title="Qualified"
+            value={leads?.qualifiedLeads ?? 0}
+            icon={<ShoppingCartIcon />}
+            color="#ffaf06"
+            loading={loading}
+          />
+          <StatCard
+            title="Won / Conversion"
+            value={`${leads?.wonLeads ?? 0} · ${leads?.conversionRate ?? 0}%`}
+            icon={<EmojiEventsIcon />}
+            color="#2e7d32"
+            loading={loading}
+          />
         </Box>
       </Box>
-      
+
+      {/* Team & AI stats */}
+      <Box
+        component={motion.div}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15 }}
+        sx={{ mb: 4 }}
+      >
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+            gap: 3,
+          }}
+        >
+          <StatCard
+            title="Team Members"
+            value={data?.users.total ?? 0}
+            icon={<UsersIcon />}
+            color="#0A66C2"
+            loading={loading}
+          />
+          <StatCard
+            title="AI Conversations"
+            value={data?.conversations.total ?? 0}
+            icon={<SmartToyIcon />}
+            color="#7048e8"
+            loading={loading}
+          />
+          <StatCard
+            title="Avg. Response Time"
+            value={`${leads?.averageResponseTime ?? 0}h`}
+            icon={<TrendingUpIcon />}
+            color="#ff7a06"
+            loading={loading}
+          />
+        </Box>
+      </Box>
+
       {/* Charts */}
       <Box
         component={motion.div}
@@ -289,83 +468,88 @@ export default function AdminDashboard() {
           Analytics Overview
         </Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' }, gap: 3 }}>
-          <Box>
-            <Card 
-              elevation={0}
-              sx={{ 
-                height: '100%',
-                borderRadius: 4,
-                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                border: '1px solid rgba(0,0,0,0.05)',
-              }}
-            >
-              <CardContent>
-                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                  Website Visits (Last 7 Days)
-                </Typography>
-                <Box sx={{ height: 300, width: '100%' }}>
+          <Card
+            elevation={0}
+            sx={{
+              height: '100%',
+              borderRadius: 4,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+              border: '1px solid rgba(0,0,0,0.05)',
+            }}
+          >
+            <CardContent>
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                New Leads (Last 14 Days)
+              </Typography>
+              <Box sx={{ height: 300, width: '100%' }}>
+                {loading ? (
+                  <Skeleton variant="rounded" height={280} />
+                ) : hasLeads ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={visitData}
-                      margin={{
-                        top: 20,
-                        right: 30,
-                        left: 20,
-                        bottom: 5,
-                      }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
+                    <BarChart data={trendData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" fontSize={12} interval="preserveStartEnd" />
+                      <YAxis allowDecimals={false} fontSize={12} />
                       <RechartsTooltip />
-                      <Bar dataKey="visits" fill={theme.palette.primary.main} radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="leads" fill={theme.palette.primary.main} radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-          <Box>
-            <Card 
-              elevation={0}
-              sx={{ 
-                height: '100%',
-                borderRadius: 4,
-                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                border: '1px solid rgba(0,0,0,0.05)',
-              }}
-            >
-              <CardContent>
-                <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                  Traffic Sources
-                </Typography>
-                <Box sx={{ height: 300, width: '100%' }}>
+                ) : (
+                  <EmptyChart label="No leads yet — they'll appear here as they come in." />
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+
+          <Card
+            elevation={0}
+            sx={{
+              height: '100%',
+              borderRadius: 4,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+              border: '1px solid rgba(0,0,0,0.05)',
+            }}
+          >
+            <CardContent>
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                Pipeline by Status
+              </Typography>
+              <Box sx={{ height: 300, width: '100%' }}>
+                {loading ? (
+                  <Skeleton variant="circular" width={200} height={200} sx={{ mx: 'auto', mt: 3 }} />
+                ) : hasLeads ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={trafficSourceData}
+                        data={statusData}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
                         outerRadius={80}
-                        fill="#8884d8"
                         dataKey="value"
-                        label={({ name, percent }: PieLabelRenderProps) => `${name}: ${(percent ? (percent * 100).toFixed(0) : '0')}%`}
+                        label={({ name, percent }: PieLabelRenderProps) =>
+                          `${name}: ${percent ? (percent * 100).toFixed(0) : '0'}%`
+                        }
                       >
-                        {trafficSourceData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        {statusData.map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={STATUS_COLORS[entry.name] || PIE_FALLBACK[index % PIE_FALLBACK.length]}
+                          />
                         ))}
                       </Pie>
                       <Legend />
                     </PieChart>
                   </ResponsiveContainer>
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
+                ) : (
+                  <EmptyChart label="No pipeline data yet." />
+                )}
+              </Box>
+            </CardContent>
+          </Card>
         </Box>
       </Box>
-      
+
       {/* Recent Activity */}
       <Box
         component={motion.div}
@@ -373,48 +557,59 @@ export default function AdminDashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.3 }}
       >
-        <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-          Recent Activity
-        </Typography>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 3 }}>
-          <Box>
-            <Card 
-              elevation={0}
-              sx={{ 
-                height: '100%',
-                borderRadius: 4,
-                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                border: '1px solid rgba(0,0,0,0.05)',
-              }}
-            >
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="subtitle1" fontWeight={600}>
-                    Recent Lead Submissions
-                  </Typography>
-                  <Button 
-                    component={Link}
-                    href="/admin/leads"
-                    endIcon={<ArrowForwardIcon />}
-                    size="small"
-                  >
-                    View All
-                  </Button>
-                </Box>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '3fr 2fr' }, gap: 3 }}>
+          {/* Recent leads */}
+          <Card
+            elevation={0}
+            sx={{
+              borderRadius: 4,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+              border: '1px solid rgba(0,0,0,0.05)',
+            }}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="subtitle1" fontWeight={600}>
+                  Recent Lead Submissions
+                </Typography>
+                <Button component={Link} href="/admin/leads" endIcon={<ArrowForwardIcon />} size="small">
+                  View All
+                </Button>
+              </Box>
+              {loading ? (
+                [...Array(4)].map((_, i) => (
+                  <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1.5 }}>
+                    <Skeleton variant="circular" width={40} height={40} />
+                    <Box sx={{ flex: 1 }}>
+                      <Skeleton width="40%" />
+                      <Skeleton width="70%" />
+                    </Box>
+                  </Box>
+                ))
+              ) : leads && leads.recent.length > 0 ? (
                 <List sx={{ width: '100%' }}>
-                  {recentLeads.map((lead) => (
+                  {leads.recent.map((lead) => (
                     <React.Fragment key={lead.id}>
                       <ListItem
                         alignItems="flex-start"
                         secondaryAction={
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Tooltip title="View Details">
-                              <IconButton edge="end" aria-label="view" size="small">
+                          <Box sx={{ display: 'flex', gap: 0.5 }}>
+                            <Tooltip title="View in Leads">
+                              <IconButton
+                                edge="end"
+                                size="small"
+                                onClick={() => router.push('/admin/leads')}
+                              >
                                 <VisibilityIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Delete">
-                              <IconButton edge="end" aria-label="delete" size="small">
+                              <IconButton
+                                edge="end"
+                                size="small"
+                                color="error"
+                                onClick={() => handleDelete(lead.id)}
+                              >
                                 <DeleteIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
@@ -423,34 +618,40 @@ export default function AdminDashboard() {
                         sx={{ px: 0 }}
                       >
                         <ListItemAvatar>
-                          <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
-                            {lead.name.charAt(0)}
+                          <Avatar sx={{ bgcolor: STATUS_COLORS[lead.status] || theme.palette.primary.main }}>
+                            {lead.name.charAt(0).toUpperCase()}
                           </Avatar>
                         </ListItemAvatar>
                         <ListItemText
                           primary={
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                               <Typography variant="body1" fontWeight={500}>
                                 {lead.name}
                               </Typography>
-                              <Chip 
-                                label={lead.status} 
-                                size="small" 
-                                color={lead.status === 'New' ? 'primary' : lead.status === 'Contacted' ? 'info' : 'success'} 
-                                variant="outlined"
+                              <Chip
+                                label={lead.status}
+                                size="small"
+                                sx={{
+                                  bgcolor: alpha(STATUS_COLORS[lead.status] || '#999', 0.12),
+                                  color: STATUS_COLORS[lead.status] || 'text.secondary',
+                                  fontWeight: 600,
+                                }}
                               />
                             </Box>
                           }
                           secondary={
                             <>
-                              <Typography
-                                component="span"
-                                variant="body2"
-                                color="text.primary"
-                              >
-                                {lead.company}
-                              </Typography>
-                              {` — ${lead.email} • ${lead.date}`}
+                              {lead.company && (
+                                <Typography component="span" variant="body2" color="text.primary">
+                                  {lead.company} —{' '}
+                                </Typography>
+                              )}
+                              {lead.email} ·{' '}
+                              {new Date(lead.date).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
                             </>
                           }
                         />
@@ -459,96 +660,79 @@ export default function AdminDashboard() {
                     </React.Fragment>
                   ))}
                 </List>
-              </CardContent>
-            </Card>
-          </Box>
-          <Box>
-            <Card 
-              elevation={0}
-              sx={{ 
-                height: '100%',
-                borderRadius: 4,
-                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                border: '1px solid rgba(0,0,0,0.05)',
-              }}
-            >
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="subtitle1" fontWeight={600}>
-                    Recent Blog Posts
-                  </Typography>
-                  <Button 
-                    component={Link}
-                    href="/admin/blog"
-                    endIcon={<ArrowForwardIcon />}
-                    size="small"
-                  >
-                    View All
-                  </Button>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 5, color: 'text.secondary' }}>
+                  <ContactPageIcon sx={{ fontSize: 48, mb: 1, opacity: 0.5 }} />
+                  <Typography>No leads yet. New submissions will show up here.</Typography>
                 </Box>
-                <List sx={{ width: '100%' }}>
-                  {recentBlogPosts.map((post) => (
-                    <React.Fragment key={post.id}>
-                      <ListItem
-                        alignItems="flex-start"
-                        secondaryAction={
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Tooltip title="Edit">
-                              <IconButton edge="end" aria-label="edit" size="small">
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete">
-                              <IconButton edge="end" aria-label="delete" size="small">
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        }
-                        sx={{ px: 0 }}
-                      >
-                        <ListItemAvatar>
-                          <Avatar sx={{ bgcolor: theme.palette.secondary ? theme.palette.secondary.main : '#14bb87' }}>
-                            <ArticleIcon />
-                          </Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="body1" fontWeight={500}>
-                                {post.title}
-                              </Typography>
-                              <Chip 
-                                label={post.status} 
-                                size="small" 
-                                color={post.status === 'Published' ? 'success' : 'warning'} 
-                                variant="outlined"
-                              />
-                            </Box>
-                          }
-                          secondary={
-                            <>
-                              <Typography
-                                component="span"
-                                variant="body2"
-                                color="text.primary"
-                              >
-                                {post.author}
-                              </Typography>
-                              {` — ${post.date}`}
-                            </>
-                          }
-                        />
-                      </ListItem>
-                      <Divider variant="inset" component="li" />
-                    </React.Fragment>
-                  ))}
-                </List>
-              </CardContent>
-            </Card>
-          </Box>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Lead sources */}
+          <Card
+            elevation={0}
+            sx={{
+              borderRadius: 4,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+              border: '1px solid rgba(0,0,0,0.05)',
+            }}
+          >
+            <CardContent>
+              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+                Top Lead Sources
+              </Typography>
+              {loading ? (
+                [...Array(4)].map((_, i) => <Skeleton key={i} height={40} />)
+              ) : leads && leads.bySource.length > 0 ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {leads.bySource
+                    .slice()
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 6)
+                    .map((s, i) => (
+                      <Box key={s.source}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="body2" fontWeight={500}>
+                            {s.source}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {s.count} ({s.percentage}%)
+                          </Typography>
+                        </Box>
+                        <Box sx={{ height: 8, borderRadius: 4, bgcolor: alpha('#0A66C2', 0.1), overflow: 'hidden' }}>
+                          <Box
+                            sx={{
+                              height: '100%',
+                              width: `${s.percentage}%`,
+                              borderRadius: 4,
+                              bgcolor: PIE_FALLBACK[i % PIE_FALLBACK.length],
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                    ))}
+                </Box>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 5, color: 'text.secondary' }}>
+                  <Typography>No source data yet.</Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
         </Box>
       </Box>
+
+      <Snackbar
+        open={Boolean(snack)}
+        autoHideDuration={3000}
+        onClose={() => setSnack(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="info" onClose={() => setSnack(null)}>
+          {snack}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
