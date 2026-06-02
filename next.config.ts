@@ -4,13 +4,13 @@ const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   images: {
-    domains: ['trayarunyaventures.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'trayarunyaventures.com',
+      },
+    ],
     formats: ['image/avif', 'image/webp'],
-  },
-  // Disable ESLint during build for production
-  eslint: {
-    // Only run ESLint in development, not during builds
-    ignoreDuringBuilds: true,
   },
   typescript: {
     // Ignore TypeScript errors during build for production
