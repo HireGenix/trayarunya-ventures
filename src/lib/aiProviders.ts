@@ -55,11 +55,12 @@ export function providerConfigured(provider: Provider): boolean {
 const SYSTEM_PROMPT = `You are the internal AI assistant for the Trayarunya Ventures team — a sharp, helpful copilot for a B2B/B2C/D2C digital-marketing agency. Help staff with marketing strategy, copywriting, campaign planning, lead research, content, analysis, and general work tasks. Be concise, practical, and format answers in clean Markdown when helpful.`;
 
 /**
- * Maximum output tokens for Claude Opus. Anthropic's Messages API *requires*
- * a max_tokens value (it cannot be omitted), so "uncapped" means using the
- * model's full supported output window so long answers are never truncated.
+ * Maximum output tokens for Claude Opus 4.7. Anthropic's Messages API
+ * *requires* a max_tokens value (it cannot be omitted), so "uncapped" means
+ * using the model's full supported output window so long answers are never
+ * truncated. claude-opus-4-7 supports up to 128k output tokens.
  */
-const CLAUDE_MAX_OUTPUT_TOKENS = 32000;
+const CLAUDE_MAX_OUTPUT_TOKENS = 128000;
 
 /** Stream GPT-5.5 (Azure Responses API) text deltas. */
 async function* streamGpt(
