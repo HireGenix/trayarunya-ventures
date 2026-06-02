@@ -10,8 +10,24 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'Trayarunya Ventures - AI-Powered SaaS Applications',
-  description: 'Trayarunya Ventures builds AI-powered SaaS applications to streamline and enhance business operations. Our innovative solutions help organizations work smarter and achieve more.',
+  title: 'Trayarunya Ventures — Your B2B Growth Partner | LinkedIn Lead Gen for High-Ticket Sales',
+  description:
+    "Trayarunya Ventures isn't your agency — we're your marketing partner. We own your pain points, strategize like the business is ours, and execute a B2B growth engine that turns LinkedIn into high-ticket pipeline.",
+  keywords: [
+    'B2B marketing partner',
+    'LinkedIn lead generation',
+    'high-ticket sales',
+    'B2B demand generation',
+    'LinkedIn marketing agency',
+    'personal branding',
+    'fractional CMO',
+  ],
+  openGraph: {
+    title: 'Trayarunya Ventures — Your B2B Growth Partner',
+    description:
+      'We don\'t take clients. We take partners. A B2B growth engine that turns LinkedIn into high-ticket pipeline.',
+    type: 'website',
+  },
   icons: {
     icon: '/1731405605898.jpg',
     apple: '/1731405605898.jpg',

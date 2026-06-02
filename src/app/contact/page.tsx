@@ -1,173 +1,162 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Layout } from '@/components/Layout';
-import { Box, Breadcrumbs, Typography, Link as MuiLink, useTheme, IconButton, Fab, alpha } from '@mui/material';
-import { motion } from 'framer-motion';
-import HomeIcon from '@mui/icons-material/Home';
-import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import ChatIcon from '@mui/icons-material/Chat';
+import React, { useRef, useState } from 'react';
+import { Box, Container, Typography, Paper } from '@mui/material';
 import Link from 'next/link';
+import EmailIcon from '@mui/icons-material/Email';
+import PhoneIcon from '@mui/icons-material/Phone';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import LinkedInIcon from '@mui/icons-material/LinkedIn';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { Layout } from '@/components/Layout';
+import { PageHero, Reveal, SectionHeading, GradientText, FaqAccordion } from '@/components/cinematic';
+import ContactForm from '@/components/Contact/ContactForm';
+import { AIMarketerExperience } from '@/components/Contact/AIMarketer';
+import { companyInfo, faqInfo } from '@/data/websiteInfo';
 
-import {
-  HeroSection,
-  ContactForm,
-  ContactInfo,
-  MapSection,
-  FaqSection,
-  ScheduleMeeting
-} from '@/components/Contact';
+const promises = [
+  'A senior strategist on the call — not a salesperson',
+  'A clear read on your current growth gaps',
+  'A concrete plan for your LinkedIn pipeline',
+  'No obligation, no pressure',
+];
 
 export default function ContactPage() {
-  const theme = useTheme();
-  const [showChatbot, setShowChatbot] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const formRef = useRef<HTMLDivElement | null>(null);
 
-  const toggleChatbot = () => {
-    setShowChatbot(!showChatbot);
+  const handlePreferTyping = () => {
+    setShowForm(true);
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
   };
 
   return (
     <Layout>
-      <Box
-        component={motion.div}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        {/* Breadcrumb Navigation */}
-        <Box sx={{ backgroundColor: '#ffffff', py: 2 }}>
-          <Box sx={{ maxWidth: 'lg', mx: 'auto', px: { xs: 2, sm: 3, md: 4 } }}>
-            <Breadcrumbs 
-              separator={<NavigateNextIcon fontSize="small" />} 
-              aria-label="breadcrumb"
-            >
-              <Link href="/" passHref>
-                <MuiLink 
-                  underline="hover" 
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                  color="inherit"
-                >
-                  <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-                  Home
-                </MuiLink>
-              </Link>
-              <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
-                Contact Us
-              </Typography>
-            </Breadcrumbs>
-          </Box>
-        </Box>
+      <PageHero
+        eyebrow="TALK TO OUR AI MARKETER"
+        title={
+          <>
+            Let’s make your growth
+            <br /> <GradientText>our problem.</GradientText>
+          </>
+        }
+        subtitle="Speak with our AI Marketer right now. Tell it where you’re stuck — it’ll understand your business, research your company live, and map how the partnership turns LinkedIn into high-ticket pipeline."
+      />
 
-        {/* Hero Section */}
-        <HeroSection />
+      {/* AI Marketer experience */}
+      <Box sx={{ background: '#0a0a0f', color: '#fff', pt: { xs: 6, md: 9 }, pb: { xs: 6, md: 8 } }}>
+        <Container maxWidth="lg">
+          <Reveal>
+            <AIMarketerExperience onPreferTyping={handlePreferTyping} />
+          </Reveal>
+        </Container>
+      </Box>
 
-        {/* Contact Form and Info Section */}
-        <Box sx={{ py: { xs: 8, md: 12 }, backgroundColor: '#ffffff' }}>
-          <Box sx={{ maxWidth: 'lg', mx: 'auto', px: { xs: 2, sm: 3, md: 4 } }}>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {/* Contact Form */}
-              <Box 
-                sx={{ 
-                  width: '100%', 
-                  flex: { xs: '0 0 100%', md: '0 0 calc(60% - 24px)' },
-                }}
-              >
-                <ContactForm />
+      {/* Contact info + (optional) form */}
+      <Box sx={{ background: '#0a0a0f', color: '#fff', pb: { xs: 8, md: 12 } }}>
+        <Container maxWidth="lg">
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: showForm ? '0.9fr 1.1fr' : '1fr' }, gap: { xs: 5, md: 6 }, alignItems: 'flex-start' }}>
+            {/* Info side */}
+            <Box>
+              <Reveal>
+                <Typography variant="h4" sx={{ fontWeight: 800, mb: 2 }}>
+                  What happens next
+                </Typography>
+              </Reveal>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 4 }}>
+                {promises.map((p, i) => (
+                  <Reveal key={p} delay={i * 0.06}>
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                      <CheckCircleIcon sx={{ color: '#14bb87', fontSize: 22, mt: '1px' }} />
+                      <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>{p}</Typography>
+                    </Box>
+                  </Reveal>
+                ))}
               </Box>
-              
-              {/* Contact Information */}
-              <Box 
-                sx={{ 
-                  width: '100%', 
-                  flex: { xs: '0 0 100%', md: '0 0 calc(40% - 24px)' },
-                }}
-              >
-                <ContactInfo />
+
+              <Reveal delay={0.1}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                  <ContactRow icon={<EmailIcon />} color="#ffaf06" label="Email us" lines={[companyInfo.contact.email]} href={`mailto:${companyInfo.contact.email}`} />
+                  <ContactRow icon={<PhoneIcon />} color="#14bb87" label="Call us" lines={companyInfo.contact.phone} />
+                  <ContactRow icon={<LocationOnIcon />} color="#0A66C2" label="Offices" lines={companyInfo.contact.address} />
+                  <ContactRow icon={<LinkedInIcon />} color="#0A66C2" label="Connect" lines={['Trayarunya Ventures on LinkedIn']} href={companyInfo.contact.socialMedia.linkedin} />
+                </Box>
+              </Reveal>
+            </Box>
+
+            {/* Form side (revealed on demand) */}
+            {showForm && (
+              <Box ref={formRef}>
+                <Reveal direction="left">
+                  <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', mb: 2 }}>
+                    Prefer to type? Send us a message
+                  </Typography>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: { xs: 0.5, md: 1 },
+                      borderRadius: 4,
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    <ContactForm />
+                  </Paper>
+                </Reveal>
               </Box>
-            </Box>
+            )}
           </Box>
-        </Box>
+        </Container>
+      </Box>
 
-        {/* Schedule Meeting Section */}
-        <ScheduleMeeting />
-
-        {/* Map Section */}
-        <MapSection />
-
-        {/* FAQ Section */}
-        <FaqSection />
-        
-        {/* Floating Chat Button */}
-        <Fab
-          color="primary"
-          aria-label="chat"
-          sx={{
-            position: 'fixed',
-            bottom: 30,
-            right: 30,
-            zIndex: 1000,
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
-            '&:hover': {
-              transform: 'translateY(-5px)',
-              boxShadow: '0 8px 25px rgba(0, 0, 0, 0.3)',
-            },
-            transition: 'all 0.3s ease',
-          }}
-          onClick={toggleChatbot}
-        >
-          <ChatIcon />
-        </Fab>
-        
-        {/* Chatbot (placeholder) */}
-        {showChatbot && (
-          <Box
-            sx={{
-              position: 'fixed',
-              bottom: 100,
-              right: 30,
-              width: 350,
-              height: 450,
-              backgroundColor: '#ffffff',
-              borderRadius: 2,
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
-              zIndex: 1000,
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            <Box
-              sx={{
-                p: 2,
-                backgroundColor: theme.palette.primary.main,
-                color: '#ffffff',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <Typography variant="h6">Chat with us</Typography>
-              <IconButton size="small" onClick={toggleChatbot} sx={{ color: '#ffffff' }}>
-                <NavigateNextIcon />
-              </IconButton>
-            </Box>
-            <Box
-              sx={{
-                p: 2,
-                flexGrow: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: alpha(theme.palette.primary.main, 0.05),
-              }}
-            >
-              <Typography variant="body1" color="text.secondary" align="center">
-                Chat functionality would be implemented here. This is a placeholder for demonstration purposes.
-              </Typography>
-            </Box>
-          </Box>
-        )}
+      {/* FAQ */}
+      <Box sx={{ background: 'linear-gradient(180deg,#0a0a0f,#07090d)', color: '#fff', py: { xs: 8, md: 12 } }}>
+        <Container maxWidth="md">
+          <SectionHeading dark eyebrow="QUESTIONS" title="Before you book" />
+          <FaqAccordion items={faqInfo} />
+        </Container>
       </Box>
     </Layout>
   );
+}
+
+function ContactRow({
+  icon,
+  color,
+  label,
+  lines,
+  href,
+}: {
+  icon: React.ReactNode;
+  color: string;
+  label: string;
+  lines: string[];
+  href?: string;
+}) {
+  const content = (
+    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+      <Box sx={{ flexShrink: 0, width: 44, height: 44, borderRadius: 2, display: 'grid', placeItems: 'center', color, background: `${color}1f`, border: `1px solid ${color}40` }}>
+        {icon}
+      </Box>
+      <Box>
+        <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', mb: 0.3 }}>{label}</Typography>
+        {lines.map((l) => (
+          <Typography key={l} sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', lineHeight: 1.5 }}>
+            {l}
+          </Typography>
+        ))}
+      </Box>
+    </Box>
+  );
+
+  if (href) {
+    return (
+      <Box component={Link} href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" sx={{ textDecoration: 'none' }}>
+        {content}
+      </Box>
+    );
+  }
+  return content;
 }

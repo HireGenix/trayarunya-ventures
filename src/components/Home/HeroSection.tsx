@@ -1,659 +1,240 @@
 'use client';
 
 import React from 'react';
-import {
-  Box,
-  Button,
-  Container,
-  Typography,
-  Stack,
-  useTheme,
-  useMediaQuery,
-  Paper,
-  Chip,
-  Avatar,
-  Divider,
-} from '@mui/material';
-import {
-  PlayArrow as PlayArrowIcon,
-  ArrowForward as ArrowForwardIcon,
-  BusinessCenter as BusinessCenterIcon,
-  Insights as InsightsIcon,
-  MedicalServices as MedicalServicesIcon,
-  ArrowDownward as ArrowDownwardIcon,
-} from '@mui/icons-material';
-import Link from 'next/link';
+import { Box, Container, Typography, Stack, Chip } from '@mui/material';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
+import {
+  ArrowForward as ArrowForwardIcon,
+  LinkedIn as LinkedInIcon,
+  Verified as VerifiedIcon,
+} from '@mui/icons-material';
+import { GradientMesh, GradientText, GlowButton } from '@/components/cinematic';
+import { stats } from '@/data/websiteInfo';
+import AnimatedCounter from '@/components/cinematic/AnimatedCounter';
+import HeroShowcase from './HeroShowcase';
+
+const headline = ['We don’t take clients.', 'We take partners.'];
+
+const wordContainer = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.2 } },
+};
+const wordItem = {
+  hidden: { opacity: 0, y: 30, filter: 'blur(8px)' },
+  visible: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
+};
 
 const HeroSection = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
-
-  // Animation variants
-  const fadeIn = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.8,
-        ease: [0.4, 0, 0.2, 1],
-      },
-    },
-  };
-
-  const staggerContainer = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.3,
-      },
-    },
-  };
-
-  // Products data
-  const products = [
-    {
-      icon: <BusinessCenterIcon sx={{ fontSize: '1.5rem', color: '#ffaf06' }} />,
-      title: 'HireGenix',
-      description: 'AI-powered recruitment platform',
-    },
-    {
-      icon: <InsightsIcon sx={{ fontSize: '1.5rem', color: '#14bb87' }} />,
-      title: 'MarketIQ',
-      description: 'Market intelligence solution',
-    },
-    {
-      icon: <MedicalServicesIcon sx={{ fontSize: '1.5rem', color: '#d92c4a' }} />,
-      title: 'MedCodeX',
-      description: 'AI medical coding platform',
-    },
-  ];
-
-  // Stats data
-  const stats = [
-    { value: '3', label: 'AI Products' },
-    { value: '2', label: 'Global Offices' },
-    { value: '2024', label: 'Founded' },
-  ];
-
   return (
     <Box
+      component="section"
       sx={{
         position: 'relative',
         minHeight: { xs: 'auto', md: '100vh' },
         display: 'flex',
         alignItems: 'center',
         overflow: 'hidden',
-        background: '#000000',
-        color: 'white',
-        pt: { xs: 12, md: 0 },
-        pb: { xs: 10, md: 0 },
+        background: 'radial-gradient(120% 120% at 50% 0%, #16161c 0%, #08080a 55%, #050507 100%)',
+        color: '#fff',
+        pt: { xs: 13, md: 16 },
+        pb: { xs: 8, md: 10 },
       }}
     >
-      {/* Geometric pattern overlay */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          opacity: 0.05,
-          backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
-          backgroundSize: '30px 30px',
-          zIndex: 1,
-        }}
-      />
-
-      {/* Animated gradient orbs */}
-      <Box
-        component={motion.div}
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 0.2 }}
-        transition={{ duration: 1.5 }}
-        sx={{
-          position: 'absolute',
-          top: '10%',
-          right: '5%',
-          width: { xs: 200, md: 400 },
-          height: { xs: 200, md: 400 },
-          borderRadius: '50%',
-          background: `radial-gradient(circle, rgba(255, 175, 6, 0.5) 0%, rgba(0, 0, 0, 0) 70%)`,
-          filter: 'blur(80px)',
-          zIndex: 1,
-          animation: 'pulse 8s ease-in-out infinite',
-          '@keyframes pulse': {
-            '0%, 100%': { transform: 'scale(1)', opacity: 0.2 },
-            '50%': { transform: 'scale(1.1)', opacity: 0.3 },
-          },
-        }}
-      />
-
-      <Box
-        component={motion.div}
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 0.15 }}
-        transition={{ duration: 1.5, delay: 0.3 }}
-        sx={{
-          position: 'absolute',
-          bottom: '10%',
-          left: '5%',
-          width: { xs: 150, md: 300 },
-          height: { xs: 150, md: 300 },
-          borderRadius: '50%',
-          background: `radial-gradient(circle, rgba(20, 187, 135, 0.5) 0%, rgba(0, 0, 0, 0) 70%)`,
-          filter: 'blur(80px)',
-          zIndex: 1,
-          animation: 'pulse2 10s ease-in-out infinite',
-          '@keyframes pulse2': {
-            '0%, 100%': { transform: 'scale(1)', opacity: 0.15 },
-            '50%': { transform: 'scale(1.15)', opacity: 0.25 },
-          },
-        }}
-      />
-
-      <Box
-        component={motion.div}
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 0.15 }}
-        transition={{ duration: 1.5, delay: 0.6 }}
-        sx={{
-          position: 'absolute',
-          top: '40%',
-          left: '15%',
-          width: { xs: 100, md: 200 },
-          height: { xs: 100, md: 200 },
-          borderRadius: '50%',
-          background: `radial-gradient(circle, rgba(217, 44, 74, 0.5) 0%, rgba(0, 0, 0, 0) 70%)`,
-          filter: 'blur(60px)',
-          zIndex: 1,
-          animation: 'pulse3 12s ease-in-out infinite',
-          '@keyframes pulse3': {
-            '0%, 100%': { transform: 'scale(1)', opacity: 0.15 },
-            '50%': { transform: 'scale(1.2)', opacity: 0.25 },
-          },
-        }}
-      />
+      <GradientMesh dark />
 
       <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2 }}>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          {/* Left Content */}
-          <Box 
-            sx={{ 
-              width: '100%', 
-              flex: { xs: '0 0 100%', md: '0 0 calc(50% - 24px)' },
-              order: { xs: 2, md: 1 }
-            }}
-            component={motion.div}
-            initial="hidden"
-            animate="visible"
-            variants={fadeIn}
-          >
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: '1.05fr 0.95fr' },
+            gap: { xs: 5, md: 6 },
+            alignItems: 'center',
+          }}
+        >
+          {/* LEFT: copy */}
+          <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}>
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+              transition={{ duration: 0.6 }}
             >
               <Chip
-                label="AI-POWERED SAAS APPLICATIONS"
+                icon={<LinkedInIcon sx={{ color: '#0A66C2 !important' }} />}
+                label="B2B · B2C · D2C GROWTH PARTNER"
                 sx={{
                   mb: 3,
                   py: 2,
-                  px: 2,
+                  px: 1,
                   borderRadius: '50px',
-                  background: `linear-gradient(90deg, #ffaf06, #14bb87)`,
-                  color: '#000000',
+                  letterSpacing: '0.1em',
+                  fontSize: '0.7rem',
                   fontWeight: 700,
-                  fontSize: '0.75rem',
-                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
+                  color: 'rgba(255,255,255,0.85)',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  backdropFilter: 'blur(10px)',
                 }}
               />
             </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.3 }}
+            <Box
+              component={motion.h1}
+              variants={wordContainer}
+              initial="hidden"
+              animate="visible"
+              sx={{
+                fontWeight: 800,
+                fontSize: { xs: '2.5rem', sm: '3.4rem', md: '4.2rem' },
+                lineHeight: 1.05,
+                letterSpacing: '-0.03em',
+                m: 0,
+                mb: 3,
+              }}
             >
-              <Typography
-                variant="h1"
-                component="h1"
-                sx={{
-                  fontSize: { xs: '2.5rem', sm: '3.5rem', md: '4rem' },
-                  fontWeight: 800,
-                  mb: 2,
-                  background: `linear-gradient(90deg, #FFFFFF 0%, #CCCCCC 100%)`,
-                  backgroundClip: 'text',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  lineHeight: 1.1,
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                Innovating with{' '}
-                <Box component="span" sx={{ color: '#ffaf06', WebkitTextFillColor: '#ffaf06' }}>
-                  AI-Powered
-                </Box>{' '}
-                SaaS Solutions
-              </Typography>
-            </motion.div>
+              {headline.map((line, li) => (
+                <Box key={li} sx={{ display: 'block' }}>
+                  {line.split(' ').map((word, wi) => (
+                    <Box
+                      key={wi}
+                      component={motion.span}
+                      variants={wordItem}
+                      sx={{ display: 'inline-block', mr: '0.25em' }}
+                    >
+                      {li === 1 ? <GradientText>{word}</GradientText> : word}
+                    </Box>
+                  ))}
+                </Box>
+              ))}
+            </Box>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.5 }}
+              transition={{ duration: 0.7, delay: 0.7 }}
             >
               <Typography
-                variant="h2"
-                component="h2"
                 sx={{
-                  fontSize: { xs: '1.1rem', md: '1.25rem' },
-                  fontWeight: 400,
+                  color: 'rgba(255,255,255,0.72)',
+                  fontSize: { xs: '1.02rem', md: '1.2rem' },
+                  maxWidth: 560,
+                  mx: { xs: 'auto', md: 0 },
                   mb: 4,
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  maxWidth: 550,
                   lineHeight: 1.6,
                 }}
               >
-                Trayarunya Ventures builds intelligent applications that streamline operations and enhance productivity for businesses worldwide.
+                We own your pain as our own and run an AI-powered growth engine — filtering leads,
+                outreach, content and ads — that turns attention into a predictable
+                <GradientText sx={{ fontWeight: 700 }}> high-ticket pipeline.</GradientText>
               </Typography>
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.7 }}
+              transition={{ duration: 0.7, delay: 0.85 }}
             >
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 spacing={2}
-                sx={{ mb: 6 }}
+                justifyContent={{ xs: 'center', md: 'flex-start' }}
+                alignItems="center"
               >
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="large"
+                <GlowButton component={Link} href="/contact" size="large">
+                  Book a Strategy Call
+                </GlowButton>
+                <Box
                   component={Link}
-                  href="/products"
-                  endIcon={<ArrowForwardIcon />}
+                  href="/how-we-work"
                   sx={{
-                    py: 1.5,
-                    px: 4,
-                    fontSize: '1rem',
-                    boxShadow: '0 10px 20px rgba(0, 0, 0, 0.2)',
-                    borderRadius: '50px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    color: 'rgba(255,255,255,0.85)',
+                    textDecoration: 'none',
                     fontWeight: 600,
+                    px: 2,
+                    py: 1.5,
+                    borderRadius: '50px',
+                    border: '1px solid rgba(255,255,255,0.15)',
                     transition: 'all 0.3s ease',
-                    '&:hover': {
-                      boxShadow: '0 6px 15px rgba(0, 0, 0, 0.3)',
-                      transform: 'translateY(-2px)',
-                    },
+                    '&:hover': { borderColor: 'rgba(255,255,255,0.4)', color: '#fff' },
                   }}
                 >
-                  Explore Our Products
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<PlayArrowIcon />}
-                  color="inherit"
-                  size="large"
-                  component={Link}
-                  href="/contact"
-                  sx={{
-                    py: 1.5,
-                    px: 4,
-                    fontSize: '1rem',
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                    color: 'white',
-                    borderRadius: '50px',
-                    fontWeight: 600,
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      borderColor: 'white',
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                      transform: 'translateY(-2px)',
-                    },
-                  }}
-                >
-                  Get in Touch
-                </Button>
+                  See how we work <ArrowForwardIcon fontSize="small" />
+                </Box>
               </Stack>
             </motion.div>
 
-            {/* Stats */}
             <motion.div
-              variants={staggerContainer}
-              initial="hidden"
-              animate="visible"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 1 }}
             >
-              <Box 
-                sx={{ 
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 2,
-                  mb: 4 
-                }}
+              <Stack
+                direction="row"
+                spacing={1}
+                justifyContent={{ xs: 'center', md: 'flex-start' }}
+                alignItems="center"
+                sx={{ mt: 3, color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}
               >
-                {stats.map((stat, index) => (
-                  <Box 
-                    key={index}
-                    sx={{
-                      flex: '1 1 auto',
-                      minWidth: { xs: 'calc(50% - 8px)', sm: 'auto' }
-                    }}
-                  >
-                    <motion.div variants={fadeIn}>
-                      <Box
-                        sx={{
-                          textAlign: 'center',
-                          p: 2,
-                          borderRadius: '16px',
-                          background: 'rgba(255, 255, 255, 0.05)',
-                          backdropFilter: 'blur(10px)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                        }}
-                      >
-                        <Typography
-                          variant="h3"
-                          sx={{
-                            fontWeight: 800,
-                            color: index === 0 ? '#ffaf06' : index === 1 ? '#14bb87' : '#d92c4a',
-                            mb: 0.5,
-                            fontSize: { xs: '1.75rem', md: '2.25rem' },
-                          }}
-                        >
-                          {stat.value}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: 'rgba(255, 255, 255, 0.7)',
-                            fontWeight: 500,
-                          }}
-                        >
-                          {stat.label}
-                        </Typography>
-                      </Box>
-                    </motion.div>
-                  </Box>
-                ))}
-              </Box>
+                <VerifiedIcon sx={{ fontSize: 18, color: '#14bb87' }} />
+                B2B is our flagship — trusted by founders to own their growth
+              </Stack>
             </motion.div>
           </Box>
 
-          {/* Right Content - Products Preview */}
-          <Box 
-            sx={{ 
-              width: '100%', 
-              flex: { xs: '0 0 100%', md: '0 0 calc(50% - 24px)' },
-              order: { xs: 1, md: 2 }
-            }}
+          {/* RIGHT: live animated showcase */}
+          <Box
             component={motion.div}
-            initial="hidden"
-            animate="visible"
-            variants={fadeIn}
+            initial={{ opacity: 0, scale: 0.94, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
           >
-            <Box
-              sx={{
-                position: 'relative',
-                height: { xs: 400, md: 550 },
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                perspective: '1200px',
-              }}
-            >
-              {/* Main logo with 3D effect */}
-              <Box
-                component={motion.div}
-                initial={{ opacity: 0, y: 20, rotateY: -15, rotateX: 10 }}
-                animate={{ opacity: 1, y: 0, rotateY: -8, rotateX: 5 }}
-                transition={{ duration: 0.8, delay: 0.3 }}
-                sx={{
-                  position: 'relative',
-                  width: '100%',
-                  height: '100%',
-                  transformStyle: 'preserve-3d',
-                  transition: 'transform 0.5s ease',
-                  '&:hover': {
-                    transform: 'rotateY(-4deg) rotateX(2deg)',
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: '16px',
-                    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    zIndex: 2,
-                    overflow: 'hidden',
-                    position: 'relative',
-                    background: '#1E1E1E',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    padding: 4,
-                  }}
-                >
-                  <Typography
-                    variant="h1"
-                    sx={{
-                      fontWeight: 800,
-                      fontSize: { xs: '2.5rem', md: '3.5rem' },
-                      color: '#FFFFFF',
-                      textAlign: 'center',
-                      mb: 2,
-                    }}
-                  >
-                    TRAYARUNYA
-                  </Typography>
-                  <Typography
-                    variant="h4"
-                    sx={{
-                      fontWeight: 400,
-                      color: 'rgba(255, 255, 255, 0.7)',
-                      textAlign: 'center',
-                      mb: 6,
-                    }}
-                  >
-                    VENTURES
-                  </Typography>
-                  
-                  <Box
-                    sx={{
-                      width: '80%',
-                      height: 8,
-                      background: 'linear-gradient(90deg, #ffaf06, #14bb87, #d92c4a)',
-                      borderRadius: 4,
-                      mb: 6,
-                    }}
-                  />
-                  
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      color: 'rgba(255, 255, 255, 0.7)',
-                      textAlign: 'center',
-                      mb: 4,
-                    }}
-                  >
-                    Established October 2024
-                  </Typography>
-                  
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      gap: 2,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: '50%',
-                        backgroundColor: '#ffaf06',
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: '50%',
-                        backgroundColor: '#14bb87',
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: '50%',
-                        backgroundColor: '#d92c4a',
-                      }}
-                    />
-                  </Box>
-                </Box>
-
-                {/* Glow effect behind image */}
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '80%',
-                    height: '80%',
-                    borderRadius: '16px',
-                    background: `radial-gradient(circle, rgba(255, 175, 6, 0.2) 0%, rgba(0, 0, 0, 0) 70%)`,
-                    filter: 'blur(30px)',
-                    zIndex: 1,
-                  }}
-                />
-              </Box>
-
-              {/* Product cards */}
-              <motion.div
-                variants={staggerContainer}
-                initial="hidden"
-                animate="visible"
-              >
-                {products.map((product, index) => {
-                  // Calculate positions for each product card
-                  const positions = [
-                    { top: '10%', right: '-5%', rotate: '5deg' },
-                    { top: '50%', left: '-5%', rotate: '-3deg', translateY: '-50%' },
-                    { bottom: '10%', right: '-5%', rotate: '2deg' },
-                  ];
-
-                  return (
-                    <Box
-                      key={index}
-                      component={motion.div}
-                      variants={fadeIn}
-                      custom={index}
-                      sx={{
-                        position: 'absolute',
-                        ...positions[index],
-                        zIndex: 3,
-                        maxWidth: 220,
-                      }}
-                    >
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 2,
-                          borderRadius: '12px',
-                          background: 'rgba(30, 30, 30, 0.8)',
-                          backdropFilter: 'blur(10px)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          transform: `rotate(${positions[index].rotate})`,
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            transform: `rotate(${positions[index].rotate}) translateY(-5px)`,
-                            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-                          },
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          {product.icon}
-                          <Typography
-                            variant="subtitle1"
-                            sx={{
-                              fontWeight: 600,
-                              ml: 1,
-                              color: 'white',
-                            }}
-                          >
-                            {product.title}
-                          </Typography>
-                        </Box>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: 'rgba(255, 255, 255, 0.7)',
-                            display: 'block',
-                          }}
-                        >
-                          {product.description}
-                        </Typography>
-                      </Paper>
-                    </Box>
-                  );
-                })}
-              </motion.div>
-            </Box>
+            <HeroShowcase />
           </Box>
         </Box>
 
-        {/* Scroll down indicator */}
+        {/* Stats strip (full width) */}
         <Box
-          sx={{
-            position: 'absolute',
-            bottom: 40,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            color: 'white',
-            opacity: 0.7,
-            cursor: 'pointer',
-            '&:hover': {
-              opacity: 1,
-            },
-          }}
           component={motion.div}
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 0.7, y: 0 }}
-          transition={{ delay: 1.2, duration: 0.5 }}
-          onClick={() => {
-            window.scrollTo({
-              top: window.innerHeight,
-              behavior: 'smooth',
-            });
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 1.1 }}
+          sx={{
+            mt: { xs: 6, md: 8 },
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+            gap: { xs: 2, md: 1 },
+            p: { xs: 2.5, md: 3 },
+            borderRadius: 4,
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(12px)',
           }}
         >
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            Scroll Down
-          </Typography>
-          <ArrowDownwardIcon
-            sx={{
-              animation: 'bounce 2s infinite',
-              '@keyframes bounce': {
-                '0%, 20%, 50%, 80%, 100%': { transform: 'translateY(0)' },
-                '40%': { transform: 'translateY(-10px)' },
-                '60%': { transform: 'translateY(-5px)' },
-              },
-            }}
-          />
+          {stats.map((s) => (
+            <Box key={s.label} sx={{ textAlign: 'center', px: 1 }}>
+              <AnimatedCounter
+                value={s.value}
+                prefix={s.prefix}
+                suffix={s.suffix}
+                decimals={s.value % 1 !== 0 ? 1 : 0}
+                sx={{
+                  fontWeight: 800,
+                  fontSize: { xs: '1.8rem', md: '2.4rem' },
+                  background: 'linear-gradient(90deg, #ffaf06, #14bb87)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  lineHeight: 1.1,
+                }}
+              />
+              <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', mt: 0.5 }}>
+                {s.label}
+              </Typography>
+            </Box>
+          ))}
         </Box>
       </Container>
     </Box>

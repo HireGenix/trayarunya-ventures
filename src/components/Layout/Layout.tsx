@@ -17,7 +17,6 @@ export default function Layout({ children }: LayoutProps) {
         component="main"
         sx={{
           flexGrow: 1,
-          pt: { xs: '70px', sm: '70px' } // Account for fixed header
         }}
       >
         {children}

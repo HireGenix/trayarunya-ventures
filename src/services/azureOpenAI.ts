@@ -3,12 +3,14 @@
  * This service handles communication with Azure OpenAI API for generating content
  */
 
-// Azure OpenAI API configuration
-const AZURE_OPENAI_ENDPOINT = 'https://sumit-m3hjubps-switzerlandnorth.openai.azure.com';
-const AZURE_OPENAI_API_KEY = '1gl8yCyBwnLpcj8deWz1iPQVSd5LwYTg4uFPbNyjeRsic7LexEV3JQQJ99AKACI8hq2XJ3w3AAABACOGyC9d';
-const AZURE_OPENAI_API_VERSION = '2025-01-01-preview';
-const AZURE_OPENAI_DEPLOYMENT_NAME = 'gpt-4.1';
-const AZURE_OPENAI_MODEL_ID = 'azureml://registries/azure-openai/models/gpt-4.1/versions/2025-04-14';
+// Azure OpenAI API configuration (read from environment — never hardcode secrets)
+const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT || '';
+const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY || '';
+const AZURE_OPENAI_API_VERSION = process.env.AZURE_OPENAI_API_VERSION || '2025-01-01-preview';
+const AZURE_OPENAI_DEPLOYMENT_NAME = process.env.AZURE_OPENAI_DEPLOYMENT_NAME || 'gpt-4.1';
+const AZURE_OPENAI_MODEL_ID =
+  process.env.AZURE_OPENAI_MODEL_ID ||
+  'azureml://registries/azure-openai/models/gpt-4.1/versions/2025-04-14';
 
 interface GenerateICPParams {
   businessName: string;
