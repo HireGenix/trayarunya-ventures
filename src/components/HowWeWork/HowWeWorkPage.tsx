@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Layout } from '@/components/Layout';
-import { PageHero, Reveal, SectionHeading, GlowButton, GradientText, FaqAccordion } from '@/components/cinematic';
+import { PageHero, Reveal, SectionHeading, GlowButton, GradientText, FaqAccordion, TiltCard } from '@/components/cinematic';
 import { LinkedInFunnelSection, WhyUsSection } from '@/components/Home';
 import { manifesto, processSteps, faqInfo } from '@/data/websiteInfo';
 
@@ -43,13 +43,15 @@ const HowWeWorkPage = () => {
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3,1fr)' }, gap: 3 }}>
             {manifesto.map((m, i) => (
               <Reveal key={m.key} delay={i * 0.12}>
-                <Box sx={{ p: 4, height: '100%', borderRadius: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <Typography sx={{ fontSize: '2.6rem', fontWeight: 800, lineHeight: 1, mb: 2, background: 'linear-gradient(90deg,#ffaf06,#14bb87)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    0{i + 1}
-                  </Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>{m.title}</Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.65)', lineHeight: 1.7 }}>{m.description}</Typography>
-                </Box>
+                <TiltCard max={9} sx={{ height: '100%', borderRadius: 4 }}>
+                  <Box sx={{ p: 4, height: '100%', borderRadius: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <Typography sx={{ fontSize: '2.6rem', fontWeight: 800, lineHeight: 1, mb: 2, background: 'linear-gradient(90deg,#ffaf06,#14bb87)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                      0{i + 1}
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>{m.title}</Typography>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.65)', lineHeight: 1.7 }}>{m.description}</Typography>
+                  </Box>
+                </TiltCard>
               </Reveal>
             ))}
           </Box>

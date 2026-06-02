@@ -8,7 +8,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentDissatisfied';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import { Layout } from '@/components/Layout';
-import { PageHero, Reveal, GlowButton, ServiceIcon } from '@/components/cinematic';
+import { PageHero, Reveal, GlowButton, ServiceIcon, TiltCard, AuroraBackground } from '@/components/cinematic';
 import { ServiceData, services } from '@/data/servicesData';
 
 const ServiceDetailView = ({ service }: { service: ServiceData }) => {
@@ -28,8 +28,9 @@ const ServiceDetailView = ({ service }: { service: ServiceData }) => {
       </PageHero>
 
       {/* Summary + metrics */}
-      <Box sx={{ background: '#0a0a0f', color: '#fff', py: { xs: 8, md: 12 } }}>
-        <Container maxWidth="lg">
+      <Box sx={{ position: 'relative', overflow: 'hidden', background: '#0a0a0f', color: '#fff', py: { xs: 8, md: 12 } }}>
+        <AuroraBackground intensity={0.3} />
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.3fr 1fr' }, gap: { xs: 5, md: 8 }, alignItems: 'center' }}>
             <Reveal>
               <Box
@@ -54,30 +55,31 @@ const ServiceDetailView = ({ service }: { service: ServiceData }) => {
             <Reveal delay={0.1}>
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1.5 }}>
                 {service.metrics.map((m) => (
-                  <Box
-                    key={m.label}
-                    sx={{
-                      p: 2.5,
-                      borderRadius: 3,
-                      textAlign: 'center',
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                    }}
-                  >
-                    <Typography
+                  <TiltCard key={m.label} max={12} sx={{ borderRadius: 3 }}>
+                    <Box
                       sx={{
-                        fontWeight: 800,
-                        fontSize: { xs: '1.4rem', md: '1.8rem' },
-                        color: service.color,
-                        lineHeight: 1.1,
+                        p: 2.5,
+                        borderRadius: 3,
+                        textAlign: 'center',
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.08)',
                       }}
                     >
-                      {m.value}
-                    </Typography>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.74rem', mt: 0.5 }}>
-                      {m.label}
-                    </Typography>
-                  </Box>
+                      <Typography
+                        sx={{
+                          fontWeight: 800,
+                          fontSize: { xs: '1.4rem', md: '1.8rem' },
+                          color: service.color,
+                          lineHeight: 1.1,
+                        }}
+                      >
+                        {m.value}
+                      </Typography>
+                      <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.74rem', mt: 0.5 }}>
+                        {m.label}
+                      </Typography>
+                    </Box>
+                  </TiltCard>
                 ))}
               </Box>
             </Reveal>
@@ -178,32 +180,34 @@ const ServiceDetailView = ({ service }: { service: ServiceData }) => {
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3,1fr)' }, gap: 3 }}>
             {others.map((s, i) => (
               <Reveal key={s.slug} delay={i * 0.1}>
-                <Box
-                  component={Link}
-                  href={`/services/${s.slug}`}
-                  sx={{
-                    display: 'block',
-                    p: 3,
-                    height: '100%',
-                    borderRadius: 4,
-                    textDecoration: 'none',
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    transition: 'all 0.3s ease',
-                    '&:hover': { borderColor: `${s.color}55`, transform: 'translateY(-4px)' },
-                  }}
-                >
-                  <Box sx={{ width: 48, height: 48, borderRadius: 2, display: 'grid', placeItems: 'center', color: s.color, background: `${s.color}1f`, mb: 2 }}>
-                    <ServiceIcon name={s.icon} />
+                <TiltCard max={10} sx={{ height: '100%', borderRadius: 4 }}>
+                  <Box
+                    component={Link}
+                    href={`/services/${s.slug}`}
+                    sx={{
+                      display: 'block',
+                      p: 3,
+                      height: '100%',
+                      borderRadius: 4,
+                      textDecoration: 'none',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      transition: 'border-color 0.3s ease',
+                      '&:hover': { borderColor: `${s.color}55` },
+                    }}
+                  >
+                    <Box sx={{ width: 48, height: 48, borderRadius: 2, display: 'grid', placeItems: 'center', color: s.color, background: `${s.color}1f`, mb: 2 }}>
+                      <ServiceIcon name={s.icon} />
+                    </Box>
+                    <Typography sx={{ fontWeight: 700, color: '#fff', mb: 0.5 }}>{s.shortName}</Typography>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', lineHeight: 1.5, mb: 1.5 }}>
+                      {s.tagline}
+                    </Typography>
+                    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, color: s.color, fontWeight: 600, fontSize: '0.85rem' }}>
+                      Explore <ArrowForwardIcon sx={{ fontSize: 15 }} />
+                    </Box>
                   </Box>
-                  <Typography sx={{ fontWeight: 700, color: '#fff', mb: 0.5 }}>{s.shortName}</Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', lineHeight: 1.5, mb: 1.5 }}>
-                    {s.tagline}
-                  </Typography>
-                  <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, color: s.color, fontWeight: 600, fontSize: '0.85rem' }}>
-                    Explore <ArrowForwardIcon sx={{ fontSize: 15 }} />
-                  </Box>
-                </Box>
+                </TiltCard>
               </Reveal>
             ))}
           </Box>
