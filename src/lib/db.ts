@@ -1,60 +1,16 @@
-import fs from 'fs';
-import path from 'path';
 import { Lead, LeadStatus } from '@/app/admin/leads/types';
+import { readJson, writeJson } from '@/lib/blobStore';
 
-// Define the path to the data directory
-const DATA_DIR = path.join(process.cwd(), 'data');
-const LEADS_FILE = path.join(DATA_DIR, 'leads.json');
+const KEY = 'leads.json';
 
-// Helper function to ensure data directory and file exist
-function ensureDataStructure() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    
-    if (!fs.existsSync(LEADS_FILE)) {
-      fs.writeFileSync(LEADS_FILE, JSON.stringify([], null, 2));
-    }
-  } catch (error) {
-    console.error('Error ensuring data structure:', error);
-    // In production, we'll handle this gracefully
-  }
+// Helper function to read leads (Vercel Blob in prod, local file in dev).
+function readLeads(): Promise<Lead[]> {
+  return readJson<Lead[]>(KEY, []);
 }
 
-// Initialize data structure on module load
-try {
-  ensureDataStructure();
-} catch (error) {
-  console.error('Error initializing data structure:', error);
-}
-
-// In-memory fallback for read-only filesystems (e.g. Vercel serverless).
-let memLeads: Lead[] | null = null;
-
-// Helper function to read leads from the file
-function readLeads(): Lead[] {
-  if (memLeads) return memLeads;
-  try {
-    const data = fs.readFileSync(LEADS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error reading leads file:', error);
-    return memLeads ?? [];
-  }
-}
-
-// Helper function to write leads to the file
-function writeLeads(leads: Lead[]): void {
-  memLeads = leads;
-  try {
-    ensureDataStructure();
-    fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2));
-    memLeads = null;
-  } catch (error) {
-    console.error('Error writing leads file:', error);
-    // read-only fs (serverless) — keep in memory
-  }
+// Helper function to persist leads.
+function writeLeads(leads: Lead[]): Promise<void> {
+  return writeJson(KEY, leads);
 }
 
 // Database interface
@@ -62,13 +18,13 @@ export const db = {
   leads: {
     // Create a new lead
     create: async (data: Omit<Lead, 'id'>): Promise<Lead> => {
-      const leads = readLeads();
+      const leads = await readLeads();
       const newLead: Lead = {
         id: `lead_${Date.now()}`,
         ...data
       };
       leads.push(newLead);
-      writeLeads(leads);
+      await writeLeads(leads);
       return newLead;
     },
 
@@ -84,7 +40,7 @@ export const db = {
         [key: string]: 'asc' | 'desc';
       };
     } = {}): Promise<Lead[]> => {
-      let leads = readLeads();
+      let leads = await readLeads();
 
       // Apply filtering
       if (options.where) {
@@ -141,14 +97,14 @@ export const db = {
 
     // Find a lead by ID
     findUnique: async (options: { where: { id: string } }): Promise<Lead | null> => {
-      const leads = readLeads();
+      const leads = await readLeads();
       const lead = leads.find(lead => lead.id === options.where.id);
       return lead || null;
     },
 
     // Update a lead
     update: async (options: { where: { id: string }, data: Partial<Lead> }): Promise<Lead> => {
-      const leads = readLeads();
+      const leads = await readLeads();
       const index = leads.findIndex(lead => lead.id === options.where.id);
       
       if (index === -1) {
@@ -157,14 +113,14 @@ export const db = {
       
       const updatedLead = { ...leads[index], ...options.data };
       leads[index] = updatedLead;
-      writeLeads(leads);
+      await writeLeads(leads);
       
       return updatedLead;
     },
 
     // Delete a lead
     delete: async (options: { where: { id: string } }): Promise<Lead> => {
-      const leads = readLeads();
+      const leads = await readLeads();
       const index = leads.findIndex(lead => lead.id === options.where.id);
       
       if (index === -1) {
@@ -173,7 +129,7 @@ export const db = {
       
       const deletedLead = leads[index];
       leads.splice(index, 1);
-      writeLeads(leads);
+      await writeLeads(leads);
       
       return deletedLead;
     },
@@ -184,7 +140,7 @@ export const db = {
         status?: LeadStatus;
       };
     } = {}): Promise<number> => {
-      let leads = readLeads();
+      let leads = await readLeads();
       
       if (options.where?.status) {
         leads = leads.filter(lead => lead.status === options.where?.status);
@@ -204,7 +160,7 @@ export const db = {
       leadsByStatus: { status: string; count: number }[];
       leadTrend: { date: string; count: number }[];
     }> => {
-      const leads = readLeads();
+      const leads = await readLeads();
       
       // Count leads by status
       const newLeadsCount = leads.filter(lead => lead.status === 'New').length;

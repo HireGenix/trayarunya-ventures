@@ -1,46 +1,19 @@
 /**
- * Server-only file-based store for AI-generated decks & proposals.
- * Stored at data/proposals.json. Follows the Vercel read-only-FS resilience
- * pattern: in-memory fallback + guarded writes (never throws on EROFS).
+ * Durable store for AI-generated decks & proposals.
+ * Backed by Vercel Blob in production (shared across all serverless instances)
+ * and a local data/ file in dev — see blobStore.ts.
  */
-import fs from 'fs';
-import path from 'path';
 import type { Proposal, ProposalSummary } from '@/lib/proposalTypes';
+import { readJson, writeJson } from '@/lib/blobStore';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const FILE = path.join(DATA_DIR, 'proposals.json');
+const KEY = 'proposals.json';
 
-// In-memory fallback for read-only filesystems (e.g. Vercel serverless).
-let mem: Proposal[] | null = null;
-
-function ensure() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    if (!fs.existsSync(FILE)) fs.writeFileSync(FILE, '[]');
-  } catch {
-    /* read-only fs — fall back to memory */
-  }
+function readAll(): Promise<Proposal[]> {
+  return readJson<Proposal[]>(KEY, []);
 }
 
-function readAll(): Proposal[] {
-  if (mem) return mem;
-  ensure();
-  try {
-    return JSON.parse(fs.readFileSync(FILE, 'utf8')) as Proposal[];
-  } catch {
-    return mem ?? [];
-  }
-}
-
-function writeAll(items: Proposal[]) {
-  mem = items;
-  try {
-    ensure();
-    fs.writeFileSync(FILE, JSON.stringify(items, null, 2));
-    mem = null;
-  } catch {
-    /* serverless read-only fs — keep in memory */
-  }
+function writeAll(items: Proposal[]): Promise<void> {
+  return writeJson(KEY, items);
 }
 
 function summary(p: Proposal): ProposalSummary {
@@ -56,25 +29,27 @@ function summary(p: Proposal): ProposalSummary {
 }
 
 export const proposalStore = {
-  list(): ProposalSummary[] {
-    return readAll()
+  async list(): Promise<ProposalSummary[]> {
+    const items = await readAll();
+    return items
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map(summary);
   },
 
-  get(id: string): Proposal | null {
-    return readAll().find((p) => p.id === id) || null;
+  async get(id: string): Promise<Proposal | null> {
+    const items = await readAll();
+    return items.find((p) => p.id === id) || null;
   },
 
-  save(input: Omit<Proposal, 'id' | 'createdAt'> & { id?: string }): Proposal {
-    const items = readAll();
+  async save(input: Omit<Proposal, 'id' | 'createdAt'> & { id?: string }): Promise<Proposal> {
+    const items = await readAll();
     const now = new Date().toISOString();
     if (input.id) {
       const idx = items.findIndex((p) => p.id === input.id);
       if (idx !== -1) {
         const updated: Proposal = { ...items[idx], ...input, id: input.id, createdAt: items[idx].createdAt };
         items[idx] = updated;
-        writeAll(items);
+        await writeAll(items);
         return updated;
       }
     }
@@ -84,15 +59,15 @@ export const proposalStore = {
       createdAt: now,
     };
     items.push(created);
-    writeAll(items);
+    await writeAll(items);
     return created;
   },
 
-  delete(id: string): boolean {
-    const items = readAll();
+  async delete(id: string): Promise<boolean> {
+    const items = await readAll();
     const next = items.filter((p) => p.id !== id);
     if (next.length === items.length) return false;
-    writeAll(next);
+    await writeAll(next);
     return true;
   },
 };

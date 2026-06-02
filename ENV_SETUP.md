@@ -114,6 +114,22 @@ Responses API, reuses `AZURE_GPT5_*`) and **Claude Opus** (above) per conversati
 > secure the live login. Users created at `/admin/users` won't persist across redeploys until
 > a real database is added.
 
+### Durable storage (Vercel Blob)
+
+| Variable | Notes |
+|---|---|
+| `BLOB_READ_WRITE_TOKEN` | Enables persistent, **shared** storage for leads and AI-generated proposals/decks across all serverless instances. |
+
+> 💾 **Why this is needed:** Vercel's serverless filesystem is read-only and every request can
+> hit a different, isolated instance — so anything written to a local JSON file vanishes before
+> another request can read it. That's why AI-generated proposals weren't appearing on the
+> Proposals page in production.
+>
+> **Setup (one time):** In the Vercel dashboard → **Storage** → **Create Database** → **Blob**.
+> Vercel automatically adds `BLOB_READ_WRITE_TOKEN` to your project's env. Redeploy and leads +
+> proposals will persist and be shared across everyone. Locally (no token) the app transparently
+> falls back to `data/*.json` files, so nothing changes for dev.
+
 ### Server storage (file-based)
 
 - Users live in `data/users.json` (passwords hashed with Node `crypto.scrypt`). Seeded on

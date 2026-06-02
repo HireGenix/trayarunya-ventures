@@ -161,7 +161,7 @@ ${type === 'deck' ? DECK_SHAPE : PROPOSAL_SHAPE}
     (typeof (spec as { client?: string }).client === 'string' && (spec as { client?: string }).client) ||
     '';
 
-  const saved = proposalStore.save({
+  const saved = await proposalStore.save({
     type,
     title,
     client,
