@@ -2,11 +2,10 @@
 
 import React from 'react';
 import { Box, Container, Typography, Chip } from '@mui/material';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import StarIcon from '@mui/icons-material/Star';
-import { Reveal, SectionHeading, GlowButton, ServiceIcon } from '@/components/cinematic';
+import { Reveal, SectionHeading, GlowButton, ServiceIcon, TiltCard } from '@/components/cinematic';
 import { services } from '@/data/servicesData';
 
 const ServicesSection = () => {
@@ -37,9 +36,8 @@ const ServicesSection = () => {
         >
           {services.map((s, i) => (
             <Reveal key={s.slug} delay={(i % 3) * 0.1}>
+              <TiltCard max={8} sx={{ height: '100%', borderRadius: 4 }}>
               <Box
-                component={motion.div}
-                whileHover={{ y: -8 }}
                 sx={{
                   position: 'relative',
                   height: '100%',
@@ -125,6 +123,7 @@ const ServicesSection = () => {
                   Explore service <ArrowForwardIcon sx={{ fontSize: 16 }} />
                 </Box>
               </Box>
+              </TiltCard>
             </Reveal>
           ))}
         </Box>

@@ -1,15 +1,16 @@
 'use client';
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { Box, Container, Typography, Stack, Chip } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import Link from 'next/link';
 import {
   ArrowForward as ArrowForwardIcon,
   LinkedIn as LinkedInIcon,
   Verified as VerifiedIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
-import { GradientMesh, GradientText, GlowButton } from '@/components/cinematic';
+import { GradientMesh, GradientText, GlowButton, AuroraBackground, MagneticButton } from '@/components/cinematic';
 import { stats } from '@/data/websiteInfo';
 import AnimatedCounter from '@/components/cinematic/AnimatedCounter';
 import HeroShowcase from './HeroShowcase';
@@ -26,8 +27,26 @@ const wordItem = {
 };
 
 const HeroSection = () => {
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const sx = useSpring(mx, { stiffness: 120, damping: 20 });
+  const sy = useSpring(my, { stiffness: 120, damping: 20 });
+  const showcaseX = useTransform(sx, [-0.5, 0.5], [22, -22]);
+  const showcaseY = useTransform(sy, [-0.5, 0.5], [16, -16]);
+  const copyX = useTransform(sx, [-0.5, 0.5], [-8, 8]);
+
+  const handleMouse = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = sectionRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    mx.set((e.clientX - rect.left) / rect.width - 0.5);
+    my.set((e.clientY - rect.top) / rect.height - 0.5);
+  };
+
   return (
     <Box
+      ref={sectionRef}
+      onMouseMove={handleMouse}
       component="section"
       sx={{
         position: 'relative',
@@ -41,6 +60,7 @@ const HeroSection = () => {
         pb: { xs: 8, md: 10 },
       }}
     >
+      <AuroraBackground intensity={0.4} grid />
       <GradientMesh dark />
 
       <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2 }}>
@@ -53,7 +73,7 @@ const HeroSection = () => {
           }}
         >
           {/* LEFT: copy */}
-          <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}>
+          <Box component={motion.div} style={{ x: copyX }} sx={{ textAlign: { xs: 'center', md: 'left' } }}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -140,9 +160,11 @@ const HeroSection = () => {
                 justifyContent={{ xs: 'center', md: 'flex-start' }}
                 alignItems="center"
               >
-                <GlowButton component={Link} href="/contact" size="large">
-                  Book a Strategy Call
-                </GlowButton>
+                <MagneticButton>
+                  <GlowButton component={Link} href="/contact" size="large">
+                    Book a Strategy Call
+                  </GlowButton>
+                </MagneticButton>
                 <Box
                   component={Link}
                   href="/how-we-work"
@@ -190,6 +212,7 @@ const HeroSection = () => {
             initial={{ opacity: 0, scale: 0.94, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            style={{ x: showcaseX, y: showcaseY }}
           >
             <HeroShowcase />
           </Box>
@@ -235,6 +258,32 @@ const HeroSection = () => {
               </Typography>
             </Box>
           ))}
+        </Box>
+
+        {/* Scroll cue */}
+        <Box
+          component={motion.div}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.4, duration: 0.8 }}
+          sx={{
+            display: { xs: 'none', md: 'flex' },
+            justifyContent: 'center',
+            mt: 5,
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, color: 'rgba(255,255,255,0.45)' }}>
+            <Typography sx={{ fontSize: '0.7rem', letterSpacing: '0.18em', fontWeight: 600 }}>
+              SCROLL
+            </Typography>
+            <Box
+              component={motion.div}
+              animate={{ y: [0, 8, 0], opacity: [0.4, 1, 0.4] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <KeyboardArrowDownIcon sx={{ fontSize: 22 }} />
+            </Box>
+          </Box>
         </Box>
       </Container>
     </Box>

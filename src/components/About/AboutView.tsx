@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Box, Container, Typography } from '@mui/material';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
@@ -17,6 +16,7 @@ import {
   GradientText,
   GlowButton,
   AnimatedCounter,
+  TiltCard,
 } from '@/components/cinematic';
 import { companyInfo, manifesto, stats } from '@/data/websiteInfo';
 
@@ -160,19 +160,19 @@ const AboutView = () => {
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)' }, gap: 3 }}>
             {values.map((v, i) => (
               <Reveal key={v.title} delay={(i % 2) * 0.1}>
-                <Box
-                  component={motion.div}
-                  whileHover={{ y: -5 }}
-                  sx={{ display: 'flex', gap: 2.5, p: 3.5, height: '100%', borderRadius: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
-                >
-                  <Box sx={{ flexShrink: 0, width: 54, height: 54, borderRadius: 2.5, display: 'grid', placeItems: 'center', color: v.color, background: `${v.color}1f`, border: `1px solid ${v.color}40` }}>
-                    {v.icon}
+                <TiltCard max={8} sx={{ height: '100%', borderRadius: 4 }}>
+                  <Box
+                    sx={{ display: 'flex', gap: 2.5, p: 3.5, height: '100%', borderRadius: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    <Box sx={{ flexShrink: 0, width: 54, height: 54, borderRadius: 2.5, display: 'grid', placeItems: 'center', color: v.color, background: `${v.color}1f`, border: `1px solid ${v.color}40` }}>
+                      {v.icon}
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>{v.title}</Typography>
+                      <Typography sx={{ color: 'rgba(255,255,255,0.65)', lineHeight: 1.65 }}>{v.description}</Typography>
+                    </Box>
                   </Box>
-                  <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>{v.title}</Typography>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.65)', lineHeight: 1.65 }}>{v.description}</Typography>
-                  </Box>
-                </Box>
+                </TiltCard>
               </Reveal>
             ))}
           </Box>

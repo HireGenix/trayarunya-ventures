@@ -4,6 +4,8 @@ import React from 'react';
 import { Box, Container, Typography, Chip } from '@mui/material';
 import Reveal from './Reveal';
 import GradientMesh from './GradientMesh';
+import AuroraBackground from './AuroraBackground';
+import TextReveal from './TextReveal';
 
 interface PageHeroProps {
   eyebrow?: string;
@@ -29,6 +31,7 @@ const PageHero = ({ eyebrow, title, subtitle, children, accent = '#ffaf06' }: Pa
         overflow: 'hidden',
       }}
     >
+      <AuroraBackground intensity={0.38} grid />
       <GradientMesh dark />
       <Container maxWidth="md" sx={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
         {eyebrow && (
@@ -50,7 +53,7 @@ const PageHero = ({ eyebrow, title, subtitle, children, accent = '#ffaf06' }: Pa
             />
           </Reveal>
         )}
-        <Reveal delay={0.05}>
+        <Reveal delay={0.05} variant="clip">
           <Typography
             variant="h1"
             sx={{
@@ -61,7 +64,7 @@ const PageHero = ({ eyebrow, title, subtitle, children, accent = '#ffaf06' }: Pa
               mb: subtitle ? 3 : 0,
             }}
           >
-            {title}
+            {typeof title === 'string' ? <TextReveal text={title} /> : title}
           </Typography>
         </Reveal>
         {subtitle && (

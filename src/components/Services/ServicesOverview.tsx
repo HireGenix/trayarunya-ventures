@@ -7,7 +7,7 @@ import Link from 'next/link';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import StarIcon from '@mui/icons-material/Star';
 import { Layout } from '@/components/Layout';
-import { PageHero, Reveal, GlowButton, ServiceIcon } from '@/components/cinematic';
+import { PageHero, Reveal, GlowButton, ServiceIcon, TiltCard } from '@/components/cinematic';
 import { services } from '@/data/servicesData';
 import { processSteps } from '@/data/websiteInfo';
 
@@ -137,13 +137,15 @@ const ServicesOverview = () => {
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', md: 'repeat(4,1fr)' }, gap: 2 }}>
             {processSteps.map((p, i) => (
               <Reveal key={p.number} delay={i * 0.1}>
-                <Box sx={{ p: 3, borderRadius: 3, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', height: '100%' }}>
-                  <Typography sx={{ fontWeight: 800, color: '#ffaf06', mb: 1 }}>{p.number}</Typography>
-                  <Typography sx={{ fontWeight: 700, mb: 0.5 }}>{p.title}</Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.82rem', lineHeight: 1.5 }}>
-                    {p.subtitle}
-                  </Typography>
-                </Box>
+                <TiltCard max={12} sx={{ height: '100%', borderRadius: 3 }}>
+                  <Box sx={{ p: 3, borderRadius: 3, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', height: '100%' }}>
+                    <Typography sx={{ fontWeight: 800, color: '#ffaf06', mb: 1 }}>{p.number}</Typography>
+                    <Typography sx={{ fontWeight: 700, mb: 0.5 }}>{p.title}</Typography>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                      {p.subtitle}
+                    </Typography>
+                  </Box>
+                </TiltCard>
               </Reveal>
             ))}
           </Box>

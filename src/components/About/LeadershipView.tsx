@@ -2,12 +2,11 @@
 
 import React from 'react';
 import { Box, Container, Typography, Avatar, IconButton } from '@mui/material';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import EmailIcon from '@mui/icons-material/Email';
 import { Layout } from '@/components/Layout';
-import { PageHero, Reveal, SectionHeading, GradientText, GlowButton } from '@/components/cinematic';
+import { PageHero, Reveal, SectionHeading, GradientText, GlowButton, TiltCard } from '@/components/cinematic';
 import { companyInfo } from '@/data/websiteInfo';
 
 const leadership = [
@@ -56,11 +55,10 @@ const LeadershipView = () => {
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)' }, gap: 3 }}>
             {leadership.map((p, i) => (
               <Reveal key={p.role} delay={(i % 2) * 0.1}>
-                <Box
-                  component={motion.div}
-                  whileHover={{ y: -5 }}
-                  sx={{ display: 'flex', gap: 3, p: { xs: 3, md: 4 }, height: '100%', borderRadius: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
-                >
+                <TiltCard max={7} sx={{ height: '100%', borderRadius: 4 }}>
+                  <Box
+                    sx={{ display: 'flex', gap: 3, p: { xs: 3, md: 4 }, height: '100%', borderRadius: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  >
                   <Avatar
                     sx={{
                       width: 72,
@@ -105,7 +103,8 @@ const LeadershipView = () => {
                       </IconButton>
                     </Box>
                   </Box>
-                </Box>
+                  </Box>
+                </TiltCard>
               </Reveal>
             ))}
           </Box>

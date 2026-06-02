@@ -3,6 +3,7 @@
 import React from 'react';
 import { Box, Chip, Typography } from '@mui/material';
 import Reveal from './Reveal';
+import TextReveal from './TextReveal';
 
 interface SectionHeadingProps {
   eyebrow?: string;
@@ -55,7 +56,7 @@ const SectionHeading = ({
           />
         </Reveal>
       )}
-      <Reveal delay={0.05}>
+      <Reveal delay={0.05} variant="clip">
         <Typography
           variant="h2"
           component="h2"
@@ -68,7 +69,7 @@ const SectionHeading = ({
             color: dark ? '#ffffff' : '#0a0a0a',
           }}
         >
-          {title}
+          {typeof title === 'string' ? <TextReveal text={title} /> : title}
         </Typography>
       </Reveal>
       {subtitle && (

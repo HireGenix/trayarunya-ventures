@@ -6,7 +6,7 @@ import Link from 'next/link';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { motion } from 'framer-motion';
 import { Layout } from '@/components/Layout';
-import { PageHero, Reveal, SectionHeading, GradientText, GlowButton } from '@/components/cinematic';
+import { PageHero, Reveal, SectionHeading, GradientText, GlowButton, TiltCard } from '@/components/cinematic';
 
 const categories = [
   'LinkedIn Growth',
@@ -153,36 +153,37 @@ export default function InsightsPage() {
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 3 }}>
             {articles.map((a, i) => (
               <Reveal key={a.title} delay={i * 0.05}>
-                <MotionBox
-                  whileHover={{ y: -6 }}
-                  sx={{
-                    height: '100%',
-                    p: 3.5,
-                    borderRadius: 3,
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    transition: 'border-color 0.3s',
-                    '&:hover': { borderColor: `${a.color}66` },
-                  }}
-                >
-                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2 }}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: a.color }} />
-                    <Typography sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>
-                      {a.category} · {a.readTime}
+                <TiltCard max={9} sx={{ height: '100%', borderRadius: 3 }}>
+                  <Box
+                    sx={{
+                      height: '100%',
+                      p: 3.5,
+                      borderRadius: 3,
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      transition: 'border-color 0.3s',
+                      '&:hover': { borderColor: `${a.color}66` },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: a.color }} />
+                      <Typography sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+                        {a.category} · {a.readTime}
+                      </Typography>
+                    </Box>
+                    <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.3, mb: 1.5 }}>
+                      {a.title}
                     </Typography>
+                    <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', flexGrow: 1, mb: 2 }}>
+                      {a.excerpt}
+                    </Typography>
+                    <Box component={Link} href="/contact" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.7, color: a.color, fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none' }}>
+                      Talk it through <ArrowForwardIcon sx={{ fontSize: 16 }} />
+                    </Box>
                   </Box>
-                  <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.3, mb: 1.5 }}>
-                    {a.title}
-                  </Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', flexGrow: 1, mb: 2 }}>
-                    {a.excerpt}
-                  </Typography>
-                  <Box component={Link} href="/contact" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.7, color: a.color, fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none' }}>
-                    Talk it through <ArrowForwardIcon sx={{ fontSize: 16 }} />
-                  </Box>
-                </MotionBox>
+                </TiltCard>
               </Reveal>
             ))}
           </Box>
