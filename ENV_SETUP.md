@@ -21,12 +21,20 @@ on screen in realtime, then emails the lead to the team.
 | `AZURE_GPT5_DEPLOYMENT` | Deployment name — `gpt-5.5` | Azure AI Foundry → Deployments |
 | `AZURE_GPT5_API_VERSION` | Responses API version — `2025-04-01-preview` | — |
 
-## Crawl4AI (web scraping for ICP enrichment — optional)
+## Web scraping for ICP enrichment
+
+The agent reads a visitor's website to enrich the ICP. Scraping runs in this
+priority order, so **no configuration is required** — it works out of the box:
+
+1. **External Crawl4AI server** — only if `CRAWL4AI_API_URL` is set (optional).
+2. **Native Next.js scraper** — built-in (fetch + cheerio, runs in-process on
+   Vercel). Handles server-rendered marketing/company sites with zero setup.
+3. **Tavily extract** — fallback if `TAVILY_API_KEY` is set.
 
 | Variable | What it is | Where to get it |
 |---|---|---|
-| `CRAWL4AI_API_URL` | Base URL of your Crawl4AI REST server (e.g. `https://your-host`). The agent POSTs `/crawl`. If unset, it falls back to Tavily URL extract. | Your Crawl4AI deployment |
-| `CRAWL4AI_API_TOKEN` | Bearer token for the Crawl4AI server, if it requires one | Your Crawl4AI deployment |
+| `CRAWL4AI_API_URL` | *(Optional)* Base URL of an external Crawl4AI REST server (e.g. `https://your-host`). The agent POSTs `/crawl`. Leave blank to use the built-in native scraper. | Your Crawl4AI deployment |
+| `CRAWL4AI_API_TOKEN` | *(Optional)* Bearer token for the Crawl4AI server, if it requires one | Your Crawl4AI deployment |
 
 ## AI Voice Marketer (Azure OpenAI Realtime — GA) — legacy, not currently rendered
 

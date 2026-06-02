@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { isCrawl4aiConfigured } from '@/lib/chatSalesConfig';
+import { nativeScrape } from '@/lib/nativeScrape';
 
 export const runtime = 'nodejs';
 
@@ -85,7 +86,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 2) Tavily extract fallback
+  // 2) Native in-process scraper (Next.js — no external server needed)
+  try {
+    const r = await nativeScrape(target);
+    if (r.ok && r.content) {
+      return NextResponse.json({ ok: true, content: r.content, source: 'native' });
+    }
+  } catch (err) {
+    console.error('[scrape] native failed', err);
+  }
+
+  // 3) Tavily extract fallback
   const tavilyKey = process.env.TAVILY_API_KEY?.trim();
   if (tavilyKey) {
     try {
