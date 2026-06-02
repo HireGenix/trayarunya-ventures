@@ -27,22 +27,36 @@ function limited(ip: string): boolean {
   return false;
 }
 
-type ClientMsg = { role: 'user' | 'assistant'; text: string };
+type ClientMsg = { role: 'user' | 'assistant'; text: string; images?: string[] };
 type InputItem = Record<string, unknown>;
 
 function toInput(messages: ClientMsg[]): InputItem[] {
   return messages
-    .filter((m) => m.text?.trim())
-    .map((m) => ({
-      type: 'message',
-      role: m.role,
-      content: [
-        {
+    .filter((m) => m.text?.trim() || (m.images && m.images.length))
+    .map((m) => {
+      const content: Record<string, unknown>[] = [];
+      if (m.text?.trim()) {
+        content.push({
           type: m.role === 'assistant' ? 'output_text' : 'input_text',
           text: m.text,
-        },
-      ],
-    }));
+        });
+      }
+      // Vision: attach images (data URLs) only on user messages.
+      if (m.role === 'user' && m.images?.length) {
+        for (const img of m.images.slice(0, 4)) {
+          if (typeof img === 'string' && img.startsWith('data:image')) {
+            content.push({ type: 'input_image', image_url: img });
+          }
+        }
+      }
+      if (content.length === 0) {
+        content.push({
+          type: m.role === 'assistant' ? 'output_text' : 'input_text',
+          text: m.text || '',
+        });
+      }
+      return { type: 'message', role: m.role, content };
+    });
 }
 
 /** Execute a single tool call server-side. Returns the output string for the model. */

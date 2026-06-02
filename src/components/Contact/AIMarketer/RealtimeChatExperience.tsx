@@ -58,13 +58,21 @@ export default function RealtimeChatExperience({ standalone = false }: RealtimeC
   }, []);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, images?: string[], links?: string[]) => {
       const clean = text.trim();
-      if (!clean || busy) return;
+      // Fold attached links into the message text so the AI scrapes them.
+      const linkLine = links?.length ? `\n\nPlease review: ${links.join(' , ')}` : '';
+      const outgoing = (clean + linkLine).trim();
+      if ((!outgoing && !images?.length) || busy) return;
       setStarted(true);
       setBusy(true);
 
-      const userMsg: ChatMessage = { id: uid('user'), role: 'user', text: clean };
+      const userMsg: ChatMessage = {
+        id: uid('user'),
+        role: 'user',
+        text: outgoing || '(sent an attachment)',
+        images,
+      };
       const aiId = uid('assistant');
       const history = [...messagesRef.current, userMsg];
       setMessages([...history, { id: aiId, role: 'assistant', text: '' }]);
@@ -75,7 +83,7 @@ export default function RealtimeChatExperience({ standalone = false }: RealtimeC
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            messages: history.map((m) => ({ role: m.role, text: m.text })),
+            messages: history.map((m) => ({ role: m.role, text: m.text, images: m.images })),
           }),
         });
 

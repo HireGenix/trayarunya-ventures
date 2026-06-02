@@ -8,6 +8,7 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   text: string;
+  images?: string[];
 }
 
 interface ChatThreadProps {
@@ -98,7 +99,26 @@ export default function ChatThread({ messages, typing, toolLabel }: ChatThreadPr
                   wordBreak: 'break-word',
                 }}
               >
-                {m.text || <TypingDots />}
+                {m.images && m.images.length > 0 && (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.6, mb: m.text ? 0.8 : 0 }}>
+                    {m.images.map((src, idx) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={idx}
+                        src={src}
+                        alt="attachment"
+                        style={{
+                          width: 96,
+                          height: 96,
+                          objectFit: 'cover',
+                          borderRadius: 8,
+                          border: '1px solid rgba(0,0,0,0.12)',
+                        }}
+                      />
+                    ))}
+                  </Box>
+                )}
+                {m.text || (!m.images?.length && <TypingDots />)}
               </Box>
             </Box>
           );
