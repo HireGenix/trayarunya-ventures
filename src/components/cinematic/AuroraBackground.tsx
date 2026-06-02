@@ -9,6 +9,8 @@ interface AuroraBackgroundProps {
   intensity?: number;
   /** Show a faint moving grid overlay */
   grid?: boolean;
+  /** Colour scheme of the grid lines / overlay. Light = for light surfaces. */
+  variant?: 'dark' | 'light';
 }
 
 const blobs = [
@@ -22,8 +24,9 @@ const blobs = [
  * blobs drift slowly behind content + an optional faint grid. Purely
  * decorative; frozen when the user prefers reduced motion.
  */
-export default function AuroraBackground({ intensity = 0.5, grid = false }: AuroraBackgroundProps) {
+export default function AuroraBackground({ intensity = 0.5, grid = false, variant = 'dark' }: AuroraBackgroundProps) {
   const reduce = useReducedMotion();
+  const gridLine = variant === 'light' ? 'rgba(15,23,42,0.05)' : 'rgba(255,255,255,0.04)';
 
   return (
     <Box
@@ -62,7 +65,7 @@ export default function AuroraBackground({ intensity = 0.5, grid = false }: Auro
             position: 'absolute',
             inset: 0,
             backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
+              `linear-gradient(${gridLine} 1px, transparent 1px), linear-gradient(90deg, ${gridLine} 1px, transparent 1px)`,
             backgroundSize: '54px 54px',
             maskImage: 'radial-gradient(ellipse at center, #000 30%, transparent 75%)',
             WebkitMaskImage: 'radial-gradient(ellipse at center, #000 30%, transparent 75%)',

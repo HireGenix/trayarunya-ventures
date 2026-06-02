@@ -25,14 +25,14 @@ const OutreachAnimation = () => {
         const replies = i % 2 === 0;
         return (
           <g key={i}>
-            <line x1="88" y1="150" x2="300" y2={y} stroke="rgba(255,255,255,0.12)" strokeWidth="1.2" />
+            <line x1="88" y1="150" x2="300" y2={y} stroke="rgba(15,23,42,0.12)" strokeWidth="1.2" />
             {/* recipient card */}
             <rect x="300" y={y - 16} width="84" height="32" rx="8"
-              fill={replies ? 'rgba(20,187,135,0.12)' : 'rgba(255,255,255,0.04)'}
-              stroke={replies ? '#14bb87' : 'rgba(255,255,255,0.18)'} strokeWidth="1.2" />
-            <circle cx={316} cy={y} r="7" fill={replies ? '#14bb87' : 'rgba(255,255,255,0.3)'} />
-            <rect x="328" y={y - 6} width="46" height="4" rx="2" fill="rgba(255,255,255,0.4)" />
-            <rect x="328" y={y + 2} width="32" height="4" rx="2" fill="rgba(255,255,255,0.25)" />
+              fill={replies ? 'rgba(20,187,135,0.12)' : 'rgba(15,23,42,0.06)'}
+              stroke={replies ? '#14bb87' : 'rgba(15,23,42,0.18)'} strokeWidth="1.2" />
+            <circle cx={316} cy={y} r="7" fill={replies ? '#14bb87' : 'rgba(15,23,42,0.2)'} />
+            <rect x="328" y={y - 6} width="46" height="4" rx="2" fill="rgba(15,23,42,0.2)" />
+            <rect x="328" y={y + 2} width="32" height="4" rx="2" fill="rgba(15,23,42,0.15)" />
 
             {/* outgoing personalized message */}
             <motion.rect

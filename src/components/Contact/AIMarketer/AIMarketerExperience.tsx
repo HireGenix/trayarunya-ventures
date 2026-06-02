@@ -12,6 +12,7 @@ import {
   type LeadFields,
   type RealtimeStatus,
 } from '@/lib/realtime/azureRealtime';
+import { CARD, TEXT } from '@/components/cinematic';
 import VoiceOrb from './VoiceOrb';
 import LiveTranscript, { type TranscriptLine } from './LiveTranscript';
 import LeadPanel from './LeadPanel';
@@ -147,8 +148,9 @@ export default function AIMarketerExperience() {
       sx={{
         borderRadius: 4,
         overflow: 'hidden',
-        background: 'rgba(255,255,255,0.02)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        background: CARD.bg,
+        border: CARD.border,
+        boxShadow: CARD.shadow,
       }}
     >
       <Box sx={{ p: { xs: 3, md: 4 } }}>
@@ -164,7 +166,7 @@ export default function AIMarketerExperience() {
 
             <VoiceOrb aiLevel={aiLevel} userLevel={userLevel} state={orbState} />
 
-            <Typography sx={{ mt: 2, mb: 3, color: 'rgba(255,255,255,0.75)', fontSize: '0.95rem', minHeight: 24 }}>
+            <Typography sx={{ mt: 2, mb: 3, color: TEXT.body, fontSize: '0.95rem', minHeight: 24 }}>
               {statusLabel}
             </Typography>
 
@@ -197,7 +199,7 @@ export default function AIMarketerExperience() {
             <AnimatePresence>
               {(notConfigured || micDenied || (errorMsg && status === 'error')) && (
                 <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                  <Typography sx={{ mt: 2, color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
+                  <Typography sx={{ mt: 2, color: TEXT.muted, fontSize: '0.85rem' }}>
                     {notConfigured
                       ? 'The voice marketer isn’t available right now — no problem, you can type to us instead.'
                       : micDenied
@@ -215,12 +217,12 @@ export default function AIMarketerExperience() {
               sx={{
                 borderRadius: 3,
                 p: 2,
-                background: 'rgba(0,0,0,0.25)',
-                border: '1px solid rgba(255,255,255,0.06)',
+                background: '#f1f6ff',
+                border: '1px solid rgba(15,23,42,0.08)',
               }}
             >
               {lines.length === 0 ? (
-                <Typography sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem', textAlign: 'center', py: 4 }}>
+                <Typography sx={{ color: TEXT.muted, fontSize: '0.9rem', textAlign: 'center', py: 4 }}>
                   Your conversation will appear here in realtime.
                 </Typography>
               ) : (

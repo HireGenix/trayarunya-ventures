@@ -34,11 +34,11 @@ const AIBrainAnimation = () => {
       {/* input + output connectors */}
       {signals.map((_, i) => {
         const y = 60 + i * 60;
-        return <line key={`li${i}`} x1="78" y1={y} x2="170" y2="150" stroke="rgba(255,175,6,0.25)" strokeWidth="1.5" />;
+        return <line key={`li${i}`} x1="78" y1={y} x2="170" y2="150" stroke="rgba(255,175,6,0.4)" strokeWidth="1.5" />;
       })}
       {decisions.map((_, i) => {
         const y = 60 + i * 60;
-        return <line key={`lo${i}`} x1="230" y1="150" x2="322" y2={y} stroke="rgba(20,187,135,0.25)" strokeWidth="1.5" />;
+        return <line key={`lo${i}`} x1="230" y1="150" x2="322" y2={y} stroke="rgba(20,187,135,0.4)" strokeWidth="1.5" />;
       })}
 
       {/* signal labels (left) */}
@@ -46,7 +46,7 @@ const AIBrainAnimation = () => {
         const y = 60 + i * 60;
         return (
           <g key={`s${i}`}>
-            <rect x="6" y={y - 14} width="72" height="28" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(255,175,6,0.4)" />
+            <rect x="6" y={y - 14} width="72" height="28" rx="8" fill="rgba(15,23,42,0.06)" stroke="rgba(255,175,6,0.4)" />
             <text x="42" y={y + 4} textAnchor="middle" fontSize="12" fill="#ffd874" fontFamily="inherit">{s}</text>
           </g>
         );
@@ -57,7 +57,7 @@ const AIBrainAnimation = () => {
         const y = 60 + i * 60;
         return (
           <g key={`d${i}`}>
-            <rect x="322" y={y - 14} width="72" height="28" rx="8" fill="rgba(255,255,255,0.04)" stroke="rgba(20,187,135,0.45)" />
+            <rect x="322" y={y - 14} width="72" height="28" rx="8" fill="rgba(15,23,42,0.06)" stroke="rgba(20,187,135,0.45)" />
             <text x="358" y={y + 4} textAnchor="middle" fontSize="12" fill="#5fe3bf" fontFamily="inherit">{d}</text>
           </g>
         );
@@ -109,7 +109,7 @@ const AIBrainAnimation = () => {
         cy="150"
         r="40"
         fill="none"
-        stroke="rgba(255,255,255,0.5)"
+        stroke="rgba(255,175,6,0.5)"
         strokeWidth="1.5"
         animate={reduce ? {} : { r: [40, 58], opacity: [0.6, 0] }}
         transition={loop({ duration: 2.2, ease: 'easeOut' })}

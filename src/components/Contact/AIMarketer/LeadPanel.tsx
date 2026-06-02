@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SendIcon from '@mui/icons-material/Send';
 import type { LeadFields } from '@/lib/realtime/azureRealtime';
+import { CARD, TEXT, LINE } from '@/components/cinematic';
 
 interface LeadPanelProps {
   fields: LeadFields;
@@ -39,12 +40,13 @@ export default function LeadPanel({ fields, submitted, submitting, onChange, onS
       sx={{
         borderRadius: 3,
         p: { xs: 2.5, md: 3 },
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        background: CARD.bg,
+        border: CARD.border,
+        boxShadow: CARD.shadow,
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>
+        <Typography sx={{ fontWeight: 800, fontSize: '1rem', color: TEXT.heading }}>
           Your details
         </Typography>
         <AnimatePresence>
@@ -67,7 +69,7 @@ export default function LeadPanel({ fields, submitted, submitting, onChange, onS
       </Box>
 
       {!hasAny && (
-        <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', mb: 1 }}>
+        <Typography sx={{ color: TEXT.muted, fontSize: '0.85rem', mb: 1 }}>
           As you chat, your details will appear here automatically — you can edit anything.
         </Typography>
       )}
@@ -83,7 +85,7 @@ export default function LeadPanel({ fields, submitted, submitting, onChange, onS
               size="small"
               fullWidth
               disabled={submitted}
-              InputLabelProps={{ sx: { color: 'rgba(255,255,255,0.55)' } }}
+              InputLabelProps={{ sx: { color: TEXT.muted } }}
               sx={inputSx}
             />
           </FieldBox>
@@ -91,7 +93,7 @@ export default function LeadPanel({ fields, submitted, submitting, onChange, onS
       </Box>
 
       <Box sx={{ mt: 2 }}>
-        <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.55)', mb: 1, fontWeight: 600 }}>
+        <Typography sx={{ fontSize: '0.75rem', color: TEXT.muted, mb: 1, fontWeight: 600 }}>
           Go-to-market segment
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -105,10 +107,10 @@ export default function LeadPanel({ fields, submitted, submitting, onChange, onS
                 sx={{
                   fontWeight: 700,
                   cursor: submitted ? 'default' : 'pointer',
-                  color: selected ? '#0a0a0f' : 'rgba(255,255,255,0.8)',
-                  background: selected ? '#ffaf06' : 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  '&:hover': { background: selected ? '#ffaf06' : 'rgba(255,255,255,0.12)' },
+                  color: selected ? '#0a0a0f' : TEXT.body,
+                  background: selected ? '#ffaf06' : 'rgba(15,23,42,0.04)',
+                  border: `1px solid ${LINE.soft}`,
+                  '&:hover': { background: selected ? '#ffaf06' : 'rgba(15,23,42,0.08)' },
                 }}
               />
             );
@@ -138,7 +140,7 @@ export default function LeadPanel({ fields, submitted, submitting, onChange, onS
             {submitted ? 'Sent to our team' : submitting ? 'Sending…' : 'Send to our team'}
           </Button>
           {!submitted && (
-            <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', mt: 1, textAlign: 'center' }}>
+            <Typography sx={{ fontSize: '0.72rem', color: TEXT.muted, mt: 1, textAlign: 'center' }}>
               The AI sends this automatically — or fill it in and send it yourself.
             </Typography>
           )}
@@ -166,12 +168,13 @@ function FieldBox({ active, children }: { active: boolean; children: React.React
 
 const inputSx = {
   '& .MuiFilledInput-root': {
-    background: 'rgba(255,255,255,0.05)',
-    color: '#fff',
+    background: 'rgba(15,23,42,0.04)',
+    color: '#0f1320',
     borderRadius: 1.5,
-    '&:hover': { background: 'rgba(255,255,255,0.08)' },
-    '&.Mui-focused': { background: 'rgba(255,255,255,0.08)' },
+    '&:hover': { background: 'rgba(15,23,42,0.06)' },
+    '&.Mui-focused': { background: 'rgba(15,23,42,0.06)' },
     '&:before, &:after': { display: 'none' },
   },
-  '& input': { color: '#fff' },
+  '& input': { color: '#0f1320' },
+  '& label': { color: 'rgba(15,23,42,0.55)' },
 };

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Box, Container, Typography, Chip } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Reveal, SectionHeading } from '@/components/cinematic';
+import { Reveal, SectionHeading, SURFACE, TEXT, CARD } from '@/components/cinematic';
 import { segments } from '@/data/websiteInfo';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import StarIcon from '@mui/icons-material/Star';
@@ -17,15 +17,14 @@ const SegmentsSection = () => {
       component="section"
       sx={{
         position: 'relative',
-        background: 'linear-gradient(180deg, #0a0a0f 0%, #050507 100%)',
-        color: '#fff',
+        background: SURFACE.mint,
+        color: TEXT.heading,
         py: { xs: 10, md: 16 },
         overflow: 'hidden',
       }}
     >
       <Container maxWidth="lg">
         <SectionHeading
-          dark
           eyebrow="WHO WE GROW"
           title={
             <>
@@ -47,8 +46,8 @@ const SegmentsSection = () => {
               mt: { xs: 4, md: 6 },
               mb: { xs: 5, md: 7 },
               borderRadius: '50px',
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(15,23,42,0.04)',
+              border: '1px solid rgba(15,23,42,0.08)',
               position: 'relative',
               left: '50%',
               transform: 'translateX(-50%)',
@@ -71,7 +70,7 @@ const SegmentsSection = () => {
                     borderRadius: '50px',
                     fontWeight: 700,
                     fontSize: { xs: '0.85rem', md: '1rem' },
-                    color: selected ? '#0a0a0a' : 'rgba(255,255,255,0.7)',
+                    color: selected ? '#0a0a0a' : TEXT.body,
                     transition: 'color 0.3s',
                     zIndex: 1,
                     fontFamily: 'inherit',
@@ -115,14 +114,14 @@ const SegmentsSection = () => {
               alignItems: 'center',
               p: { xs: 3, md: 5 },
               borderRadius: 4,
-              background: `linear-gradient(135deg, ${seg.accent}14, rgba(255,255,255,0.02))`,
+              background: `linear-gradient(135deg, ${seg.accent}14, ${CARD.bg})`,
               border: `1px solid ${seg.accent}33`,
             }}
           >
             {/* Left: copy */}
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
-                <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.8rem', md: '2.4rem' } }}>
+                <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.8rem', md: '2.4rem' }, color: TEXT.heading }}>
                   {seg.label}
                 </Typography>
                 <Chip
@@ -133,15 +132,15 @@ const SegmentsSection = () => {
                     fontWeight: 700,
                     fontSize: '0.7rem',
                     color: seg.flagship ? '#0a0a0a' : seg.accent,
-                    background: seg.flagship ? seg.accent : `${seg.accent}1f`,
-                    border: `1px solid ${seg.accent}66`,
+                    background: seg.flagship ? seg.accent : `${seg.accent}14`,
+                    border: `1px solid ${seg.accent}33`,
                   }}
                 />
               </Box>
               <Typography sx={{ fontWeight: 700, fontSize: '1.1rem', color: seg.accent, mb: 1.5 }}>
                 {seg.tagline}
               </Typography>
-              <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '1rem', lineHeight: 1.7, mb: 3 }}>
+              <Typography sx={{ color: TEXT.body, fontSize: '1rem', lineHeight: 1.7, mb: 3 }}>
                 {seg.description}
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
@@ -157,9 +156,9 @@ const SegmentsSection = () => {
                       borderRadius: '50px',
                       fontSize: '0.8rem',
                       fontWeight: 600,
-                      color: 'rgba(255,255,255,0.8)',
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: TEXT.body,
+                      background: CARD.bg,
+                      border: CARD.border,
                     }}
                   >
                     <CheckCircleIcon sx={{ fontSize: 14, color: seg.accent }} />
@@ -184,8 +183,9 @@ const SegmentsSection = () => {
                     gap: 2.5,
                     p: 2.5,
                     borderRadius: 3,
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: CARD.bg,
+                    border: CARD.border,
+                    boxShadow: CARD.shadow,
                   }}
                 >
                   <Typography
@@ -194,14 +194,14 @@ const SegmentsSection = () => {
                       fontSize: { xs: '1.8rem', md: '2.2rem' },
                       lineHeight: 1,
                       minWidth: 90,
-                      background: `linear-gradient(135deg, ${seg.accent}, #fff)`,
+                      background: `linear-gradient(135deg, ${seg.accent}, ${seg.accent}99)`,
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent',
                     }}
                   >
                     {o.value}
                   </Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.95rem' }}>
+                  <Typography sx={{ color: TEXT.body, fontSize: '0.95rem' }}>
                     {o.label}
                   </Typography>
                 </Box>

@@ -23,7 +23,7 @@ const ContentCreationAnimation = () => {
           transition={loop({ duration: 4, ease: 'linear' })}
           style={{ transformOrigin: '60px 150px' }}
         />
-        <text x="60" y="195" textAnchor="middle" fontSize="10" fill="rgba(255,255,255,0.5)" fontFamily="inherit">IDEA</text>
+        <text x="60" y="195" textAnchor="middle" fontSize="10" fill="rgba(15,23,42,0.5)" fontFamily="inherit">IDEA</text>
       </g>
 
       {/* connector */}
@@ -46,7 +46,7 @@ const ContentCreationAnimation = () => {
       <line x1="196" y1="150" x2="240" y2="150" stroke="rgba(20,187,135,0.3)" strokeWidth="1.5" strokeDasharray="3 4" />
 
       {/* content card assembling */}
-      <rect x="244" y="78" width="130" height="144" rx="12" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.15)" strokeWidth="1.2" />
+      <rect x="244" y="78" width="130" height="144" rx="12" fill="rgba(15,23,42,0.04)" stroke="rgba(15,23,42,0.15)" strokeWidth="1.2" />
       {/* image block */}
       <motion.rect x="258" y="92" width="102" height="50" rx="8" fill="rgba(20,187,135,0.18)" stroke="#14bb87" strokeWidth="1"
         animate={reduce ? {} : { opacity: [0, 1] }}
@@ -55,7 +55,7 @@ const ContentCreationAnimation = () => {
       {/* headline lines */}
       {[156, 172, 188, 204].map((y, i) => (
         <motion.rect key={i} x="258" y={y} height="6" rx="3"
-          fill={i === 0 ? '#ffaf06' : 'rgba(255,255,255,0.35)'}
+          fill={i === 0 ? '#ffaf06' : 'rgba(15,23,42,0.2)'}
           initial={{ width: 0 }}
           animate={reduce ? { width: i === 3 ? 60 : 102 } : { width: [0, i === 3 ? 60 : 102] }}
           transition={loop({ duration: 0.5, delay: 0.9 + i * 0.25, repeatDelay: 2.5 - i * 0.25 })}

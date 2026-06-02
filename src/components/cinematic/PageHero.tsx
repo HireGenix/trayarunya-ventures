@@ -6,6 +6,7 @@ import Reveal from './Reveal';
 import GradientMesh from './GradientMesh';
 import AuroraBackground from './AuroraBackground';
 import TextReveal from './TextReveal';
+import { SURFACE, TEXT } from './surfaces';
 
 interface PageHeroProps {
   eyebrow?: string;
@@ -24,15 +25,16 @@ const PageHero = ({ eyebrow, title, subtitle, children, accent = '#ffaf06' }: Pa
       component="section"
       sx={{
         position: 'relative',
-        background: 'radial-gradient(120% 120% at 50% 0%, #16161c 0%, #08080a 60%)',
-        color: '#fff',
+        background: SURFACE.heroLight,
+        color: TEXT.heading,
         pt: { xs: 18, md: 24 },
         pb: { xs: 8, md: 10 },
         overflow: 'hidden',
+        borderBottom: '1px solid rgba(15,23,42,0.06)',
       }}
     >
-      <AuroraBackground intensity={0.38} grid />
-      <GradientMesh dark />
+      <AuroraBackground intensity={0.22} grid variant="light" />
+      <GradientMesh dark={false} />
       <Container maxWidth="md" sx={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
         {eyebrow && (
           <Reveal direction="down" distance={16}>
@@ -47,8 +49,8 @@ const PageHero = ({ eyebrow, title, subtitle, children, accent = '#ffaf06' }: Pa
                 fontWeight: 700,
                 fontSize: '0.7rem',
                 color: accent,
-                background: `${accent}1f`,
-                border: `1px solid ${accent}44`,
+                background: `${accent}1a`,
+                border: `1px solid ${accent}40`,
               }}
             />
           </Reveal>
@@ -61,6 +63,7 @@ const PageHero = ({ eyebrow, title, subtitle, children, accent = '#ffaf06' }: Pa
               fontSize: { xs: '2.4rem', md: '3.8rem' },
               lineHeight: 1.08,
               letterSpacing: '-0.03em',
+              color: TEXT.heading,
               mb: subtitle ? 3 : 0,
             }}
           >
@@ -71,7 +74,7 @@ const PageHero = ({ eyebrow, title, subtitle, children, accent = '#ffaf06' }: Pa
           <Reveal delay={0.1}>
             <Typography
               sx={{
-                color: 'rgba(255,255,255,0.72)',
+                color: TEXT.body,
                 fontSize: { xs: '1.05rem', md: '1.3rem' },
                 maxWidth: 680,
                 mx: 'auto',

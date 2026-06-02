@@ -10,7 +10,7 @@ import {
   Verified as VerifiedIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
-import { GradientMesh, GradientText, GlowButton, AuroraBackground, MagneticButton } from '@/components/cinematic';
+import { GradientMesh, GradientText, GlowButton, AuroraBackground, MagneticButton, SURFACE, TEXT, CARD } from '@/components/cinematic';
 import { stats } from '@/data/websiteInfo';
 import AnimatedCounter from '@/components/cinematic/AnimatedCounter';
 import HeroShowcase from './HeroShowcase';
@@ -54,14 +54,14 @@ const HeroSection = () => {
         display: 'flex',
         alignItems: 'center',
         overflow: 'hidden',
-        background: 'radial-gradient(120% 120% at 50% 0%, #16161c 0%, #08080a 55%, #050507 100%)',
-        color: '#fff',
+        background: SURFACE.heroLight,
+        color: TEXT.heading,
         pt: { xs: 13, md: 16 },
         pb: { xs: 8, md: 10 },
       }}
     >
-      <AuroraBackground intensity={0.4} grid />
-      <GradientMesh dark />
+      <AuroraBackground intensity={0.22} grid variant="light" />
+      <GradientMesh dark={false} />
 
       <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2 }}>
         <Box
@@ -90,9 +90,9 @@ const HeroSection = () => {
                   letterSpacing: '0.1em',
                   fontSize: '0.7rem',
                   fontWeight: 700,
-                  color: 'rgba(255,255,255,0.85)',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: TEXT.heading,
+                  background: 'rgba(15,23,42,0.04)',
+                  border: '1px solid rgba(15,23,42,0.08)',
                   backdropFilter: 'blur(10px)',
                 }}
               />
@@ -135,7 +135,7 @@ const HeroSection = () => {
             >
               <Typography
                 sx={{
-                  color: 'rgba(255,255,255,0.72)',
+                  color: TEXT.body,
                   fontSize: { xs: '1.02rem', md: '1.2rem' },
                   maxWidth: 560,
                   mx: { xs: 'auto', md: 0 },
@@ -172,15 +172,15 @@ const HeroSection = () => {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 1,
-                    color: 'rgba(255,255,255,0.85)',
+                    color: TEXT.heading,
                     textDecoration: 'none',
                     fontWeight: 600,
                     px: 2,
                     py: 1.5,
                     borderRadius: '50px',
-                    border: '1px solid rgba(255,255,255,0.15)',
+                    border: '1px solid rgba(15,23,42,0.15)',
                     transition: 'all 0.3s ease',
-                    '&:hover': { borderColor: 'rgba(255,255,255,0.4)', color: '#fff' },
+                    '&:hover': { borderColor: 'rgba(15,23,42,0.3)', color: TEXT.heading },
                   }}
                 >
                   See how we work <ArrowForwardIcon fontSize="small" />
@@ -198,7 +198,7 @@ const HeroSection = () => {
                 spacing={1}
                 justifyContent={{ xs: 'center', md: 'flex-start' }}
                 alignItems="center"
-                sx={{ mt: 3, color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}
+                sx={{ mt: 3, color: TEXT.muted, fontSize: '0.85rem' }}
               >
                 <VerifiedIcon sx={{ fontSize: 18, color: '#14bb87' }} />
                 B2B is our flagship — trusted by founders to own their growth
@@ -231,9 +231,9 @@ const HeroSection = () => {
             gap: { xs: 2, md: 1 },
             p: { xs: 2.5, md: 3 },
             borderRadius: 4,
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            backdropFilter: 'blur(12px)',
+            background: CARD.bg,
+            border: CARD.border,
+            boxShadow: CARD.shadow,
           }}
         >
           {stats.map((s) => (
@@ -253,7 +253,7 @@ const HeroSection = () => {
                   lineHeight: 1.1,
                 }}
               />
-              <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', mt: 0.5 }}>
+              <Typography sx={{ color: TEXT.body, fontSize: '0.8rem', mt: 0.5 }}>
                 {s.label}
               </Typography>
             </Box>
@@ -272,7 +272,7 @@ const HeroSection = () => {
             mt: 5,
           }}
         >
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, color: 'rgba(255,255,255,0.45)' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, color: TEXT.muted }}>
             <Typography sx={{ fontSize: '0.7rem', letterSpacing: '0.18em', fontWeight: 600 }}>
               SCROLL
             </Typography>

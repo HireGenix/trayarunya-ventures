@@ -11,6 +11,7 @@ import {
   ContentPostingAnimation,
   AdsAnimation,
 } from '@/components/cinematic/animations';
+import { CARD, TEXT } from '@/components/cinematic';
 
 const slides = [
   { key: 'ai', label: 'AI Decision Engine', caption: 'Data decides every move', Cmp: AIBrainAnimation, accent: '#ffaf06' },
@@ -39,9 +40,8 @@ const HeroShowcase = () => {
         position: 'relative',
         borderRadius: 4,
         p: { xs: 2, md: 3 },
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        backdropFilter: 'blur(12px)',
+        background: CARD.bg,
+        border: CARD.border,
         boxShadow: `0 30px 80px -30px ${active.accent}55`,
         transition: 'box-shadow 0.6s ease',
       }}
@@ -60,7 +60,7 @@ const HeroShowcase = () => {
             transition={{ duration: 1.4, repeat: Infinity }}
             sx={{ width: 7, height: 7, borderRadius: '50%', background: '#14bb87' }}
           />
-          <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', color: 'rgba(255,255,255,0.55)' }}>
+          <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', color: TEXT.muted }}>
             LIVE ENGINE
           </Typography>
         </Box>
@@ -92,12 +92,12 @@ const HeroShowcase = () => {
               fontWeight: 700,
               fontSize: '0.7rem',
               color: active.accent,
-              background: `${active.accent}1f`,
-              border: `1px solid ${active.accent}55`,
+              background: `${active.accent}14`,
+              border: `1px solid ${active.accent}33`,
               mb: 0.5,
             }}
           />
-          <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.82rem' }}>
+          <Typography sx={{ color: TEXT.body, fontSize: '0.82rem' }}>
             {active.caption}
           </Typography>
         </Box>
@@ -113,7 +113,7 @@ const HeroShowcase = () => {
                 height: 8,
                 borderRadius: '50px',
                 cursor: 'pointer',
-                background: idx === i ? active.accent : 'rgba(255,255,255,0.2)',
+                background: idx === i ? active.accent : 'rgba(15,23,42,0.12)',
                 transition: 'all 0.4s ease',
               }}
             />

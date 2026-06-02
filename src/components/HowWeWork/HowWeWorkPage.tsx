@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Layout } from '@/components/Layout';
-import { PageHero, Reveal, SectionHeading, GlowButton, GradientText, FaqAccordion, TiltCard } from '@/components/cinematic';
+import { PageHero, Reveal, SectionHeading, GlowButton, GradientText, FaqAccordion, TiltCard, SURFACE, TEXT, CARD } from '@/components/cinematic';
 import { LinkedInFunnelSection, WhyUsSection } from '@/components/Home';
 import { manifesto, processSteps, faqInfo } from '@/data/websiteInfo';
 
@@ -32,10 +32,9 @@ const HowWeWorkPage = () => {
       </PageHero>
 
       {/* Manifesto pillars */}
-      <Box sx={{ background: '#0a0a0f', color: '#fff', py: { xs: 8, md: 12 } }}>
+      <Box sx={{ background: SURFACE.white, py: { xs: 8, md: 12 } }}>
         <Container maxWidth="lg">
           <SectionHeading
-            dark
             eyebrow="THE MODEL"
             title="Three commitments we make"
             subtitle="This is what “partner, not vendor” actually means in practice."
@@ -44,12 +43,12 @@ const HowWeWorkPage = () => {
             {manifesto.map((m, i) => (
               <Reveal key={m.key} delay={i * 0.12}>
                 <TiltCard max={9} sx={{ height: '100%', borderRadius: 4 }}>
-                  <Box sx={{ p: 4, height: '100%', borderRadius: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <Box sx={{ p: 4, height: '100%', borderRadius: 4, background: CARD.bg, border: CARD.border, boxShadow: CARD.shadow }}>
                     <Typography sx={{ fontSize: '2.6rem', fontWeight: 800, lineHeight: 1, mb: 2, background: 'linear-gradient(90deg,#ffaf06,#14bb87)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                       0{i + 1}
                     </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>{m.title}</Typography>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.65)', lineHeight: 1.7 }}>{m.description}</Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5, color: TEXT.heading }}>{m.title}</Typography>
+                    <Typography sx={{ color: TEXT.body, lineHeight: 1.7 }}>{m.description}</Typography>
                   </Box>
                 </TiltCard>
               </Reveal>
@@ -59,10 +58,9 @@ const HowWeWorkPage = () => {
       </Box>
 
       {/* Vertical process timeline */}
-      <Box sx={{ background: 'linear-gradient(180deg,#0a0a0f,#07090d)', color: '#fff', py: { xs: 8, md: 14 } }}>
+      <Box sx={{ background: SURFACE.cream, py: { xs: 8, md: 14 } }}>
         <Container maxWidth="md">
           <SectionHeading
-            dark
             eyebrow="THE OPERATING SYSTEM"
             title="From your pain to your pipeline"
             subtitle="Four stages we own end-to-end — no hand-offs, no junior account managers."
@@ -100,7 +98,7 @@ const HowWeWorkPage = () => {
                       zIndex: 1,
                       background: `linear-gradient(135deg, ${stepColors[i]}, ${stepColors[(i + 1) % 4]})`,
                       boxShadow: `0 10px 30px ${stepColors[i]}55`,
-                      border: '4px solid #0a0a0f',
+                      border: '4px solid #ffffff',
                     }}
                   >
                     {step.number}
@@ -110,15 +108,16 @@ const HowWeWorkPage = () => {
                       flex: 1,
                       p: { xs: 3, md: 3.5 },
                       borderRadius: 4,
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      background: CARD.bg,
+                      border: CARD.border,
+                      boxShadow: CARD.shadow,
                     }}
                   >
                     <Typography sx={{ color: stepColors[i], fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.08em', mb: 0.5 }}>
                       {step.subtitle.toUpperCase()}
                     </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>{step.title}</Typography>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.68)', lineHeight: 1.7, mb: 2 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5, color: TEXT.heading }}>{step.title}</Typography>
+                    <Typography sx={{ color: TEXT.body, lineHeight: 1.7, mb: 2 }}>
                       {step.description}
                     </Typography>
                     <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.8, color: stepColors[i], fontWeight: 600, fontSize: '0.88rem' }}>
@@ -137,20 +136,20 @@ const HowWeWorkPage = () => {
 
       <WhyUsSection />
 
-      <Box sx={{ background: '#07090d', color: '#fff', py: { xs: 8, md: 12 } }}>
+      <Box sx={{ background: SURFACE.mint, py: { xs: 8, md: 12 } }}>
         <Container maxWidth="md">
-          <SectionHeading dark eyebrow="QUESTIONS" title="The partnership, answered" />
+          <SectionHeading eyebrow="QUESTIONS" title="The partnership, answered" />
           <FaqAccordion items={faqInfo} />
         </Container>
       </Box>
 
-      <Box sx={{ background: 'radial-gradient(120% 120% at 50% 100%, #16161c 0%, #08080a 60%)', color: '#fff', py: { xs: 10, md: 14 }, textAlign: 'center' }}>
+      <Box sx={{ background: SURFACE.ctaBold, color: '#fff', py: { xs: 10, md: 14 }, textAlign: 'center' }}>
         <Container maxWidth="sm">
           <Reveal>
-            <Typography variant="h3" sx={{ fontWeight: 800, mb: 2, fontSize: { xs: '1.9rem', md: '2.6rem' } }}>
+            <Typography variant="h3" sx={{ fontWeight: 800, mb: 2, fontSize: { xs: '1.9rem', md: '2.6rem' }, color: '#fff' }}>
               Let’s make your growth our problem.
             </Typography>
-            <Typography sx={{ color: 'rgba(255,255,255,0.7)', mb: 4 }}>
+            <Typography sx={{ color: 'rgba(255,255,255,0.85)', mb: 4 }}>
               Book a strategy call and experience what a true marketing partner feels like.
             </Typography>
             <GlowButton component={Link} href="/contact" size="large">

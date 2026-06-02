@@ -20,9 +20,9 @@ const LeadFilterAnimation = () => {
       <path d="M70 60 L330 60 L250 180 L150 180 Z" fill="rgba(255,175,6,0.05)" stroke="rgba(255,175,6,0.3)" strokeWidth="1.5" />
       {/* filter bars */}
       {[100, 135].map((y, i) => (
-        <line key={i} x1={92 + i * 22} y1={y} x2={308 - i * 22} y2={y} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 5" strokeWidth="2" />
+        <line key={i} x1={92 + i * 22} y1={y} x2={308 - i * 22} y2={y} stroke="rgba(15,23,42,0.2)" strokeDasharray="4 5" strokeWidth="2" />
       ))}
-      <text x="200" y="48" textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.5)" fontFamily="inherit">RAW AUDIENCE</text>
+      <text x="200" y="48" textAnchor="middle" fontSize="11" fill="rgba(15,23,42,0.5)" fontFamily="inherit">RAW AUDIENCE</text>
 
       {/* raw leads falling */}
       {raw.map((_, i) => {
@@ -32,7 +32,7 @@ const LeadFilterAnimation = () => {
           <motion.circle
             key={i}
             r="5"
-            fill={qualified ? '#14bb87' : 'rgba(255,255,255,0.35)'}
+            fill={qualified ? '#14bb87' : 'rgba(15,23,42,0.25)'}
             initial={{ cx: startX, cy: 65, opacity: 0 }}
             animate={
               reduce

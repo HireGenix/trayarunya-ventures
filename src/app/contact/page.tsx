@@ -9,7 +9,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Layout } from '@/components/Layout';
-import { PageHero, Reveal, SectionHeading, GradientText, FaqAccordion } from '@/components/cinematic';
+import { PageHero, Reveal, SectionHeading, GradientText, FaqAccordion, SURFACE, TEXT } from '@/components/cinematic';
 import { AIMarketerExperience } from '@/components/Contact/AIMarketer';
 import { companyInfo, faqInfo } from '@/data/websiteInfo';
 
@@ -35,7 +35,7 @@ export default function ContactPage() {
       />
 
       {/* AI Marketer experience */}
-      <Box sx={{ background: '#0a0a0f', color: '#fff', pt: { xs: 6, md: 9 }, pb: { xs: 6, md: 8 } }}>
+      <Box sx={{ background: SURFACE.sky, color: TEXT.heading, pt: { xs: 6, md: 9 }, pb: { xs: 6, md: 8 } }}>
         <Container maxWidth="lg">
           <Reveal>
             <AIMarketerExperience />
@@ -44,11 +44,11 @@ export default function ContactPage() {
       </Box>
 
       {/* Contact info */}
-      <Box sx={{ background: '#0a0a0f', color: '#fff', pb: { xs: 8, md: 12 } }}>
+      <Box sx={{ background: SURFACE.sky, color: TEXT.heading, pb: { xs: 8, md: 12 } }}>
         <Container maxWidth="lg">
           <Box>
             <Reveal>
-              <Typography variant="h4" sx={{ fontWeight: 800, mb: 2 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, mb: 2, color: TEXT.heading }}>
                 What happens next
               </Typography>
             </Reveal>
@@ -57,7 +57,7 @@ export default function ContactPage() {
                 <Reveal key={p} delay={i * 0.06}>
                   <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
                     <CheckCircleIcon sx={{ color: '#14bb87', fontSize: 22, mt: '1px' }} />
-                    <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>{p}</Typography>
+                    <Typography sx={{ color: TEXT.body }}>{p}</Typography>
                   </Box>
                 </Reveal>
               ))}
@@ -76,9 +76,9 @@ export default function ContactPage() {
       </Box>
 
       {/* FAQ */}
-      <Box sx={{ background: 'linear-gradient(180deg,#0a0a0f,#07090d)', color: '#fff', py: { xs: 8, md: 12 } }}>
+      <Box sx={{ background: SURFACE.mint, color: TEXT.heading, py: { xs: 8, md: 12 } }}>
         <Container maxWidth="md">
-          <SectionHeading dark eyebrow="QUESTIONS" title="Before you book" />
+          <SectionHeading eyebrow="QUESTIONS" title="Before you book" />
           <FaqAccordion items={faqInfo} />
         </Container>
       </Box>
@@ -105,9 +105,9 @@ function ContactRow({
         {icon}
       </Box>
       <Box>
-        <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', mb: 0.3 }}>{label}</Typography>
+        <Typography sx={{ fontWeight: 700, fontSize: '0.85rem', mb: 0.3, color: TEXT.heading }}>{label}</Typography>
         {lines.map((l) => (
-          <Typography key={l} sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', lineHeight: 1.5 }}>
+          <Typography key={l} sx={{ color: TEXT.muted, fontSize: '0.85rem', lineHeight: 1.5 }}>
             {l}
           </Typography>
         ))}

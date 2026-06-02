@@ -3,7 +3,7 @@
 import React from 'react';
 import { Box, Container, Typography, Chip } from '@mui/material';
 import { motion } from 'framer-motion';
-import { Reveal, SectionHeading } from '@/components/cinematic';
+import { Reveal, SectionHeading, SURFACE, TEXT, LINE } from '@/components/cinematic';
 import { processSteps } from '@/data/websiteInfo';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
@@ -15,15 +15,14 @@ const HowWeWorkSection = () => {
       component="section"
       sx={{
         position: 'relative',
-        background: 'linear-gradient(180deg, #050507 0%, #0a0a0f 100%)',
-        color: '#fff',
+        background: SURFACE.sky,
+        color: TEXT.heading,
         py: { xs: 10, md: 16 },
         overflow: 'hidden',
       }}
     >
       <Container maxWidth="lg">
         <SectionHeading
-          dark
           eyebrow="HOW WE WORK"
           title={
             <>
@@ -45,7 +44,7 @@ const HowWeWorkSection = () => {
               left: '12.5%',
               right: '12.5%',
               height: 2,
-              background: 'rgba(255,255,255,0.08)',
+              background: LINE.soft,
               overflow: 'hidden',
             }}
           >
@@ -92,7 +91,7 @@ const HowWeWorkSection = () => {
                       color: '#0a0a0a',
                       background: `linear-gradient(135deg, ${stepColors[i]}, ${stepColors[(i + 1) % 4]})`,
                       boxShadow: `0 10px 30px ${stepColors[i]}55`,
-                      border: '4px solid #0a0a0f',
+                      border: '4px solid #f6f9ff',
                     }}
                   >
                     {step.number}
@@ -106,16 +105,16 @@ const HowWeWorkSection = () => {
                       fontWeight: 700,
                       letterSpacing: '0.06em',
                       color: stepColors[i],
-                      background: `${stepColors[i]}1a`,
-                      border: `1px solid ${stepColors[i]}40`,
+                      background: `${stepColors[i]}14`,
+                      border: `1px solid ${stepColors[i]}33`,
                     }}
                   />
-                  <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 700, mb: 1, color: TEXT.heading }}>
                     {step.title}
                   </Typography>
                   <Typography
                     sx={{
-                      color: 'rgba(255,255,255,0.6)',
+                      color: TEXT.body,
                       fontSize: '0.9rem',
                       lineHeight: 1.65,
                       mb: 2,

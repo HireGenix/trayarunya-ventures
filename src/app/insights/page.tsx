@@ -6,7 +6,7 @@ import Link from 'next/link';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { motion } from 'framer-motion';
 import { Layout } from '@/components/Layout';
-import { PageHero, Reveal, SectionHeading, GradientText, GlowButton, TiltCard } from '@/components/cinematic';
+import { PageHero, Reveal, SectionHeading, GradientText, GlowButton, TiltCard, SURFACE, TEXT, CARD, LINE } from '@/components/cinematic';
 
 const categories = [
   'LinkedIn Growth',
@@ -93,7 +93,7 @@ export default function InsightsPage() {
       />
 
       {/* Categories + Featured */}
-      <Box sx={{ background: '#0a0a0f', color: '#fff', py: { xs: 8, md: 12 } }}>
+      <Box sx={{ background: SURFACE.white, py: { xs: 8, md: 12 } }}>
         <Container maxWidth="lg">
           <Reveal>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.2, justifyContent: 'center', mb: { xs: 6, md: 8 } }}>
@@ -102,11 +102,11 @@ export default function InsightsPage() {
                   key={c}
                   label={c}
                   sx={{
-                    color: 'rgba(255,255,255,0.75)',
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: TEXT.body,
+                    background: 'rgba(15,23,42,0.04)',
+                    border: `1px solid ${LINE.soft}`,
                     fontWeight: 600,
-                    '&:hover': { borderColor: '#ffaf06', color: '#fff' },
+                    '&:hover': { borderColor: '#ffaf06', color: TEXT.heading },
                   }}
                 />
               ))}
@@ -122,20 +122,21 @@ export default function InsightsPage() {
                 p: { xs: 4, md: 6 },
                 borderRadius: 4,
                 overflow: 'hidden',
-                background: 'linear-gradient(135deg, rgba(255,175,6,0.08), rgba(20,187,135,0.06))',
-                border: '1px solid rgba(255,255,255,0.1)',
+                background: 'linear-gradient(135deg, #ffaf0614, #14bb870a)',
+                border: CARD.border,
+                boxShadow: CARD.shadow,
               }}
             >
               <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', mb: 2 }}>
                 <Chip label="FEATURED" size="small" sx={{ background: featured.accent, color: '#0a0a0a', fontWeight: 800, fontSize: '0.65rem' }} />
-                <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', fontWeight: 600 }}>
+                <Typography sx={{ color: TEXT.muted, fontSize: '0.8rem', fontWeight: 600 }}>
                   {featured.category} · {featured.readTime}
                 </Typography>
               </Box>
-              <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.6rem', md: '2.4rem' }, lineHeight: 1.15, mb: 2, maxWidth: 820 }}>
+              <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.6rem', md: '2.4rem' }, lineHeight: 1.15, mb: 2, maxWidth: 820, color: TEXT.heading }}>
                 {featured.title}
               </Typography>
-              <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '1.05rem', maxWidth: 720, mb: 3 }}>
+              <Typography sx={{ color: TEXT.body, fontSize: '1.05rem', maxWidth: 720, mb: 3 }}>
                 {featured.excerpt}
               </Typography>
               <Box component={Link} href="/contact" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: featured.accent, fontWeight: 700, textDecoration: 'none' }}>
@@ -147,9 +148,9 @@ export default function InsightsPage() {
       </Box>
 
       {/* Articles grid */}
-      <Box sx={{ background: 'linear-gradient(180deg,#0a0a0f,#07090d)', color: '#fff', pb: { xs: 8, md: 12 } }}>
+      <Box sx={{ background: SURFACE.cream, pb: { xs: 8, md: 12 } }}>
         <Container maxWidth="lg">
-          <SectionHeading dark eyebrow="LATEST" title="More from the growth desk" />
+          <SectionHeading eyebrow="LATEST" title="More from the growth desk" />
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 3 }}>
             {articles.map((a, i) => (
               <Reveal key={a.title} delay={i * 0.05}>
@@ -159,8 +160,9 @@ export default function InsightsPage() {
                       height: '100%',
                       p: 3.5,
                       borderRadius: 3,
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      background: CARD.bg,
+                      border: CARD.border,
+                      boxShadow: CARD.shadow,
                       display: 'flex',
                       flexDirection: 'column',
                       transition: 'border-color 0.3s',
@@ -169,14 +171,14 @@ export default function InsightsPage() {
                   >
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2 }}>
                       <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: a.color }} />
-                      <Typography sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+                      <Typography sx={{ color: TEXT.muted, fontSize: '0.75rem', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>
                         {a.category} · {a.readTime}
                       </Typography>
                     </Box>
-                    <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.3, mb: 1.5 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.3, mb: 1.5, color: TEXT.heading }}>
                       {a.title}
                     </Typography>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', flexGrow: 1, mb: 2 }}>
+                    <Typography sx={{ color: TEXT.body, fontSize: '0.9rem', flexGrow: 1, mb: 2 }}>
                       {a.excerpt}
                     </Typography>
                     <Box component={Link} href="/contact" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.7, color: a.color, fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none' }}>
@@ -191,13 +193,13 @@ export default function InsightsPage() {
       </Box>
 
       {/* Newsletter / CTA */}
-      <Box sx={{ background: '#07090d', color: '#fff', py: { xs: 10, md: 14 }, textAlign: 'center' }}>
+      <Box sx={{ background: SURFACE.ctaBold, color: '#fff', py: { xs: 10, md: 14 }, textAlign: 'center' }}>
         <Container maxWidth="md">
           <Reveal>
-            <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.9rem', md: '2.8rem' }, mb: 2 }}>
+            <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.9rem', md: '2.8rem' }, mb: 2, color: '#fff' }}>
               Want the strategy, not just the article?
             </Typography>
-            <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.1rem', mb: 4, maxWidth: 600, mx: 'auto' }}>
+            <Typography sx={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.1rem', mb: 4, maxWidth: 600, mx: 'auto' }}>
               Book a strategy call and we’ll apply these frameworks directly to your pipeline — as your partner.
             </Typography>
             <GlowButton component={Link} href="/contact">

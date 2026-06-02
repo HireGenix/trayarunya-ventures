@@ -5,7 +5,7 @@ import { Box, Container, Typography, Stack } from '@mui/material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
-import { Reveal, GradientMesh, GradientText, GlowButton } from '@/components/cinematic';
+import { Reveal, GradientMesh, GradientText, GlowButton, SURFACE } from '@/components/cinematic';
 import { companyInfo } from '@/data/websiteInfo';
 
 const CTASection = () => {
@@ -14,13 +14,13 @@ const CTASection = () => {
       component="section"
       sx={{
         position: 'relative',
-        background: 'radial-gradient(120% 120% at 50% 100%, #16161c 0%, #08080a 60%)',
+        background: SURFACE.ctaBold,
         color: '#fff',
         py: { xs: 12, md: 18 },
         overflow: 'hidden',
       }}
     >
-      <GradientMesh dark intensity={1.2} grid={false} />
+      <GradientMesh dark={false} intensity={1.2} grid={false} />
       <Container maxWidth="md" sx={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
         <Reveal>
           <Typography
@@ -33,7 +33,7 @@ const CTASection = () => {
               mb: 3,
             }}
           >
-            Let’s build your <GradientText>growth engine</GradientText> — together.
+            Let’s build your <GradientText gradient="linear-gradient(90deg,#ffffff,rgba(255,255,255,0.88))">growth engine</GradientText> — together.
           </Typography>
         </Reveal>
         <Reveal delay={0.1}>
@@ -72,7 +72,7 @@ const CTASection = () => {
           </Stack>
         </Reveal>
         <Reveal delay={0.3}>
-          <Typography sx={{ mt: 4, color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>
+          <Typography sx={{ mt: 4, color: 'rgba(255,255,255,0.65)', fontSize: '0.85rem' }}>
             No pressure. No fluff. Just a clear plan for your pipeline.
           </Typography>
         </Reveal>

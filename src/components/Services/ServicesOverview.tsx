@@ -7,7 +7,7 @@ import Link from 'next/link';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import StarIcon from '@mui/icons-material/Star';
 import { Layout } from '@/components/Layout';
-import { PageHero, Reveal, GlowButton, ServiceIcon, TiltCard } from '@/components/cinematic';
+import { PageHero, Reveal, GlowButton, ServiceIcon, TiltCard, SURFACE, TEXT, CARD } from '@/components/cinematic';
 import { services } from '@/data/servicesData';
 import { processSteps } from '@/data/websiteInfo';
 
@@ -30,7 +30,7 @@ const ServicesOverview = () => {
       </PageHero>
 
       {/* Services list */}
-      <Box sx={{ background: '#0a0a0f', color: '#fff', py: { xs: 8, md: 12 } }}>
+      <Box sx={{ background: SURFACE.white, py: { xs: 8, md: 12 } }}>
         <Container maxWidth="lg">
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {services.map((s, i) => (
@@ -45,8 +45,9 @@ const ServicesOverview = () => {
                     alignItems: 'center',
                     p: { xs: 3, md: 4 },
                     borderRadius: 4,
-                    background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: CARD.bg,
+                    border: CARD.border,
+                    boxShadow: CARD.shadow,
                     transition: 'border-color 0.3s ease',
                     '&:hover': { borderColor: `${s.color}55` },
                   }}
@@ -59,7 +60,7 @@ const ServicesOverview = () => {
                       display: 'grid',
                       placeItems: 'center',
                       color: s.color,
-                      background: `${s.color}1f`,
+                      background: `${s.color}14`,
                       border: `1px solid ${s.color}44`,
                     }}
                   >
@@ -67,7 +68,7 @@ const ServicesOverview = () => {
                   </Box>
                   <Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1, flexWrap: 'wrap' }}>
-                      <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                      <Typography variant="h5" sx={{ fontWeight: 700, color: TEXT.heading }}>
                         {s.name}
                       </Typography>
                       {s.flagship && (
@@ -89,7 +90,7 @@ const ServicesOverview = () => {
                         </Box>
                       )}
                     </Box>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.65)', lineHeight: 1.65, maxWidth: 620 }}>
+                    <Typography sx={{ color: TEXT.body, lineHeight: 1.65, maxWidth: 620 }}>
                       {s.summary}
                     </Typography>
                   </Box>
@@ -111,7 +112,7 @@ const ServicesOverview = () => {
                       textDecoration: 'none',
                       border: `1px solid ${s.color}55`,
                       transition: 'all 0.2s ease',
-                      '&:hover': { background: `${s.color}1a` },
+                      '&:hover': { background: `${s.color}14` },
                     }}
                   >
                     Explore <ArrowForwardIcon sx={{ fontSize: 16 }} />
@@ -124,13 +125,13 @@ const ServicesOverview = () => {
       </Box>
 
       {/* Process recap */}
-      <Box sx={{ background: 'linear-gradient(180deg,#0a0a0f,#050507)', color: '#fff', py: { xs: 8, md: 12 } }}>
+      <Box sx={{ background: SURFACE.cream, py: { xs: 8, md: 12 } }}>
         <Container maxWidth="lg">
           <Reveal>
-            <Typography variant="h3" sx={{ fontWeight: 800, textAlign: 'center', mb: 1.5, fontSize: { xs: '1.8rem', md: '2.4rem' } }}>
+            <Typography variant="h3" sx={{ fontWeight: 800, textAlign: 'center', mb: 1.5, fontSize: { xs: '1.8rem', md: '2.4rem' }, color: TEXT.heading }}>
               However we engage, the operating system is the same
             </Typography>
-            <Typography sx={{ textAlign: 'center', color: 'rgba(255,255,255,0.6)', maxWidth: 640, mx: 'auto', mb: 6 }}>
+            <Typography sx={{ textAlign: 'center', color: TEXT.muted, maxWidth: 640, mx: 'auto', mb: 6 }}>
               Understand → Strategize → Execute → Scale. We own each stage like your in-house team.
             </Typography>
           </Reveal>
@@ -138,10 +139,10 @@ const ServicesOverview = () => {
             {processSteps.map((p, i) => (
               <Reveal key={p.number} delay={i * 0.1}>
                 <TiltCard max={12} sx={{ height: '100%', borderRadius: 3 }}>
-                  <Box sx={{ p: 3, borderRadius: 3, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', height: '100%' }}>
+                  <Box sx={{ p: 3, borderRadius: 3, background: CARD.bg, border: CARD.border, boxShadow: CARD.shadow, height: '100%' }}>
                     <Typography sx={{ fontWeight: 800, color: '#ffaf06', mb: 1 }}>{p.number}</Typography>
-                    <Typography sx={{ fontWeight: 700, mb: 0.5 }}>{p.title}</Typography>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                    <Typography sx={{ fontWeight: 700, mb: 0.5, color: TEXT.heading }}>{p.title}</Typography>
+                    <Typography sx={{ color: TEXT.muted, fontSize: '0.82rem', lineHeight: 1.5 }}>
                       {p.subtitle}
                     </Typography>
                   </Box>

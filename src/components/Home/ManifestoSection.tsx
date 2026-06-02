@@ -3,7 +3,7 @@
 import React from 'react';
 import { Box, Container, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
-import { Reveal, GradientText } from '@/components/cinematic';
+import { Reveal, GradientText, SURFACE, TEXT, CARD } from '@/components/cinematic';
 import { manifesto } from '@/data/websiteInfo';
 
 const ManifestoSection = () => {
@@ -12,8 +12,8 @@ const ManifestoSection = () => {
       component="section"
       sx={{
         position: 'relative',
-        background: '#050507',
-        color: '#fff',
+        background: SURFACE.white,
+        color: TEXT.heading,
         py: { xs: 10, md: 16 },
         overflow: 'hidden',
       }}
@@ -43,7 +43,7 @@ const ManifestoSection = () => {
                 letterSpacing: '-0.02em',
               }}
             >
-              Most agencies see a <Box component="span" sx={{ color: 'rgba(255,255,255,0.4)' }}>client</Box>.
+              Most agencies see a <Box component="span" sx={{ color: TEXT.muted }}>client</Box>.
               <br />
               We see a <GradientText>business worth fighting for.</GradientText>
             </Typography>
@@ -67,11 +67,12 @@ const ManifestoSection = () => {
                   height: '100%',
                   p: 4,
                   borderRadius: 4,
-                  background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: CARD.bg,
+                  border: CARD.border,
+                  boxShadow: CARD.shadow,
                   overflow: 'hidden',
-                  transition: 'border-color 0.3s ease',
-                  '&:hover': { borderColor: 'rgba(255,175,6,0.3)' },
+                  transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
+                  '&:hover': { borderColor: 'rgba(255,175,6,0.3)', boxShadow: CARD.shadowHover },
                 }}
               >
                 <Typography
@@ -88,10 +89,10 @@ const ManifestoSection = () => {
                 >
                   0{i + 1}
                 </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>
+                <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5, color: TEXT.heading }}>
                   {m.title}
                 </Typography>
-                <Typography sx={{ color: 'rgba(255,255,255,0.65)', lineHeight: 1.7 }}>
+                <Typography sx={{ color: TEXT.body, lineHeight: 1.7 }}>
                   {m.description}
                 </Typography>
               </Box>

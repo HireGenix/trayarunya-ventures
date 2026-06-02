@@ -25,7 +25,7 @@ const AdsAnimation = () => {
       ))}
       {/* bullseye */}
       <circle cx="110" cy="150" r="7" fill="#14bb87" />
-      <text x="110" y="225" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.5)" fontFamily="inherit">TARGET</text>
+      <text x="110" y="225" textAnchor="middle" fontSize="9" fill="rgba(15,23,42,0.5)" fontFamily="inherit">TARGET</text>
 
       {/* creative card fires toward conversion */}
       <motion.g
@@ -35,13 +35,13 @@ const AdsAnimation = () => {
       >
         <rect x="150" y="128" width="44" height="44" rx="8" fill="rgba(255,175,6,0.18)" stroke="#ffaf06" strokeWidth="1.2" />
         <rect x="158" y="136" width="28" height="14" rx="3" fill="rgba(255,175,6,0.5)" />
-        <rect x="158" y="154" width="28" height="4" rx="2" fill="rgba(255,255,255,0.4)" />
-        <rect x="158" y="161" width="18" height="4" rx="2" fill="rgba(255,255,255,0.25)" />
+        <rect x="158" y="154" width="28" height="4" rx="2" fill="rgba(15,23,42,0.2)" />
+        <rect x="158" y="161" width="18" height="4" rx="2" fill="rgba(15,23,42,0.15)" />
       </motion.g>
 
       {/* conversion panel */}
       <rect x="300" y="96" width="86" height="108" rx="12" fill="rgba(20,187,135,0.08)" stroke="#14bb87" strokeWidth="1.2" />
-      <text x="343" y="120" textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.5)" fontFamily="inherit">CONVERSIONS</text>
+      <text x="343" y="120" textAnchor="middle" fontSize="9" fill="rgba(15,23,42,0.5)" fontFamily="inherit">CONVERSIONS</text>
       {/* rising bars */}
       {[0, 1, 2, 3].map((b) => (
         <motion.rect key={b} x={312 + b * 18} width="12" rx="2" fill="#14bb87"
@@ -51,7 +51,7 @@ const AdsAnimation = () => {
         />
       ))}
       <text x="343" y="162" textAnchor="middle" fontSize="13" fontWeight="700" fill="#5fe3bf" fontFamily="inherit">4.2x</text>
-      <text x="343" y="176" textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.5)" fontFamily="inherit">ROAS</text>
+      <text x="343" y="176" textAnchor="middle" fontSize="8" fill="rgba(15,23,42,0.5)" fontFamily="inherit">ROAS</text>
     </svg>
   );
 };

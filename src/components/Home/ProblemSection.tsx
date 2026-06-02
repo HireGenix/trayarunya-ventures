@@ -3,7 +3,7 @@
 import React from 'react';
 import { Box, Container, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
-import { Reveal, GradientText } from '@/components/cinematic';
+import { Reveal, GradientText, SURFACE, TEXT, CARD } from '@/components/cinematic';
 import { painPoints } from '@/data/websiteInfo';
 import SentimentDissatisfiedIcon from '@mui/icons-material/SentimentVeryDissatisfied';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -14,8 +14,8 @@ const ProblemSection = () => {
       component="section"
       sx={{
         position: 'relative',
-        background: 'linear-gradient(180deg, #050507 0%, #0c0a0b 50%, #050507 100%)',
-        color: '#fff',
+        background: SURFACE.peach,
+        color: TEXT.heading,
         py: { xs: 10, md: 16 },
         overflow: 'hidden',
       }}
@@ -26,7 +26,7 @@ const ProblemSection = () => {
         sx={{
           position: 'absolute',
           inset: 0,
-          background: 'radial-gradient(60% 50% at 50% 40%, rgba(217,44,74,0.08), transparent 70%)',
+          background: 'radial-gradient(60% 50% at 50% 40%, rgba(217,44,74,0.06), transparent 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -66,8 +66,9 @@ const ProblemSection = () => {
                   p: 3,
                   height: '100%',
                   borderRadius: 3,
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(217,44,74,0.15)',
+                  background: CARD.bg,
+                  border: `1px solid rgba(217,44,74,0.18)`,
+                  boxShadow: CARD.shadow,
                 }}
               >
                 <Box
@@ -78,15 +79,15 @@ const ProblemSection = () => {
                     borderRadius: 2,
                     display: 'grid',
                     placeItems: 'center',
-                    background: 'rgba(217,44,74,0.12)',
+                    background: 'rgba(217,44,74,0.10)',
                     color: '#e35a72',
                   }}
                 >
                   <SentimentDissatisfiedIcon />
                 </Box>
                 <Box>
-                  <Typography sx={{ fontWeight: 700, mb: 0.5 }}>{p.title}</Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.92rem', lineHeight: 1.6 }}>
+                  <Typography sx={{ fontWeight: 700, mb: 0.5, color: TEXT.heading }}>{p.title}</Typography>
+                  <Typography sx={{ color: TEXT.body, fontSize: '0.92rem', lineHeight: 1.6 }}>
                     {p.description}
                   </Typography>
                 </Box>
@@ -107,7 +108,7 @@ const ProblemSection = () => {
               alignItems: 'center',
             }}
           >
-            <Typography sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '1.05rem' }}>
+            <Typography sx={{ color: TEXT.body, fontSize: '1.05rem' }}>
               Every one of these traces back to a vendor who never truly owned your growth.
             </Typography>
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, color: '#ffaf06', fontWeight: 700 }}>

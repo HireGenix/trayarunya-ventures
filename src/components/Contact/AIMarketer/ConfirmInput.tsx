@@ -74,17 +74,17 @@ export default function ConfirmInput({ field, onSubmit, onDismiss }: ConfirmInpu
             size="small"
             fullWidth
             autoComplete="off"
-            InputLabelProps={{ sx: { color: 'rgba(255,255,255,0.55)' } }}
+            InputLabelProps={{ sx: { color: 'rgba(15,23,42,0.55)' } }}
             sx={{
               '& .MuiFilledInput-root': {
-                background: 'rgba(255,255,255,0.07)',
-                color: '#fff',
+                background: 'rgba(15,23,42,0.04)',
+                color: '#0f1320',
                 borderRadius: 1.5,
-                '&:hover, &.Mui-focused': { background: 'rgba(255,255,255,0.1)' },
+                '&:hover, &.Mui-focused': { background: 'rgba(15,23,42,0.06)' },
                 '&:before, &:after': { display: 'none' },
               },
-              '& input': { color: '#fff', fontSize: '0.95rem' },
-              '& input::placeholder': { color: 'rgba(255,255,255,0.4)' },
+              '& input': { color: '#0f1320', fontSize: '0.95rem' },
+              '& input::placeholder': { color: 'rgba(15,23,42,0.4)' },
             }}
           />
           <Button
@@ -94,8 +94,8 @@ export default function ConfirmInput({ field, onSubmit, onDismiss }: ConfirmInpu
               minWidth: 44,
               height: 44,
               borderRadius: 2,
-              background: value.trim() ? 'linear-gradient(135deg,#ffaf06,#ff7a06)' : 'rgba(255,255,255,0.06)',
-              color: value.trim() ? '#0a0a0f' : 'rgba(255,255,255,0.3)',
+              background: value.trim() ? 'linear-gradient(135deg,#ffaf06,#ff7a06)' : 'rgba(15,23,42,0.06)',
+              color: value.trim() ? '#0a0a0f' : 'rgba(15,23,42,0.3)',
               '&:hover': { background: 'linear-gradient(135deg,#ffbf2a,#ff8a1a)' },
             }}
           >
@@ -104,7 +104,7 @@ export default function ConfirmInput({ field, onSubmit, onDismiss }: ConfirmInpu
         </Box>
         <Typography
           onClick={onDismiss}
-          sx={{ mt: 1, fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', '&:hover': { color: 'rgba(255,255,255,0.6)' } }}
+          sx={{ mt: 1, fontSize: '0.72rem', color: 'rgba(15,23,42,0.4)', cursor: 'pointer', '&:hover': { color: 'rgba(15,23,42,0.65)' } }}
         >
           dismiss
         </Typography>

@@ -26,14 +26,15 @@ const FaqAccordion = ({ items }: { items: FaqItem[] }) => {
                 p: { xs: 2.5, md: 3 },
                 borderRadius: 3,
                 cursor: 'pointer',
-                background: 'rgba(255,255,255,0.03)',
+                background: '#ffffff',
+                boxShadow: isOpen ? '0 12px 34px rgba(15,23,42,0.08)' : '0 4px 14px rgba(15,23,42,0.05)',
                 border: '1px solid',
-                borderColor: isOpen ? 'rgba(255,175,6,0.35)' : 'rgba(255,255,255,0.08)',
-                transition: 'border-color 0.3s ease',
+                borderColor: isOpen ? 'rgba(255,175,6,0.45)' : 'rgba(15,23,42,0.08)',
+                transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1rem', md: '1.1rem' }, color: '#fff' }}>
+                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1rem', md: '1.1rem' }, color: '#0f1320' }}>
                   {item.question}
                 </Typography>
                 <Box
@@ -46,7 +47,7 @@ const FaqAccordion = ({ items }: { items: FaqItem[] }) => {
                 </Box>
               </Box>
               <Collapse in={isOpen}>
-                <Typography sx={{ color: 'rgba(255,255,255,0.65)', mt: 2, lineHeight: 1.7 }}>
+                <Typography sx={{ color: '#475569', mt: 2, lineHeight: 1.7 }}>
                   {item.answer}
                 </Typography>
               </Collapse>

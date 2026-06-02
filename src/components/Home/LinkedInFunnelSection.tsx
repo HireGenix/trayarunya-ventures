@@ -5,7 +5,7 @@ import { Box, Container, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
-import { Reveal, GradientText, GlowButton } from '@/components/cinematic';
+import { Reveal, GradientText, GlowButton, SURFACE, TEXT } from '@/components/cinematic';
 import { linkedinFunnel } from '@/data/websiteInfo';
 
 const widths = [100, 86, 70, 54, 40];
@@ -16,8 +16,8 @@ const LinkedInFunnelSection = () => {
       component="section"
       sx={{
         position: 'relative',
-        background: 'radial-gradient(100% 100% at 50% 0%, #0a1622 0%, #07090d 60%)',
-        color: '#fff',
+        background: SURFACE.lavender,
+        color: TEXT.heading,
         py: { xs: 10, md: 16 },
         overflow: 'hidden',
       }}
@@ -27,7 +27,7 @@ const LinkedInFunnelSection = () => {
         sx={{
           position: 'absolute',
           inset: 0,
-          background: 'radial-gradient(50% 60% at 50% 30%, rgba(10,102,194,0.18), transparent 70%)',
+          background: 'radial-gradient(50% 60% at 50% 30%, rgba(10,102,194,0.12), transparent 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -68,7 +68,7 @@ const LinkedInFunnelSection = () => {
               </Typography>
             </Reveal>
             <Reveal delay={0.1}>
-              <Typography sx={{ color: 'rgba(255,255,255,0.68)', fontSize: '1.05rem', lineHeight: 1.7, mb: 4 }}>
+              <Typography sx={{ color: TEXT.body, fontSize: '1.05rem', lineHeight: 1.7, mb: 4 }}>
                 Most “LinkedIn marketing” stops at posting. We engineer the entire funnel — turning quiet
                 profiles into a system that books calls with buyers who can actually sign.
               </Typography>
@@ -100,8 +100,12 @@ const LinkedInFunnelSection = () => {
                     i === linkedinFunnel.length - 1
                       ? 'linear-gradient(95deg, #ffaf06, #14bb87)'
                       : 'linear-gradient(95deg, rgba(10,102,194,0.9), rgba(10,102,194,0.55))',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  boxShadow: '0 12px 30px rgba(0,0,0,0.35)',
+                  border: i === linkedinFunnel.length - 1
+                    ? '1px solid rgba(255,255,255,0.15)'
+                    : '1px solid rgba(10,102,194,0.3)',
+                  boxShadow: i === linkedinFunnel.length - 1
+                    ? '0 8px 24px rgba(255,175,6,0.25)'
+                    : '0 8px 20px rgba(10,102,194,0.2)',
                   textAlign: 'center',
                   color: i === linkedinFunnel.length - 1 ? '#0a0a0a' : '#fff',
                 }}

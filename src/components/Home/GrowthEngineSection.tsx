@@ -3,7 +3,7 @@
 import React from 'react';
 import { Box, Container, Typography, Chip } from '@mui/material';
 import { motion } from 'framer-motion';
-import { Reveal, SectionHeading, AnimatedCounter } from '@/components/cinematic';
+import { Reveal, SectionHeading, AnimatedCounter, SURFACE, TEXT, CARD, LINE } from '@/components/cinematic';
 import { AIBrainAnimation, StageAnimation } from '@/components/cinematic/animations';
 import { growthEngine } from '@/data/websiteInfo';
 
@@ -15,15 +15,14 @@ const GrowthEngineSection = () => {
       component="section"
       sx={{
         position: 'relative',
-        background: 'radial-gradient(120% 80% at 50% 0%, #101018 0%, #050507 55%)',
-        color: '#fff',
+        background: SURFACE.white,
+        color: TEXT.heading,
         py: { xs: 10, md: 16 },
         overflow: 'hidden',
       }}
     >
       <Container maxWidth="lg">
         <SectionHeading
-          dark
           eyebrow="THE GROWTH ENGINE"
           title={
             <>
@@ -43,8 +42,9 @@ const GrowthEngineSection = () => {
               mt: { xs: 4, md: 7 },
               p: { xs: 3, md: 4 },
               borderRadius: 4,
-              background: 'linear-gradient(135deg, rgba(255,175,6,0.08), rgba(20,187,135,0.06))',
-              border: '1px solid rgba(255,255,255,0.1)',
+              background: CARD.bg,
+              border: CARD.border,
+              boxShadow: CARD.shadow,
             }}
           >
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.1fr 0.9fr' }, gap: 3, alignItems: 'center' }}>
@@ -54,7 +54,7 @@ const GrowthEngineSection = () => {
                   size="small"
                   sx={{ mb: 1.5, fontWeight: 700, fontSize: '0.7rem', color: '#0a0a0a', background: 'linear-gradient(135deg,#ffaf06,#14bb87)' }}
                 />
-                <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.95rem', lineHeight: 1.7 }}>
+                <Typography sx={{ color: TEXT.body, fontSize: '0.95rem', lineHeight: 1.7 }}>
                   {brain.description}
                 </Typography>
               </Box>
@@ -77,7 +77,7 @@ const GrowthEngineSection = () => {
               left: '50%',
               width: 2,
               transform: 'translateX(-50%)',
-              background: 'rgba(255,255,255,0.08)',
+              background: LINE.soft,
               overflow: 'hidden',
             }}
           >
@@ -117,7 +117,7 @@ const GrowthEngineSection = () => {
                         sx={{
                           p: { xs: 2, md: 2.5 },
                           borderRadius: 3,
-                          background: 'rgba(255,255,255,0.03)',
+                          background: CARD.bg,
                           border: `1px solid ${stage.accent}33`,
                           boxShadow: `0 20px 50px -20px ${stage.accent}40`,
                         }}
@@ -148,8 +148,8 @@ const GrowthEngineSection = () => {
                           placeItems: 'center',
                           fontWeight: 800,
                           color: '#0a0a0a',
-                          background: `linear-gradient(135deg, ${stage.accent}, #fff)`,
-                          border: '4px solid #050507',
+                          background: `linear-gradient(135deg, ${stage.accent}, #e2e8f0)`,
+                          border: '4px solid #ffffff',
                           boxShadow: `0 0 0 4px ${stage.accent}33`,
                         }}
                       >
@@ -163,13 +163,13 @@ const GrowthEngineSection = () => {
                         <Chip
                           label={`STEP ${stage.step}`}
                           size="small"
-                          sx={{ display: { xs: 'inline-flex', md: 'none' }, fontWeight: 700, fontSize: '0.65rem', color: stage.accent, background: `${stage.accent}1f`, border: `1px solid ${stage.accent}55` }}
+                          sx={{ display: { xs: 'inline-flex', md: 'none' }, fontWeight: 700, fontSize: '0.65rem', color: stage.accent, background: `${stage.accent}14`, border: `1px solid ${stage.accent}33` }}
                         />
-                        <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: '1.4rem', md: '1.8rem' } }}>
+                        <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: '1.4rem', md: '1.8rem' }, color: TEXT.heading }}>
                           {stage.title}
                         </Typography>
                       </Box>
-                      <Typography sx={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.95rem', lineHeight: 1.7, mb: 2, maxWidth: 380, ml: { xs: 0, md: animLeft ? 0 : 'auto' } }}>
+                      <Typography sx={{ color: TEXT.body, fontSize: '0.95rem', lineHeight: 1.7, mb: 2, maxWidth: 380, ml: { xs: 0, md: animLeft ? 0 : 'auto' } }}>
                         {stage.description}
                       </Typography>
                       <Box sx={{ display: 'inline-flex', alignItems: 'baseline', gap: 1 }}>
@@ -184,7 +184,7 @@ const GrowthEngineSection = () => {
                             color: stage.accent,
                           }}
                         />
-                        <Typography sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.85rem' }}>
+                        <Typography sx={{ color: TEXT.muted, fontSize: '0.85rem' }}>
                           {stage.metricLabel}
                         </Typography>
                       </Box>

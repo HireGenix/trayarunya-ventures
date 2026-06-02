@@ -5,7 +5,7 @@ import { Box, Container, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
-import { Reveal, SectionHeading, GradientText } from '@/components/cinematic';
+import { Reveal, SectionHeading, GradientText, SURFACE, TEXT, CARD } from '@/components/cinematic';
 import { differentiators } from '@/data/websiteInfo';
 
 const WhyUsSection = () => {
@@ -14,14 +14,13 @@ const WhyUsSection = () => {
       component="section"
       sx={{
         position: 'relative',
-        background: 'linear-gradient(180deg, #07090d 0%, #050507 100%)',
-        color: '#fff',
+        background: SURFACE.white,
+        color: TEXT.heading,
         py: { xs: 10, md: 16 },
       }}
     >
       <Container maxWidth="lg">
         <SectionHeading
-          dark
           eyebrow="WHY ONLY TRAYARUNYA"
           title={
             <>
@@ -47,7 +46,7 @@ const WhyUsSection = () => {
             <Typography sx={{ textAlign: 'center', fontWeight: 800, color: '#ffaf06', fontSize: '0.95rem' }}>
               Trayarunya
             </Typography>
-            <Typography sx={{ textAlign: 'center', fontWeight: 700, color: 'rgba(255,255,255,0.4)', fontSize: '0.95rem' }}>
+            <Typography sx={{ textAlign: 'center', fontWeight: 700, color: TEXT.muted, fontSize: '0.95rem' }}>
               Typical agency
             </Typography>
           </Box>
@@ -65,11 +64,12 @@ const WhyUsSection = () => {
                   p: { xs: 2.5, md: 2 },
                   mb: 1.5,
                   borderRadius: 3,
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.07)',
+                  background: CARD.bg,
+                  border: CARD.border,
+                  boxShadow: CARD.shadow,
                 }}
               >
-                <Typography sx={{ fontWeight: 700, fontSize: '1rem', mb: { xs: 1, md: 0 } }}>
+                <Typography sx={{ fontWeight: 700, fontSize: '1rem', mb: { xs: 1, md: 0 }, color: TEXT.heading }}>
                   {d.title}
                 </Typography>
                 <Box
@@ -79,18 +79,18 @@ const WhyUsSection = () => {
                     alignItems: 'flex-start',
                     p: 1.5,
                     borderRadius: 2,
-                    background: 'rgba(20,187,135,0.08)',
-                    border: '1px solid rgba(20,187,135,0.2)',
+                    background: '#14bb8714',
+                    border: '1px solid #14bb8733',
                   }}
                 >
                   <CheckCircleIcon sx={{ color: '#14bb87', fontSize: 20, flexShrink: 0, mt: '1px' }} />
-                  <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.85rem', color: TEXT.body, lineHeight: 1.5 }}>
                     {d.us}
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', p: 1.5 }}>
                   <CancelIcon sx={{ color: 'rgba(217,44,74,0.7)', fontSize: 20, flexShrink: 0, mt: '1px' }} />
-                  <Typography sx={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
+                  <Typography sx={{ fontSize: '0.85rem', color: TEXT.muted, lineHeight: 1.5 }}>
                     {d.them}
                   </Typography>
                 </Box>

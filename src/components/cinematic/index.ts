@@ -18,3 +18,4 @@ export { default as TextReveal } from './TextReveal';
 export { default as Parallax } from './Parallax';
 export { default as TiltCard } from './TiltCard';
 export { default as MagneticButton } from './MagneticButton';
+export * from './surfaces';

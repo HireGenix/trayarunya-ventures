@@ -37,6 +37,7 @@ import { services } from '@/data/servicesData';
 import { companyInfo } from '@/data/websiteInfo';
 import ServiceIcon from '@/components/cinematic/ServiceIcon';
 import BrandLogo from '@/components/cinematic/BrandLogo';
+import { TEXT, LINE, CARD } from '@/components/cinematic/surfaces';
 
 const navLinks = [
   { name: 'Home', href: '/' },
@@ -71,7 +72,7 @@ export default function Header() {
       href="/"
       sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}
     >
-      <BrandLogo variant="light" size={38} />
+      <BrandLogo variant="dark" size={38} />
     </Box>
   );
 
@@ -81,11 +82,12 @@ export default function Header() {
         position="fixed"
         elevation={0}
         sx={{
-          background: scrolled ? 'rgba(8,8,10,0.82)' : 'rgba(8,8,10,0.4)',
+          background: scrolled ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.72)',
           backdropFilter: 'blur(18px)',
           borderBottom: scrolled
-            ? '1px solid rgba(255,255,255,0.08)'
-            : '1px solid rgba(255,255,255,0.04)',
+            ? `1px solid ${LINE.soft}`
+            : `1px solid ${LINE.softer}`,
+          boxShadow: scrolled ? '0 4px 24px rgba(15,23,42,0.08)' : 'none',
           transition: 'all 0.4s ease',
         }}
       >
@@ -128,10 +130,10 @@ export default function Header() {
                                 p: 1.5,
                                 width: 560,
                                 borderRadius: 3,
-                                background: 'rgba(14,14,18,0.96)',
+                                background: '#ffffff',
                                 backdropFilter: 'blur(20px)',
-                                border: '1px solid rgba(255,255,255,0.08)',
-                                boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+                                border: `1px solid ${LINE.soft}`,
+                                boxShadow: CARD.shadow,
                                 display: 'grid',
                                 gridTemplateColumns: '1fr 1fr',
                                 gap: 0.5,
@@ -149,7 +151,7 @@ export default function Header() {
                                     borderRadius: 2,
                                     textDecoration: 'none',
                                     transition: 'background 0.2s ease',
-                                    '&:hover': { background: 'rgba(255,255,255,0.06)' },
+                                    '&:hover': { background: 'rgba(15,23,42,0.04)' },
                                   }}
                                 >
                                   <Box
@@ -160,7 +162,7 @@ export default function Header() {
                                       borderRadius: 1.5,
                                       display: 'grid',
                                       placeItems: 'center',
-                                      background: `${s.color}1f`,
+                                      background: `${s.color}14`,
                                       color: s.color,
                                     }}
                                   >
@@ -168,13 +170,13 @@ export default function Header() {
                                   </Box>
                                   <Box>
                                     <Typography
-                                      sx={{ color: '#fff', fontWeight: 600, fontSize: '0.88rem' }}
+                                      sx={{ color: TEXT.heading, fontWeight: 600, fontSize: '0.88rem' }}
                                     >
                                       {s.shortName}
                                     </Typography>
                                     <Typography
                                       sx={{
-                                        color: 'rgba(255,255,255,0.55)',
+                                        color: TEXT.muted,
                                         fontSize: '0.74rem',
                                         lineHeight: 1.4,
                                       }}
@@ -206,7 +208,7 @@ export default function Header() {
                   href={companyInfo.contact.socialMedia.linkedin}
                   target="_blank"
                   rel="noopener noreferrer"
-                  sx={{ color: 'rgba(255,255,255,0.7)', ml: 1, '&:hover': { color: '#0A66C2' } }}
+                  sx={{ color: TEXT.body, ml: 1, '&:hover': { color: '#0A66C2' } }}
                   aria-label="LinkedIn"
                 >
                   <LinkedInIcon />
@@ -239,7 +241,7 @@ export default function Header() {
             {isMobile && (
               <IconButton
                 onClick={() => setMobileOpen(true)}
-                sx={{ color: '#fff' }}
+                sx={{ color: TEXT.heading }}
                 aria-label="Open menu"
               >
                 <MenuIcon />
@@ -257,18 +259,18 @@ export default function Header() {
           sx: {
             width: '85%',
             maxWidth: 360,
-            background: '#0a0a0c',
-            borderLeft: '1px solid rgba(255,255,255,0.08)',
+            background: '#ffffff',
+            borderLeft: `1px solid ${LINE.soft}`,
           },
         }}
       >
         <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           {Logo}
-          <IconButton onClick={() => setMobileOpen(false)} sx={{ color: '#fff' }} aria-label="Close menu">
+          <IconButton onClick={() => setMobileOpen(false)} sx={{ color: TEXT.heading }} aria-label="Close menu">
             <CloseIcon />
           </IconButton>
         </Box>
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+        <Divider sx={{ borderColor: LINE.soft }} />
         <List sx={{ px: 1 }}>
           {navLinks.map((link) =>
             link.mega ? (
@@ -276,12 +278,12 @@ export default function Header() {
                 <ListItemButton onClick={() => setMobileServicesOpen((o) => !o)}>
                   <ListItemText
                     primary="Services"
-                    primaryTypographyProps={{ sx: { color: '#fff', fontWeight: 600 } }}
+                    primaryTypographyProps={{ sx: { color: TEXT.heading, fontWeight: 600 } }}
                   />
                   {mobileServicesOpen ? (
-                    <ExpandLessIcon sx={{ color: '#fff' }} />
+                    <ExpandLessIcon sx={{ color: TEXT.heading }} />
                   ) : (
-                    <ExpandMoreIcon sx={{ color: '#fff' }} />
+                    <ExpandMoreIcon sx={{ color: TEXT.heading }} />
                   )}
                 </ListItemButton>
                 <Collapse in={mobileServicesOpen}>
@@ -300,7 +302,7 @@ export default function Header() {
                           <ListItemText
                             primary={s.shortName}
                             primaryTypographyProps={{
-                              sx: { color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' },
+                              sx: { color: TEXT.body, fontSize: '0.85rem' },
                             }}
                           />
                         </ListItemButton>
@@ -314,7 +316,7 @@ export default function Header() {
                 <ListItemButton component={Link} href={link.href}>
                   <ListItemText
                     primary={link.name}
-                    primaryTypographyProps={{ sx: { color: '#fff', fontWeight: 600 } }}
+                    primaryTypographyProps={{ sx: { color: TEXT.heading, fontWeight: 600 } }}
                   />
                 </ListItemButton>
               </ListItem>
@@ -345,9 +347,9 @@ export default function Header() {
 
 const navBtnSx = (active: boolean) => ({
   px: 1.6,
-  color: active ? '#ffaf06' : 'rgba(255,255,255,0.82)',
+  color: active ? '#ffaf06' : TEXT.body,
   fontWeight: 600,
   fontSize: '0.92rem',
   textTransform: 'none' as const,
-  '&:hover': { color: '#fff', background: 'transparent' },
+  '&:hover': { color: TEXT.heading, background: 'transparent' },
 });

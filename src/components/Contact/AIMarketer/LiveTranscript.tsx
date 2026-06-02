@@ -28,7 +28,7 @@ export default function LiveTranscript({ lines }: { lines: TranscriptLine[] }) {
         pr: 1,
         '&::-webkit-scrollbar': { width: 6 },
         '&::-webkit-scrollbar-thumb': {
-          background: 'rgba(255,255,255,0.15)',
+          background: 'rgba(15,23,42,0.15)',
           borderRadius: 3,
         },
       }}
@@ -67,7 +67,7 @@ export default function LiveTranscript({ lines }: { lines: TranscriptLine[] }) {
                 >
                   {isAi ? 'AI MARKETER' : 'YOU'}
                 </Typography>
-                <Typography sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                <Typography sx={{ color: '#475569', fontSize: '0.9rem', lineHeight: 1.5 }}>
                   {l.text || '…'}
                 </Typography>
               </Box>

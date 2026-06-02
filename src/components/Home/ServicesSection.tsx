@@ -5,7 +5,7 @@ import { Box, Container, Typography, Chip } from '@mui/material';
 import Link from 'next/link';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import StarIcon from '@mui/icons-material/Star';
-import { Reveal, SectionHeading, GlowButton, ServiceIcon, TiltCard } from '@/components/cinematic';
+import { Reveal, SectionHeading, GlowButton, ServiceIcon, TiltCard, SURFACE, TEXT, CARD } from '@/components/cinematic';
 import { services } from '@/data/servicesData';
 
 const ServicesSection = () => {
@@ -14,14 +14,13 @@ const ServicesSection = () => {
       component="section"
       sx={{
         position: 'relative',
-        background: '#0a0a0f',
-        color: '#fff',
+        background: SURFACE.cream,
+        color: TEXT.heading,
         py: { xs: 10, md: 16 },
       }}
     >
       <Container maxWidth="lg">
         <SectionHeading
-          dark
           eyebrow="WHAT WE OWN FOR YOU"
           title="A full-stack B2B growth engine"
           subtitle="Every service is built around one outcome: qualified, high-ticket pipeline. LinkedIn is the engine — these are the systems around it."
@@ -43,11 +42,12 @@ const ServicesSection = () => {
                   height: '100%',
                   p: 3.5,
                   borderRadius: 4,
-                  background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: CARD.bg,
+                  border: CARD.border,
+                  boxShadow: CARD.shadow,
                   overflow: 'hidden',
-                  transition: 'border-color 0.3s ease',
-                  '&:hover': { borderColor: `${s.color}55` },
+                  transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
+                  '&:hover': { borderColor: `${s.color}55`, boxShadow: CARD.shadowHover },
                 }}
               >
                 {/* glow corner */}
@@ -91,17 +91,17 @@ const ServicesSection = () => {
                     placeItems: 'center',
                     mb: 2.5,
                     color: s.color,
-                    background: `${s.color}1f`,
-                    border: `1px solid ${s.color}40`,
+                    background: `${s.color}14`,
+                    border: `1px solid ${s.color}33`,
                   }}
                 >
                   <ServiceIcon name={s.icon} />
                 </Box>
 
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, position: 'relative' }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, position: 'relative', color: TEXT.heading }}>
                   {s.shortName}
                 </Typography>
-                <Typography sx={{ color: 'rgba(255,255,255,0.62)', fontSize: '0.9rem', lineHeight: 1.65, mb: 2.5, minHeight: 66 }}>
+                <Typography sx={{ color: TEXT.body, fontSize: '0.9rem', lineHeight: 1.65, mb: 2.5, minHeight: 66 }}>
                   {s.tagline}
                 </Typography>
 

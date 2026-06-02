@@ -17,6 +17,9 @@ import {
   GlowButton,
   AnimatedCounter,
   TiltCard,
+  SURFACE,
+  TEXT,
+  CARD,
 } from '@/components/cinematic';
 import { companyInfo, manifesto, stats } from '@/data/websiteInfo';
 
@@ -67,7 +70,7 @@ const AboutView = () => {
       </PageHero>
 
       {/* Story */}
-      <Box sx={{ background: '#0a0a0f', color: '#fff', py: { xs: 8, md: 12 } }}>
+      <Box sx={{ background: SURFACE.white, py: { xs: 8, md: 12 } }}>
         <Container maxWidth="md">
           <Reveal>
             <Typography sx={{ color: '#ffaf06', fontWeight: 700, letterSpacing: '0.16em', fontSize: '0.8rem', mb: 2 }}>
@@ -75,19 +78,19 @@ const AboutView = () => {
             </Typography>
           </Reveal>
           <Reveal delay={0.05}>
-            <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.8rem', md: '2.6rem' }, lineHeight: 1.2, mb: 3 }}>
+            <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.8rem', md: '2.6rem' }, lineHeight: 1.2, mb: 3, color: TEXT.heading }}>
               Built because B2B founders deserved a partner, not a vendor.
             </Typography>
           </Reveal>
           <Reveal delay={0.1}>
-            <Typography sx={{ color: 'rgba(255,255,255,0.72)', fontSize: '1.1rem', lineHeight: 1.8, mb: 2.5 }}>
+            <Typography sx={{ color: TEXT.body, fontSize: '1.1rem', lineHeight: 1.8, mb: 2.5 }}>
               {companyInfo.name} was founded in {companyInfo.founded} with a simple frustration: B2B
               companies were paying agencies that ran campaigns but never owned outcomes. Strategy
               decks were delivered, retainers were charged, and pipeline stayed flat.
             </Typography>
           </Reveal>
           <Reveal delay={0.15}>
-            <Typography sx={{ color: 'rgba(255,255,255,0.72)', fontSize: '1.1rem', lineHeight: 1.8 }}>
+            <Typography sx={{ color: TEXT.body, fontSize: '1.1rem', lineHeight: 1.8 }}>
               So we built the opposite. A partner that absorbs your pain, builds the strategy as if the
               business were ours, and executes a LinkedIn-led growth engine that turns attention into
               high-ticket deals. Today we operate across the {' '}
@@ -97,7 +100,7 @@ const AboutView = () => {
           </Reveal>
 
           <Reveal delay={0.2}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 4, color: 'rgba(255,255,255,0.6)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 4, color: TEXT.muted }}>
               <PublicIcon sx={{ color: '#14bb87' }} />
               <Typography>{companyInfo.headquarters} · {companyInfo.specialty}</Typography>
             </Box>
@@ -106,7 +109,7 @@ const AboutView = () => {
       </Box>
 
       {/* Stats */}
-      <Box sx={{ background: 'linear-gradient(180deg,#0a0a0f,#07090d)', color: '#fff', py: { xs: 6, md: 10 } }}>
+      <Box sx={{ background: SURFACE.cream, py: { xs: 6, md: 10 } }}>
         <Container maxWidth="lg">
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', md: 'repeat(4,1fr)' }, gap: 3 }}>
             {stats.map((s) => (
@@ -126,7 +129,7 @@ const AboutView = () => {
                       WebkitTextFillColor: 'transparent',
                     }}
                   />
-                  <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', mt: 0.5 }}>
+                  <Typography sx={{ color: TEXT.muted, fontSize: '0.85rem', mt: 0.5 }}>
                     {s.label}
                   </Typography>
                 </Box>
@@ -137,15 +140,15 @@ const AboutView = () => {
       </Box>
 
       {/* Manifesto */}
-      <Box sx={{ background: '#07090d', color: '#fff', py: { xs: 8, md: 12 } }}>
+      <Box sx={{ background: SURFACE.mint, py: { xs: 8, md: 12 } }}>
         <Container maxWidth="lg">
-          <SectionHeading dark eyebrow="HOW WE THINK" title="The partner mindset" />
+          <SectionHeading eyebrow="HOW WE THINK" title="The partner mindset" />
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3,1fr)' }, gap: 3 }}>
             {manifesto.map((m, i) => (
               <Reveal key={m.key} delay={i * 0.1}>
-                <Box sx={{ p: 4, height: '100%', borderRadius: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <Box sx={{ p: 4, height: '100%', borderRadius: 4, background: CARD.bg, border: CARD.border, boxShadow: CARD.shadow }}>
                   <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5, color: '#ffaf06' }}>{m.title}</Typography>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.65)', lineHeight: 1.7 }}>{m.description}</Typography>
+                  <Typography sx={{ color: TEXT.body, lineHeight: 1.7 }}>{m.description}</Typography>
                 </Box>
               </Reveal>
             ))}
@@ -154,22 +157,22 @@ const AboutView = () => {
       </Box>
 
       {/* Values */}
-      <Box sx={{ background: 'linear-gradient(180deg,#07090d,#050507)', color: '#fff', py: { xs: 8, md: 12 } }}>
+      <Box sx={{ background: SURFACE.sky, py: { xs: 8, md: 12 } }}>
         <Container maxWidth="lg">
-          <SectionHeading dark eyebrow="OUR VALUES" title="What we refuse to compromise on" />
+          <SectionHeading eyebrow="OUR VALUES" title="What we refuse to compromise on" />
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)' }, gap: 3 }}>
             {values.map((v, i) => (
               <Reveal key={v.title} delay={(i % 2) * 0.1}>
                 <TiltCard max={8} sx={{ height: '100%', borderRadius: 4 }}>
                   <Box
-                    sx={{ display: 'flex', gap: 2.5, p: 3.5, height: '100%', borderRadius: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    sx={{ display: 'flex', gap: 2.5, p: 3.5, height: '100%', borderRadius: 4, background: CARD.bg, border: CARD.border, boxShadow: CARD.shadow }}
                   >
-                    <Box sx={{ flexShrink: 0, width: 54, height: 54, borderRadius: 2.5, display: 'grid', placeItems: 'center', color: v.color, background: `${v.color}1f`, border: `1px solid ${v.color}40` }}>
+                    <Box sx={{ flexShrink: 0, width: 54, height: 54, borderRadius: 2.5, display: 'grid', placeItems: 'center', color: v.color, background: `${v.color}14`, border: `1px solid ${v.color}33` }}>
                       {v.icon}
                     </Box>
                     <Box>
-                      <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>{v.title}</Typography>
-                      <Typography sx={{ color: 'rgba(255,255,255,0.65)', lineHeight: 1.65 }}>{v.description}</Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5, color: TEXT.heading }}>{v.title}</Typography>
+                      <Typography sx={{ color: TEXT.body, lineHeight: 1.65 }}>{v.description}</Typography>
                     </Box>
                   </Box>
                 </TiltCard>
@@ -180,13 +183,13 @@ const AboutView = () => {
       </Box>
 
       {/* CTA */}
-      <Box sx={{ background: 'radial-gradient(120% 120% at 50% 100%, #16161c 0%, #08080a 60%)', color: '#fff', py: { xs: 10, md: 14 }, textAlign: 'center' }}>
+      <Box sx={{ background: SURFACE.ctaBold, color: '#fff', py: { xs: 10, md: 14 }, textAlign: 'center' }}>
         <Container maxWidth="sm">
           <Reveal>
-            <Typography variant="h3" sx={{ fontWeight: 800, mb: 2, fontSize: { xs: '1.9rem', md: '2.6rem' } }}>
+            <Typography variant="h3" sx={{ fontWeight: 800, mb: 2, fontSize: { xs: '1.9rem', md: '2.6rem' }, color: '#fff' }}>
               Meet the team behind your growth
             </Typography>
-            <Typography sx={{ color: 'rgba(255,255,255,0.7)', mb: 4 }}>
+            <Typography sx={{ color: 'rgba(255,255,255,0.85)', mb: 4 }}>
               Senior operators who treat your pipeline like their own.
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
