@@ -9,6 +9,7 @@
  */
 import { BRAND } from '@/lib/brandKit';
 import type { DeckSpec, DeckSlide, DeckCard, DeckPhase, SlideAccent } from '@/lib/proposalTypes';
+import { pickIcon, type IconDef } from '@/lib/deckIcons';
 
 const C = BRAND.colors;
 const FONT = BRAND.fontFamily;
@@ -40,6 +41,64 @@ function blob(slide: any, pptx: any, x: number, y: number, d: number, color: str
   slide.addShape(pptx.ShapeType.ellipse, {
     x, y, w: d, h: d, fill: { color, transparency }, line: { type: 'none' },
   });
+}
+
+/** Draw a single straight segment via pptxgenjs line shape (handles diagonals). */
+function drawLine(slide: any, pptx: any, x1: number, y1: number, x2: number, y2: number, color: string, w: number) {
+  const x = Math.min(x1, x2);
+  const y = Math.min(y1, y2);
+  const wd = Math.abs(x2 - x1);
+  const ht = Math.abs(y2 - y1);
+  const downRight = (x2 >= x1) === (y2 >= y1);
+  slide.addShape(pptx.ShapeType.line, {
+    x, y, w: wd, h: ht, line: { color, width: w, cap: 'round' }, flipV: !downRight,
+  });
+}
+
+/** Render a normalized vector icon at (x,y) within a size box, stroked in color. */
+function drawIcon(slide: any, pptx: any, icon: IconDef, x: number, y: number, size: number, color: string, strokeW = 1.4) {
+  const px = (v: number) => x + v * size;
+  const py = (v: number) => y + v * size;
+  for (const p of icon) {
+    if (p.k === 'circle') {
+      slide.addShape(pptx.ShapeType.ellipse, {
+        x: px(p.cx - p.r), y: py(p.cy - p.r), w: p.r * 2 * size, h: p.r * 2 * size,
+        fill: { type: 'none' }, line: { color, width: strokeW },
+      });
+    } else if (p.k === 'dot') {
+      slide.addShape(pptx.ShapeType.ellipse, {
+        x: px(p.cx - p.r), y: py(p.cy - p.r), w: p.r * 2 * size, h: p.r * 2 * size,
+        fill: { color }, line: { type: 'none' },
+      });
+    } else if (p.k === 'line') {
+      drawLine(slide, pptx, px(p.x1), py(p.y1), px(p.x2), py(p.y2), color, strokeW);
+    } else if (p.k === 'rrect') {
+      slide.addShape(pptx.ShapeType.roundRect, {
+        x: px(p.x), y: py(p.y), w: p.w * size, h: p.h * size, rectRadius: Math.max(p.r * size, 0.01),
+        fill: { type: 'none' }, line: { color, width: strokeW },
+      });
+    } else if (p.k === 'poly') {
+      const pts = p.pts;
+      for (let i = 0; i < pts.length - 1; i++) {
+        drawLine(slide, pptx, px(pts[i][0]), py(pts[i][1]), px(pts[i + 1][0]), py(pts[i + 1][1]), color, strokeW);
+      }
+      if (p.close && pts.length > 2) {
+        const a = pts[pts.length - 1];
+        const b = pts[0];
+        drawLine(slide, pptx, px(a[0]), py(a[1]), px(b[0]), py(b[1]), color, strokeW);
+      }
+    }
+  }
+}
+
+/** A Gamma-style icon chip: soft tinted rounded square with a line icon inside. */
+function iconChip(slide: any, pptx: any, icon: IconDef, x: number, y: number, box: number, accent: string, onLight: boolean) {
+  slide.addShape(pptx.ShapeType.roundRect, {
+    x, y, w: box, h: box, rectRadius: box * 0.26,
+    fill: { color: accent, transparency: onLight ? 84 : 78 }, line: { type: 'none' },
+  });
+  const pad = box * 0.24;
+  drawIcon(slide, pptx, icon, x + pad, y + pad, box - pad * 2, accent, Math.max(1.2, box * 1.1));
 }
 
 function footer(slide: any, t: ReturnType<typeof theme>) {
@@ -158,9 +217,8 @@ function bulletsSlide(slide: any, pptx: any, s: DeckSlide, numbered = false) {
         x: 0.65, y: y + rowH / 2 - 0.24, w: 0.44, h: 0.46, fontFace: FONT, fontSize: 16, color: C.dark, bold: true, align: 'center', valign: 'middle',
       });
     } else {
-      slide.addShape(pptx.ShapeType.ellipse, {
-        x: 0.72, y: y + rowH / 2 - 0.1, w: 0.2, h: 0.2, fill: { color: t.accent }, line: { type: 'none' },
-      });
+      const chip = Math.min(0.5, rowH * 0.72);
+      iconChip(slide, pptx, pickIcon(b, i), 0.62, y + rowH / 2 - chip / 2, chip, t.accent, t.onLight);
     }
     slide.addText(b, {
       x: 1.3, y, w: 11.3, h: rowH, fontFace: FONT, fontSize: 17, color: t.onLight ? C.ink : C.white, valign: 'middle',
@@ -201,18 +259,20 @@ function cardsSlide(slide: any, pptx: any, s: DeckSlide) {
     slide.addShape(pptx.ShapeType.roundRect, {
       x, y, w: cardW, h: 0.13, rectRadius: 0.05, fill: { color: ac }, line: { type: 'none' },
     });
-    slide.addShape(pptx.ShapeType.roundRect, {
-      x: x + 0.28, y: y + 0.32, w: 0.6, h: 0.6, rectRadius: 0.12, fill: { color: ac, transparency: 82 }, line: { type: 'none' },
-    });
-    slide.addText(card.badge || String(i + 1), {
-      x: x + 0.28, y: y + 0.32, w: 0.6, h: 0.6, fontFace: FONT, fontSize: 18, color: ac, bold: true, align: 'center', valign: 'middle',
-    });
+    const chip = Math.min(0.78, cardH * 0.32);
+    iconChip(slide, pptx, pickIcon(`${card.title} ${card.body || ''}`, i), x + 0.28, y + 0.32, chip, ac, t.onLight);
+    if (card.badge) {
+      slide.addText(card.badge, {
+        x: x + cardW - 0.92, y: y + 0.32, w: 0.64, h: 0.34, fontFace: FONT, fontSize: 11,
+        color: ac, bold: true, align: 'right', valign: 'middle',
+      });
+    }
     slide.addText(card.title || '', {
-      x: x + 0.28, y: y + 1.05, w: cardW - 0.56, h: 0.6, fontFace: FONT, fontSize: 16, color: t.onLight ? C.dark : C.white, bold: true, valign: 'top',
+      x: x + 0.28, y: y + 0.36 + chip, w: cardW - 0.56, h: 0.55, fontFace: FONT, fontSize: 16, color: t.onLight ? C.dark : C.white, bold: true, valign: 'top',
     });
     if (card.body) {
       slide.addText(card.body, {
-        x: x + 0.28, y: y + 1.6, w: cardW - 0.56, h: cardH - 1.75, fontFace: FONT, fontSize: 12, color: t.onLight ? C.muted : C.greenLight, valign: 'top',
+        x: x + 0.28, y: y + 0.36 + chip + 0.52, w: cardW - 0.56, h: cardH - (0.36 + chip + 0.62), fontFace: FONT, fontSize: 12, color: t.onLight ? C.muted : C.greenLight, valign: 'top',
       });
     }
   });
@@ -238,14 +298,15 @@ function statsSlide(slide: any, pptx: any, s: DeckSlide) {
     slide.addShape(pptx.ShapeType.roundRect, {
       x, y, w: cardW, h: cardH, rectRadius: 0.16, fill: { color: C.white, transparency: 6 }, line: { type: 'none' },
     });
+    iconChip(slide, pptx, pickIcon(st.label, i), x + cardW / 2 - 0.36, y + 0.34, 0.72, ac, false);
     slide.addText(st.value || '', {
-      x, y: y + 0.45, w: cardW, h: 1.5, fontFace: FONT, fontSize: 52, color: ac, bold: true, align: 'center', valign: 'middle',
+      x, y: y + 1.0, w: cardW, h: 1.3, fontFace: FONT, fontSize: 50, color: ac, bold: true, align: 'center', valign: 'middle',
     });
     slide.addShape(pptx.ShapeType.roundRect, {
-      x: x + cardW / 2 - 0.4, y: y + 1.95, w: 0.8, h: 0.07, rectRadius: 0.03, fill: { color: ac }, line: { type: 'none' },
+      x: x + cardW / 2 - 0.4, y: y + 2.18, w: 0.8, h: 0.07, rectRadius: 0.03, fill: { color: ac }, line: { type: 'none' },
     });
     slide.addText(st.label || '', {
-      x: x + 0.2, y: y + 2.15, w: cardW - 0.4, h: 0.75, fontFace: FONT, fontSize: 13, color: C.white, align: 'center', valign: 'top',
+      x: x + 0.2, y: y + 2.34, w: cardW - 0.4, h: 0.6, fontFace: FONT, fontSize: 13, color: C.white, align: 'center', valign: 'top',
     });
   });
   footer(slide, t);
@@ -272,10 +333,11 @@ function twoColumnSlide(slide: any, pptx: any, s: DeckSlide) {
     });
     let iy = startY + 0.4;
     if (col.heading) {
+      iconChip(slide, pptx, pickIcon(col.heading, col.accent === C.red ? 0 : 1), col.x + 0.4, iy - 0.04, 0.5, col.accent, t.onLight);
       slide.addText(col.heading, {
-        x: col.x + 0.4, y: iy, w: colW - 0.8, h: 0.5, fontFace: FONT, fontSize: 17, color: col.accent, bold: true,
+        x: col.x + 1.04, y: iy, w: colW - 1.4, h: 0.5, fontFace: FONT, fontSize: 17, color: col.accent, bold: true, valign: 'middle',
       });
-      iy += 0.65;
+      iy += 0.78;
     }
     col.items.slice(0, 7).forEach((it) => {
       slide.addShape(pptx.ShapeType.ellipse, {
@@ -309,8 +371,9 @@ function timelineSlide(slide: any, pptx: any, s: DeckSlide) {
     const x = 0.6 + i * (cardW + gap);
     const ac = accents[i % accents.length];
     slide.addShape(pptx.ShapeType.ellipse, {
-      x: x + cardW / 2 - 0.16, y: lineY - 0.13, w: 0.32, h: 0.32, fill: { color: ac }, line: { color: t.bg, width: 2 },
+      x: x + cardW / 2 - 0.22, y: lineY - 0.22, w: 0.44, h: 0.44, fill: { color: ac }, line: { color: t.bg, width: 2 },
     });
+    drawIcon(slide, pptx, pickIcon(`${p.phase} ${p.detail || ''}`, i), x + cardW / 2 - 0.13, lineY - 0.13, 0.26, C.dark, 1.6);
     slide.addShape(pptx.ShapeType.roundRect, {
       x, y, w: cardW, h: H - y - 0.75, rectRadius: 0.14,
       fill: { color: t.onLight ? C.white : C.darkAlt }, line: { color: t.onLight ? C.line : C.darkAlt, width: 1 },

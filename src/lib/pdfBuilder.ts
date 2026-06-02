@@ -9,6 +9,7 @@
  */
 import { BRAND, rgb } from '@/lib/brandKit';
 import type { ProposalSpec } from '@/lib/proposalTypes';
+import { pickIcon, ICONS, type IconDef } from '@/lib/deckIcons';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -22,6 +23,15 @@ const MUTED = rgb(BRAND.colors.muted);
 const LINE = rgb(BRAND.colors.line);
 const PAPER = rgb(BRAND.colors.paper);
 const WHITE: [number, number, number] = [255, 255, 255];
+
+/** Mix a color toward white to get a soft background tint. */
+function tint(c: [number, number, number], amt = 0.86): [number, number, number] {
+  return [
+    Math.round(c[0] + (255 - c[0]) * amt),
+    Math.round(c[1] + (255 - c[1]) * amt),
+    Math.round(c[2] + (255 - c[2]) * amt),
+  ];
+}
 
 function safeName(s: string): string {
   return (s || 'proposal').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'proposal';
@@ -41,6 +51,43 @@ export async function buildProposalPdf(spec: ProposalSpec): Promise<void> {
   const setFill = (c: [number, number, number]) => doc.setFillColor(c[0], c[1], c[2]);
   const setText = (c: [number, number, number]) => doc.setTextColor(c[0], c[1], c[2]);
   const setDraw = (c: [number, number, number]) => doc.setDrawColor(c[0], c[1], c[2]);
+
+  /** Render a normalized vector icon at (x,y) within a size box. */
+  const drawIcon = (icon: IconDef, x: number, y: number, size: number, color: [number, number, number], strokeW = 1.3) => {
+    const px = (v: number) => x + v * size;
+    const py = (v: number) => y + v * size;
+    setDraw(color);
+    setFill(color);
+    doc.setLineWidth(strokeW);
+    doc.setLineCap('round');
+    doc.setLineJoin('round');
+    for (const p of icon) {
+      if (p.k === 'circle') doc.circle(px(p.cx), py(p.cy), p.r * size, 'S');
+      else if (p.k === 'dot') doc.circle(px(p.cx), py(p.cy), p.r * size, 'F');
+      else if (p.k === 'line') doc.line(px(p.x1), py(p.y1), px(p.x2), py(p.y2));
+      else if (p.k === 'rrect') doc.roundedRect(px(p.x), py(p.y), p.w * size, p.h * size, p.r * size, p.r * size, 'S');
+      else if (p.k === 'poly') {
+        for (let i = 0; i < p.pts.length - 1; i++) {
+          doc.line(px(p.pts[i][0]), py(p.pts[i][1]), px(p.pts[i + 1][0]), py(p.pts[i + 1][1]));
+        }
+        if (p.close && p.pts.length > 2) {
+          const a = p.pts[p.pts.length - 1];
+          const b = p.pts[0];
+          doc.line(px(a[0]), py(a[1]), px(b[0]), py(b[1]));
+        }
+      }
+    }
+    doc.setLineCap('butt');
+    doc.setLineJoin('miter');
+  };
+
+  /** Soft tinted rounded square with a line icon — the Gamma card glyph. */
+  const iconChip = (icon: IconDef, x: number, y: number, box: number, accent: [number, number, number], tint: [number, number, number]) => {
+    setFill(tint);
+    doc.roundedRect(x, y, box, box, box * 0.26, box * 0.26, 'F');
+    const pad = box * 0.24;
+    drawIcon(icon, x + pad, y + pad, box - pad * 2, accent, Math.max(1, box * 0.07));
+  };
 
   let pageNum = 0;
 
@@ -137,22 +184,19 @@ export async function buildProposalPdf(spec: ProposalSpec): Promise<void> {
 
   const sectionHeading = (text: string, numbered = true) => {
     ensureSpace(54);
+    let tx = margin;
     if (numbered) {
       sectionIndex += 1;
-      setFill(GOLD);
-      doc.roundedRect(margin, y - 14, 26, 26, 6, 6, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      setText(DARK);
-      doc.text(String(sectionIndex).padStart(2, '0'), margin + 13, y + 3.5, { align: 'center' });
+      iconChip(pickIcon(text, sectionIndex - 1), margin, y - 16, 30, GOLD, tint(GOLD, 0.84));
+      tx = margin + 42;
     }
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(17);
     setText(DARK);
-    doc.text(text, margin + (numbered ? 38 : 0), y + 4);
-    y += 24;
+    doc.text(text, tx, y + 4);
+    y += 26;
     setFill(GOLD);
-    doc.rect(margin + (numbered ? 38 : 0), y - 4, 40, 3, 'F');
+    doc.rect(tx, y - 4, 40, 3, 'F');
     y += 16;
   };
 
@@ -173,12 +217,11 @@ export async function buildProposalPdf(spec: ProposalSpec): Promise<void> {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     setText(INK);
-    const lines = doc.splitTextToSize(text, contentW - 22);
-    ensureSpace(lines.length * 15 + 4);
-    setFill(GREEN);
-    doc.circle(margin + 4, y - 3.5, 2.4, 'F');
+    const lines = doc.splitTextToSize(text, contentW - 28);
+    ensureSpace(lines.length * 15 + 6);
+    drawIcon(ICONS.check, margin, y - 11, 13, GREEN, 1.1);
     lines.forEach((ln: string, i: number) => {
-      doc.text(ln, margin + 18, y);
+      doc.text(ln, margin + 22, y);
       if (i < lines.length - 1) y += 15;
     });
     y += 17;
@@ -225,13 +268,10 @@ export async function buildProposalPdf(spec: ProposalSpec): Promise<void> {
       doc.roundedRect(margin, y - 6, contentW, cardH, 8, 8, 'F');
       setFill(ac);
       doc.roundedRect(margin, y - 6, 6, cardH, 3, 3, 'F');
-      // phase number circle
+      // phase number circle with icon
       setFill(ac);
       doc.circle(margin + 32, y + cardH / 2 - 6, 13, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      setText(WHITE);
-      doc.text(String(i + 1), margin + 32, y + cardH / 2 - 2, { align: 'center' });
+      drawIcon(pickIcon(`${t.phase} ${t.detail || ''}`, i), margin + 32 - 7.5, y + cardH / 2 - 6 - 7.5, 15, WHITE, 1.1);
       // phase title
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
@@ -256,7 +296,7 @@ export async function buildProposalPdf(spec: ProposalSpec): Promise<void> {
     sectionHeading('Investment');
     spec.pricing.forEach((p, i) => {
       const accent = i === spec.pricing!.length - 1 ? GREEN : GOLD;
-      const detailLines = doc.splitTextToSize(p.detail || '', contentW * 0.5);
+      const detailLines = doc.splitTextToSize(p.detail || '', contentW * 0.46);
       const cardH = Math.max(58, detailLines.length * 13 + 44);
       ensureSpace(cardH + 10);
       // card
@@ -266,18 +306,20 @@ export async function buildProposalPdf(spec: ProposalSpec): Promise<void> {
       doc.roundedRect(margin, y - 6, contentW, cardH, 10, 10, 'FD');
       setFill(accent);
       doc.roundedRect(margin, y - 6, contentW, 6, 3, 3, 'F');
+      // accent icon chip
+      iconChip(pickIcon(`${p.item} ${p.detail || ''}`, i), margin + 16, y + 8, 30, accent, tint(accent, 0.84));
       // package name
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
       setText(DARK);
-      doc.text(doc.splitTextToSize(p.item || '', contentW * 0.42), margin + 18, y + 20);
+      doc.text(doc.splitTextToSize(p.item || '', contentW * 0.4), margin + 56, y + 20);
       // detail
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
       setText(MUTED);
       let dy = y + 38;
       detailLines.forEach((ln: string) => {
-        doc.text(ln, margin + 18, dy);
+        doc.text(ln, margin + 56, dy);
         dy += 13;
       });
       // price pill
