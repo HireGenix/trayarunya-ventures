@@ -57,27 +57,38 @@ export interface SEOSnapshot {
   keywords: KeywordRanking[];
 }
 
+// In-memory fallback for read-only filesystems (e.g. Vercel serverless).
+let memSnapshot: SEOSnapshot | null = null;
+
 function ensure() {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  } catch (err) {
-    console.error('[seoStore] ensure error', err);
+  } catch {
+    /* read-only fs — fall back to memory */
   }
 }
 
 export function readSnapshot(): SEOSnapshot | null {
+  if (memSnapshot) return memSnapshot;
   ensure();
   try {
     if (!fs.existsSync(SEO_FILE)) return null;
     return JSON.parse(fs.readFileSync(SEO_FILE, 'utf8')) as SEOSnapshot;
   } catch {
-    return null;
+    return memSnapshot;
   }
 }
 
 function writeSnapshot(snap: SEOSnapshot) {
-  ensure();
-  fs.writeFileSync(SEO_FILE, JSON.stringify(snap, null, 2));
+  // Always keep an in-memory copy so reads work even when the FS is read-only.
+  memSnapshot = snap;
+  try {
+    ensure();
+    fs.writeFileSync(SEO_FILE, JSON.stringify(snap, null, 2));
+  } catch (err) {
+    // Serverless read-only filesystem — in-memory snapshot is the source of truth.
+    console.warn('[seoStore] could not persist snapshot, using in-memory copy:', (err as Error)?.message);
+  }
 }
 
 function extract(re: RegExp, html: string): string {

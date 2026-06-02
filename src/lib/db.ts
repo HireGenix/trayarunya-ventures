@@ -29,25 +29,31 @@ try {
   console.error('Error initializing data structure:', error);
 }
 
+// In-memory fallback for read-only filesystems (e.g. Vercel serverless).
+let memLeads: Lead[] | null = null;
+
 // Helper function to read leads from the file
 function readLeads(): Lead[] {
+  if (memLeads) return memLeads;
   try {
     const data = fs.readFileSync(LEADS_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
     console.error('Error reading leads file:', error);
-    return [];
+    return memLeads ?? [];
   }
 }
 
 // Helper function to write leads to the file
 function writeLeads(leads: Lead[]): void {
+  memLeads = leads;
   try {
     ensureDataStructure();
     fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2));
+    memLeads = null;
   } catch (error) {
     console.error('Error writing leads file:', error);
-    // In production, we'll log the error but continue
+    // read-only fs (serverless) — keep in memory
   }
 }
 

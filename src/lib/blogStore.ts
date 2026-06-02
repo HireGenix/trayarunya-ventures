@@ -23,27 +23,37 @@ export interface BlogPost {
   updatedAt: string;
 }
 
+// In-memory fallback for read-only filesystems (e.g. Vercel serverless).
+let memPosts: BlogPost[] | null = null;
+
 function ensure() {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     if (!fs.existsSync(BLOG_FILE)) fs.writeFileSync(BLOG_FILE, '[]');
-  } catch (err) {
-    console.error('[blogStore] ensure error', err);
+  } catch {
+    /* read-only fs — fall back to memory */
   }
 }
 
 function readAll(): BlogPost[] {
+  if (memPosts) return memPosts;
   ensure();
   try {
     return JSON.parse(fs.readFileSync(BLOG_FILE, 'utf8')) as BlogPost[];
   } catch {
-    return [];
+    return memPosts ?? [];
   }
 }
 
 function writeAll(posts: BlogPost[]) {
-  ensure();
-  fs.writeFileSync(BLOG_FILE, JSON.stringify(posts, null, 2));
+  memPosts = posts;
+  try {
+    ensure();
+    fs.writeFileSync(BLOG_FILE, JSON.stringify(posts, null, 2));
+    memPosts = null;
+  } catch {
+    /* serverless read-only fs — keep in memory */
+  }
 }
 
 function slugify(s: string): string {

@@ -142,28 +142,40 @@ const DEFAULTS: SettingsData = {
   ],
 };
 
+// In-memory fallback for read-only filesystems (e.g. Vercel serverless).
+let memData: SettingsData | null = null;
+
 function ensure() {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     if (!fs.existsSync(SETTINGS_FILE)) fs.writeFileSync(SETTINGS_FILE, JSON.stringify(DEFAULTS, null, 2));
-  } catch (err) {
-    console.error('[settingsStore] ensure error', err);
+  } catch {
+    /* read-only fs — fall back to memory */
   }
 }
 
 function read(): SettingsData {
+  const cached = memData;
+  if (cached) return { ...DEFAULTS, ...cached };
   ensure();
   try {
     const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
     return { ...DEFAULTS, ...data };
   } catch {
-    return { ...DEFAULTS };
+    const fallback = memData;
+    return fallback ? { ...DEFAULTS, ...fallback } : { ...DEFAULTS };
   }
 }
 
 function write(data: SettingsData) {
-  ensure();
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2));
+  memData = data;
+  try {
+    ensure();
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2));
+    memData = null;
+  } catch {
+    /* serverless read-only fs — keep in memory */
+  }
 }
 
 export const settingsStore = {

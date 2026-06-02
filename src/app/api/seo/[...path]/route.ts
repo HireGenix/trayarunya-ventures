@@ -31,21 +31,29 @@ export async function GET(
   if (!getAuth(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const { path } = await params;
-  const [section] = path || [];
-  const snap = await ensureSnapshot();
+  try {
+    const { path } = await params;
+    const [section] = path || [];
+    const snap = await ensureSnapshot();
 
-  switch (section) {
-    case 'overview':
-      return NextResponse.json(overviewFrom(snap));
-    case 'pages':
-      return NextResponse.json(snap.pages);
-    case 'keywords':
-      return NextResponse.json(snap.keywords);
-    case 'issues':
-      return NextResponse.json(snap.issues);
-    default:
-      return NextResponse.json({ error: 'not_found' }, { status: 404 });
+    switch (section) {
+      case 'overview':
+        return NextResponse.json(overviewFrom(snap));
+      case 'pages':
+        return NextResponse.json(snap.pages);
+      case 'keywords':
+        return NextResponse.json(snap.keywords);
+      case 'issues':
+        return NextResponse.json(snap.issues);
+      default:
+        return NextResponse.json({ error: 'not_found' }, { status: 404 });
+    }
+  } catch (err) {
+    console.error('[seo][GET] error', err);
+    return NextResponse.json(
+      { error: 'seo_failed', message: (err as Error)?.message || 'SEO analysis failed' },
+      { status: 500 }
+    );
   }
 }
 
@@ -57,17 +65,25 @@ export async function POST(
   if (!getAuth(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const { path } = await params;
-  const [section] = path || [];
+  try {
+    const { path } = await params;
+    const [section] = path || [];
 
-  if (section === 'refresh' || section === 'audit') {
-    const snap = await runAudit(await baseUrl());
-    return NextResponse.json({
-      success: true,
-      message: `Audited ${snap.pages.length} pages, found ${snap.issues.length} issues.`,
-      overview: overviewFrom(snap),
-    });
+    if (section === 'refresh' || section === 'audit') {
+      const snap = await runAudit(await baseUrl());
+      return NextResponse.json({
+        success: true,
+        message: `Audited ${snap.pages.length} pages, found ${snap.issues.length} issues.`,
+        overview: overviewFrom(snap),
+      });
+    }
+
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  } catch (err) {
+    console.error('[seo][POST] error', err);
+    return NextResponse.json(
+      { error: 'seo_failed', message: (err as Error)?.message || 'SEO audit failed' },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json({ error: 'not_found' }, { status: 404 });
 }

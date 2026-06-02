@@ -36,7 +36,11 @@ function userFile(userId: string): string {
   return path.join(DATA_DIR, `${safe}.json`);
 }
 
+// In-memory fallback for read-only filesystems (e.g. Vercel serverless).
+const memConvos = new Map<string, Conversation[]>();
+
 function readAll(userId: string): Conversation[] {
+  if (memConvos.has(userId)) return memConvos.get(userId)!;
   try {
     return JSON.parse(fs.readFileSync(userFile(userId), 'utf8'));
   } catch {
@@ -45,8 +49,14 @@ function readAll(userId: string): Conversation[] {
 }
 
 function writeAll(userId: string, conversations: Conversation[]): void {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(userFile(userId), JSON.stringify(conversations, null, 2));
+  memConvos.set(userId, conversations);
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(userFile(userId), JSON.stringify(conversations, null, 2));
+    memConvos.delete(userId);
+  } catch {
+    /* read-only fs (serverless) — keep in memory */
+  }
 }
 
 function summary(c: Conversation): ConversationSummary {
