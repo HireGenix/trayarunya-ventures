@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -39,87 +39,81 @@ import {
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
-// Mock data for blog posts
-const blogPosts = [
-  { 
-    id: 1, 
-    title: 'The Future of AI in Business', 
-    slug: 'future-of-ai-in-business',
-    excerpt: 'Exploring how artificial intelligence is transforming modern business operations and decision-making processes.',
-    author: 'Admin', 
-    category: 'Technology',
-    date: '2025-03-04', 
-    status: 'Published',
-    views: 1245
-  },
-  { 
-    id: 2, 
-    title: 'How to Optimize Your Website for SEO', 
-    slug: 'optimize-website-for-seo',
-    excerpt: 'A comprehensive guide to improving your website\'s search engine rankings and visibility.',
-    author: 'Admin', 
-    category: 'Marketing',
-    date: '2025-03-02', 
-    status: 'Draft',
-    views: 0
-  },
-  { 
-    id: 3, 
-    title: '10 Tips for Better Customer Engagement', 
-    slug: '10-tips-customer-engagement',
-    excerpt: 'Strategies to enhance customer interactions and build stronger relationships with your audience.',
-    author: 'Admin', 
-    category: 'Business',
-    date: '2025-02-28', 
-    status: 'Published',
-    views: 876
-  },
-  { 
-    id: 4, 
-    title: 'Understanding Machine Learning Models', 
-    slug: 'understanding-machine-learning-models',
-    excerpt: 'A beginner-friendly introduction to different machine learning models and their applications.',
-    author: 'Admin', 
-    category: 'Technology',
-    date: '2025-02-25', 
-    status: 'Published',
-    views: 1032
-  },
-  { 
-    id: 5, 
-    title: 'The Impact of Digital Transformation', 
-    slug: 'impact-of-digital-transformation',
-    excerpt: 'How digital transformation is reshaping industries and creating new opportunities for growth.',
-    author: 'Admin', 
-    category: 'Business',
-    date: '2025-02-20', 
-    status: 'Draft',
-    views: 0
-  },
-];
+interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  author: string;
+  category: string;
+  date: string;
+  status: 'Published' | 'Draft';
+  views: number;
+}
+
+function authHeaders(): Record<string, string> {
+  try {
+    const token = localStorage.getItem('auth_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
 
 export default function BlogAdmin() {
   const theme = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [postToDelete, setPostToDelete] = useState<number | null>(null);
-  
-  const filteredPosts = blogPosts.filter(post => 
+  const [postToDelete, setPostToDelete] = useState<string | null>(null);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+
+  const loadPosts = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/blog', { headers: authHeaders() });
+      if (res.ok) setPosts(await res.json());
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPosts();
+  }, [loadPosts]);
+
+  const filteredPosts = posts.filter(post =>
     post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     post.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
     post.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
-  const handleDeleteClick = (id: number) => {
+
+  const handleDeleteClick = (id: string) => {
     setPostToDelete(id);
     setDeleteDialogOpen(true);
   };
-  
-  const handleDeleteConfirm = () => {
-    // In a real app, you would delete the post from the database
-    console.log(`Deleting post with ID: ${postToDelete}`);
-    setDeleteDialogOpen(false);
-    setPostToDelete(null);
+
+  const handleDeleteConfirm = async () => {
+    if (!postToDelete) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/blog/${postToDelete}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      if (res.ok) {
+        setPosts((prev) => prev.filter((p) => p.id !== postToDelete));
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+      setPostToDelete(null);
+    }
   };
   
   return (
@@ -266,7 +260,7 @@ export default function BlogAdmin() {
                           <IconButton 
                             size="small"
                             component={Link}
-                            href={`/admin/blog/edit/${post.id}`}
+                            href={`/admin/blog/new?id=${post.id}`}
                           >
                             <EditIcon fontSize="small" />
                           </IconButton>
@@ -287,7 +281,11 @@ export default function BlogAdmin() {
                   <TableRow>
                     <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
                       <Typography variant="body1" color="text.secondary">
-                        No posts found matching your search.
+                        {loading
+                          ? 'Loading posts…'
+                          : posts.length === 0
+                          ? 'No blog posts yet. Click “New Post” to create your first one.'
+                          : 'No posts found matching your search.'}
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -310,9 +308,9 @@ export default function BlogAdmin() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
-            Delete
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained" disabled={deleting}>
+            {deleting ? 'Deleting…' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

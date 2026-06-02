@@ -11,9 +11,22 @@ import { getGpt5Env, responsesUrl } from '@/lib/chatSalesConfig';
 
 export type Provider = 'gpt-5.5' | 'claude-opus';
 
+export interface ChatImage {
+  /** Full data URL, e.g. data:image/png;base64,xxxx */
+  dataUrl: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  /** Optional image attachments (only meaningful on user messages). */
+  images?: ChatImage[];
+}
+
+function parseDataUrl(dataUrl: string): { mediaType: string; base64: string } | null {
+  const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!m) return null;
+  return { mediaType: m[1], base64: m[2] };
 }
 
 export interface AnthropicEnv {
@@ -49,16 +62,20 @@ async function* streamGpt(
   const env = getGpt5Env();
   if (!env) throw new Error('GPT-5.5 is not configured');
 
-  const input = messages.map((m) => ({
-    type: 'message',
-    role: m.role,
-    content: [
+  const input = messages.map((m) => {
+    const parts: Array<Record<string, unknown>> = [
       {
         type: m.role === 'assistant' ? 'output_text' : 'input_text',
         text: m.content,
       },
-    ],
-  }));
+    ];
+    if (m.role === 'user' && m.images?.length) {
+      for (const img of m.images) {
+        parts.push({ type: 'input_image', image_url: img.dataUrl });
+      }
+    }
+    return { type: 'message', role: m.role, content: parts };
+  });
 
   const res = await fetch(responsesUrl(env), {
     method: 'POST',
@@ -124,7 +141,23 @@ async function* streamClaude(
       model: env.model,
       max_tokens: 4096,
       system,
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      messages: messages.map((m) => {
+        if (m.role === 'user' && m.images?.length) {
+          const content: Array<Record<string, unknown>> = [];
+          for (const img of m.images) {
+            const parsed = parseDataUrl(img.dataUrl);
+            if (parsed) {
+              content.push({
+                type: 'image',
+                source: { type: 'base64', media_type: parsed.mediaType, data: parsed.base64 },
+              });
+            }
+          }
+          content.push({ type: 'text', text: m.content || 'Please analyse the attached image(s).' });
+          return { role: m.role, content };
+        }
+        return { role: m.role, content: m.content };
+      }),
       stream: true,
     }),
   });

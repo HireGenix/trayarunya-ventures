@@ -14,19 +14,34 @@ const API_BASE_URL = '/api/settings';
 
 // Helper function for API requests
 async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  let token: string | null = null;
+  try {
+    token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  } catch {
+    token = null;
+  }
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     ...options,
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'An error occurred while fetching data');
+    let message = 'An error occurred while fetching data';
+    try {
+      const error = await response.json();
+      message = error.message || error.error || message;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message);
   }
 
-  return response.json();
+  // DELETE endpoints may return an empty body.
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 // Get general settings

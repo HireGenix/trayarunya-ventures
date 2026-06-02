@@ -82,16 +82,17 @@ export default function SettingsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // In a production environment, these would be real API calls
-      // For now, we're using the fallback data for demonstration
-      const general = await fallbackData.getGeneralSettings();
-      const roles = await fallbackData.getUserRoles();
-      const usersList = await fallbackData.getUsers();
-      const notifications = await fallbackData.getNotificationSettings();
-      const integrations = await fallbackData.getApiIntegrations();
-      const backup = await fallbackData.getBackupSettings();
-      const security = await fallbackData.getSecuritySettings();
-      
+      const [general, roles, usersList, notifications, integrations, backup, security] =
+        await Promise.all([
+          getGeneralSettings().catch(() => fallbackData.getGeneralSettings()),
+          getUserRoles().catch(() => fallbackData.getUserRoles()),
+          getUsers().catch(() => fallbackData.getUsers()),
+          getNotificationSettings().catch(() => fallbackData.getNotificationSettings()),
+          getApiIntegrations().catch(() => fallbackData.getApiIntegrations()),
+          getBackupSettings().catch(() => fallbackData.getBackupSettings()),
+          getSecuritySettings().catch(() => fallbackData.getSecuritySettings()),
+        ]);
+
       setGeneralSettings(general);
       setUserRoles(roles);
       setUsers(usersList);
@@ -115,10 +116,9 @@ export default function SettingsPage() {
 
   const handleSaveGeneralSettings = async (settings: GeneralSettings) => {
     try {
-      // In a real app, this would call the API to save the settings
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      setGeneralSettings(settings);
-      
+      const saved = await updateGeneralSettings(settings);
+      setGeneralSettings(saved);
+
       setSnackbarMessage('General settings saved successfully!');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
@@ -133,18 +133,9 @@ export default function SettingsPage() {
 
   const handleAddUser = async (user: Omit<User, 'id' | 'createdAt'>) => {
     try {
-      // In a real app, this would call the API to add the user
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
-      // Create a new user with a fake ID and creation date
-      const newUser: User = {
-        ...user,
-        id: `user-${Date.now()}`,
-        createdAt: new Date().toISOString()
-      };
-      
+      const newUser = await createUser(user);
       setUsers([...users, newUser]);
-      
+
       setSnackbarMessage('User added successfully!');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
@@ -159,16 +150,9 @@ export default function SettingsPage() {
 
   const handleUpdateUser = async (id: string, userData: Partial<User>) => {
     try {
-      // In a real app, this would call the API to update the user
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
-      // Update the user in the local state
-      const updatedUsers = users.map(user => 
-        user.id === id ? { ...user, ...userData } : user
-      );
-      
-      setUsers(updatedUsers);
-      
+      const updated = await updateUser(id, userData);
+      setUsers(users.map(user => (user.id === id ? { ...user, ...updated } : user)));
+
       setSnackbarMessage('User updated successfully!');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
@@ -183,14 +167,9 @@ export default function SettingsPage() {
 
   const handleDeleteUser = async (id: string) => {
     try {
-      // In a real app, this would call the API to delete the user
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
-      // Remove the user from the local state
-      const updatedUsers = users.filter(user => user.id !== id);
-      
-      setUsers(updatedUsers);
-      
+      await deleteUser(id);
+      setUsers(users.filter(user => user.id !== id));
+
       setSnackbarMessage('User deleted successfully!');
       setSnackbarSeverity('success');
       setSnackbarOpen(true);

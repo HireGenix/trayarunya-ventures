@@ -87,23 +87,32 @@ export default function AnalyticsPage() {
     loadData();
   }, [timeframe]);
 
-  const loadData = async () => {
-    setLoading(true);
+  // Auto-refresh every 15s for near real-time analytics.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 15000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeframe]);
+
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      // In a production environment with real API endpoints, we would make API calls
-      // For now, we'll use empty states since the API endpoints aren't available yet
-      
-      // Set empty states for all data
-      setOverviewStats({...emptyState.analyticsOverview, timeframe: timeframe as any});
-      setTrafficSources(emptyState.trafficSources);
-      setPagePerformance(emptyState.pagePerformance);
-      setDeviceData(emptyState.deviceData);
-      setTimeSeriesData(generateEmptyTimeSeriesData(timeframe));
-      
-      // Show a message to the user
-      setSnackbarMessage('Using empty states until API endpoints are available. No mock data is being used.');
-      setSnackbarSeverity('info');
-      setSnackbarOpen(true);
+      const tf = timeframe as any;
+      const [overview, sources, pages, devices, series] = await Promise.all([
+        getAnalyticsOverview(tf),
+        getTrafficSources(tf),
+        getPagePerformance(tf),
+        getDeviceData(tf),
+        getTimeSeriesData(tf),
+      ]);
+
+      setOverviewStats(overview);
+      setTrafficSources(sources);
+      setPagePerformance(pages);
+      setDeviceData(devices);
+      setTimeSeriesData(series.length ? series : generateEmptyTimeSeriesData(timeframe));
     } catch (error) {
       console.error('Error loading analytics data:', error);
       
@@ -139,8 +148,8 @@ export default function AnalyticsPage() {
       // For now, we'll just reload the empty states
       await loadData();
       
-      setSnackbarMessage('Analytics data refreshed with empty states. No mock data is being used.');
-      setSnackbarSeverity('info');
+      setSnackbarMessage('Analytics data refreshed.');
+      setSnackbarSeverity('success');
       setSnackbarOpen(true);
     } catch (error) {
       console.error('Error refreshing analytics data:', error);

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
 import './globals.css';
 import Providers from './providers';
+import PageTracker from '@/components/Analytics/PageTracker';
 
 const poppins = Poppins({
   weight: ['300', '400', '500', '600', '700', '800'],
@@ -48,6 +49,7 @@ export default function RootLayout({
         <Providers>
           {children}
         </Providers>
+        <PageTracker />
       </body>
     </html>
   );

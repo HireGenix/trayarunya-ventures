@@ -29,16 +29,37 @@ import {
   Person as PersonIcon,
   ContentCopy as ContentCopyIcon,
   Menu as MenuIcon,
+  AttachFile as AttachFileIcon,
+  TravelExplore as TravelExploreIcon,
+  Close as CloseIcon,
+  Language as LanguageIcon,
 } from '@mui/icons-material';
+import { Chip, Stack } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 type Provider = 'gpt-5.5' | 'claude-opus';
 
+interface Attachment {
+  name: string;
+  kind: 'image' | 'text' | 'file';
+  dataUrl?: string; // for images
+  text?: string; // extracted text for text files
+}
+
+interface ToolEvent {
+  tool: string;
+  status: 'running' | 'done' | 'error';
+  label: string;
+}
+
 interface Msg {
   role: 'user' | 'assistant';
   content: string;
   ts: number;
+  images?: { dataUrl: string }[];
+  attachments?: { name: string; kind: string }[];
+  tools?: ToolEvent[];
 }
 
 interface ConvSummary {
@@ -66,6 +87,9 @@ export default function AssistantPage() {
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [webSearchOn, setWebSearchOn] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
@@ -151,10 +175,18 @@ export default function AssistantPage() {
   const persist = useCallback(
     async (msgs: Msg[], prov: Provider, id: string | null) => {
       try {
+        // Strip heavy base64 payloads before persisting to keep storage lean.
+        const slim = msgs.map((m) => ({
+          ...m,
+          images: m.images ? m.images.map(() => ({ dataUrl: '' })) : undefined,
+          attachments: m.attachments
+            ? m.attachments.map((a) => ({ name: a.name, kind: a.kind }))
+            : undefined,
+        }));
         const res = await fetch('/api/admin/conversations', {
           method: 'POST',
           headers: authHeaders(),
-          body: JSON.stringify({ id: id || undefined, provider: prov, messages: msgs }),
+          body: JSON.stringify({ id: id || undefined, provider: prov, messages: slim }),
         });
         if (!res.ok) return;
         const data = await res.json();
@@ -168,32 +200,104 @@ export default function AssistantPage() {
     [authHeaders, loadConversations]
   );
 
+  const readFile = (file: File): Promise<Attachment> =>
+    new Promise((resolve) => {
+      const isImage = file.type.startsWith('image/');
+      const isText =
+        file.type.startsWith('text/') ||
+        /\.(md|csv|json|txt|html?|xml|ya?ml|log)$/i.test(file.name) ||
+        file.type === 'application/json';
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (isImage) {
+          resolve({ name: file.name, kind: 'image', dataUrl: reader.result as string });
+        } else if (isText) {
+          resolve({ name: file.name, kind: 'text', text: (reader.result as string).slice(0, 12000) });
+        } else {
+          resolve({ name: file.name, kind: 'file' });
+        }
+      };
+      reader.onerror = () => resolve({ name: file.name, kind: 'file' });
+      if (isImage) reader.readAsDataURL(file);
+      else if (isText) reader.readAsText(file);
+      else resolve({ name: file.name, kind: 'file' });
+    });
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || !files.length) return;
+    const picked = await Promise.all(Array.from(files).slice(0, 5).map(readFile));
+    setAttachments((prev) => [...prev, ...picked].slice(0, 6));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeAttachment = (idx: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   const send = async () => {
     const text = input.trim();
-    if (!text || streaming) return;
+    if ((!text && attachments.length === 0) || streaming) return;
 
-    const userMsg: Msg = { role: 'user', content: text, ts: Date.now() };
+    const images = attachments.filter((a) => a.kind === 'image' && a.dataUrl).map((a) => ({ dataUrl: a.dataUrl! }));
+    const textBlocks = attachments
+      .filter((a) => a.kind === 'text' && a.text)
+      .map((a) => `\n\n--- Attached file: ${a.name} ---\n${a.text}`)
+      .join('');
+    const otherFiles = attachments.filter((a) => a.kind === 'file').map((a) => a.name);
+
+    let contentForApi = text + textBlocks;
+    if (otherFiles.length) contentForApi += `\n\n(Attached files: ${otherFiles.join(', ')})`;
+
+    const userMsg: Msg = {
+      role: 'user',
+      content: text,
+      ts: Date.now(),
+      images: images.length ? images : undefined,
+      attachments: attachments.length ? attachments.map((a) => ({ name: a.name, kind: a.kind })) : undefined,
+    };
     const baseMessages = [...messages, userMsg];
-    setMessages([...baseMessages, { role: 'assistant', content: '', ts: Date.now() }]);
+    setMessages([...baseMessages, { role: 'assistant', content: '', ts: Date.now(), tools: [] }]);
     setInput('');
+    const sentAttachments = attachments;
+    setAttachments([]);
     setStreaming(true);
     pinnedRef.current = true;
 
     let assistantText = '';
+    const toolEvents: ToolEvent[] = [];
+    const renderAssistant = () =>
+      setMessages([
+        ...baseMessages,
+        { role: 'assistant', content: assistantText, ts: Date.now(), tools: [...toolEvents] },
+      ]);
+
     try {
+      // Build API messages: replace last user content with the enriched version + images.
+      const apiMessages = baseMessages.map((m, i) => {
+        if (i === baseMessages.length - 1) {
+          return {
+            role: m.role,
+            content: contentForApi,
+            images: images.length ? images : undefined,
+          };
+        }
+        return { role: m.role, content: m.content };
+      });
+
       const res = await fetch('/api/admin/chat', {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({
           provider,
-          messages: baseMessages.map((m) => ({ role: m.role, content: m.content })),
+          messages: apiMessages,
+          webSearch: webSearchOn,
         }),
       });
 
       if (!res.ok || !res.body) {
         const d = await res.json().catch(() => ({}));
         assistantText = d.message || 'The AI is unavailable right now. Please try again.';
-        setMessages([...baseMessages, { role: 'assistant', content: assistantText, ts: Date.now() }]);
+        renderAssistant();
         setStreaming(false);
         return;
       }
@@ -221,28 +325,35 @@ export default function AssistantPage() {
           }
           if (evt === 'delta') {
             assistantText += (payload.text as string) || '';
-            setMessages([
-              ...baseMessages,
-              { role: 'assistant', content: assistantText, ts: Date.now() },
-            ]);
+            renderAssistant();
+          } else if (evt === 'tool') {
+            const te: ToolEvent = {
+              tool: (payload.tool as string) || 'tool',
+              status: (payload.status as ToolEvent['status']) || 'running',
+              label: (payload.label as string) || '',
+            };
+            // Replace a running entry of the same tool, else push.
+            const existingIdx = toolEvents.findIndex(
+              (t) => t.tool === te.tool && t.status === 'running'
+            );
+            if (existingIdx !== -1 && te.status !== 'running') toolEvents[existingIdx] = te;
+            else toolEvents.push(te);
+            renderAssistant();
           } else if (evt === 'error') {
-            assistantText =
-              assistantText || (payload.message as string) || 'Something went wrong.';
-            setMessages([
-              ...baseMessages,
-              { role: 'assistant', content: assistantText, ts: Date.now() },
-            ]);
+            assistantText = assistantText || (payload.message as string) || 'Something went wrong.';
+            renderAssistant();
           }
         }
       }
     } catch {
       assistantText = assistantText || 'Connection error. Please try again.';
-      setMessages([...baseMessages, { role: 'assistant', content: assistantText, ts: Date.now() }]);
+      renderAssistant();
+      setAttachments(sentAttachments);
     } finally {
       setStreaming(false);
       const finalMessages: Msg[] = [
         ...baseMessages,
-        { role: 'assistant', content: assistantText, ts: Date.now() },
+        { role: 'assistant', content: assistantText, ts: Date.now(), tools: [...toolEvents] },
       ];
       persist(finalMessages, provider, activeIdRef.current);
     }
@@ -460,8 +571,51 @@ export default function AssistantPage() {
                       },
                     }}
                   >
+                    {m.role === 'assistant' && m.tools && m.tools.length > 0 && (
+                      <Stack spacing={0.5} sx={{ mb: m.content ? 1 : 0 }}>
+                        {m.tools.map((t, ti) => (
+                          <Chip
+                            key={ti}
+                            size="small"
+                            icon={
+                              t.tool === 'web_search' ? (
+                                <TravelExploreIcon sx={{ fontSize: 16 }} />
+                              ) : (
+                                <LanguageIcon sx={{ fontSize: 16 }} />
+                              )
+                            }
+                            label={t.label}
+                            color={t.status === 'error' ? 'error' : t.status === 'done' ? 'success' : 'default'}
+                            variant="outlined"
+                            sx={{ maxWidth: '100%', '& .MuiChip-label': { whiteSpace: 'normal' } }}
+                          />
+                        ))}
+                      </Stack>
+                    )}
+                    {m.role === 'user' && m.images && m.images.length > 0 && (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: m.content ? 1 : 0 }}>
+                        {m.images.map((img, ii) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={ii}
+                            src={img.dataUrl}
+                            alt="attachment"
+                            style={{ maxWidth: 160, maxHeight: 160, borderRadius: 8 }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                    {m.role === 'user' && m.attachments && m.attachments.filter((a) => a.kind !== 'image').length > 0 && (
+                      <Stack direction="row" spacing={0.5} sx={{ mb: m.content ? 1 : 0, flexWrap: 'wrap', gap: 0.5 }}>
+                        {m.attachments
+                          .filter((a) => a.kind !== 'image')
+                          .map((a, ai) => (
+                            <Chip key={ai} size="small" icon={<AttachFileIcon sx={{ fontSize: 14 }} />} label={a.name} variant="outlined" />
+                          ))}
+                      </Stack>
+                    )}
                     {m.role === 'assistant' && m.content === '' && streaming ? (
-                      <CircularProgress size={16} />
+                      m.tools && m.tools.length > 0 ? null : <CircularProgress size={16} />
                     ) : m.role === 'assistant' ? (
                       <>
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
@@ -495,52 +649,120 @@ export default function AssistantPage() {
             bgcolor: theme.palette.background.paper,
           }}
         >
-          <Box
-            sx={{
-              maxWidth: 820,
-              mx: 'auto',
-              display: 'flex',
-              alignItems: 'flex-end',
-              gap: 1,
-            }}
-          >
-            <TextField
-              fullWidth
-              multiline
-              maxRows={6}
-              placeholder={`Message ${PROVIDER_LABEL[provider]}…`}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  send();
+          <Box sx={{ maxWidth: 820, mx: 'auto' }}>
+            {/* Attachment previews */}
+            {attachments.length > 0 && (
+              <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap', gap: 1 }}>
+                {attachments.map((a, i) => (
+                  <Box
+                    key={i}
+                    sx={{
+                      position: 'relative',
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: 2,
+                      p: a.kind === 'image' ? 0 : 1,
+                      pr: a.kind === 'image' ? 0 : 3,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                    }}
+                  >
+                    {a.kind === 'image' && a.dataUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={a.dataUrl} alt={a.name} style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8 }} />
+                    ) : (
+                      <>
+                        <AttachFileIcon sx={{ fontSize: 16 }} />
+                        <Typography variant="caption" sx={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {a.name}
+                        </Typography>
+                      </>
+                    )}
+                    <IconButton
+                      size="small"
+                      onClick={() => removeAttachment(i)}
+                      sx={{
+                        position: 'absolute',
+                        top: -8,
+                        right: -8,
+                        bgcolor: 'background.paper',
+                        border: `1px solid ${theme.palette.divider}`,
+                        p: 0.25,
+                        '&:hover': { bgcolor: 'background.paper' },
+                      }}
+                    >
+                      <CloseIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Box>
+                ))}
+              </Stack>
+            )}
+
+            <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,text/*,.md,.csv,.json,.txt,.pdf,.doc,.docx"
+                style={{ display: 'none' }}
+                onChange={(e) => handleFiles(e.target.files)}
+              />
+              <Tooltip title="Attach files or photos">
+                <IconButton onClick={() => fileInputRef.current?.click()} disabled={streaming}>
+                  <AttachFileIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={webSearchOn ? 'Web search ON — your next message searches the web' : 'Turn on web search'}>
+                <IconButton
+                  onClick={() => setWebSearchOn((v) => !v)}
+                  color={webSearchOn ? 'primary' : 'default'}
+                  sx={webSearchOn ? { bgcolor: alpha(theme.palette.primary.main, 0.12) } : undefined}
+                >
+                  <TravelExploreIcon />
+                </IconButton>
+              </Tooltip>
+              <TextField
+                fullWidth
+                multiline
+                maxRows={6}
+                placeholder={
+                  webSearchOn
+                    ? 'Ask anything — I will search the web…'
+                    : `Message ${PROVIDER_LABEL[provider]}…  (tip: “search the web for …” or paste a URL to scrape)`
                 }
-              }}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
-            />
-            <IconButton
-              color="primary"
-              onClick={send}
-              disabled={!input.trim() || streaming}
-              sx={{
-                bgcolor: 'primary.main',
-                color: 'primary.contrastText',
-                '&:hover': { bgcolor: 'primary.dark' },
-                '&.Mui-disabled': { bgcolor: alpha(theme.palette.primary.main, 0.3) },
-                width: 48,
-                height: 48,
-              }}
-            >
-              {streaming ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
-            </IconButton>
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+              />
+              <IconButton
+                color="primary"
+                onClick={send}
+                disabled={(!input.trim() && attachments.length === 0) || streaming}
+                sx={{
+                  bgcolor: 'primary.main',
+                  color: 'primary.contrastText',
+                  '&:hover': { bgcolor: 'primary.dark' },
+                  '&.Mui-disabled': { bgcolor: alpha(theme.palette.primary.main, 0.3) },
+                  width: 48,
+                  height: 48,
+                }}
+              >
+                {streaming ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+              </IconButton>
+            </Box>
           </Box>
           <Typography
             variant="caption"
             color="text.secondary"
             sx={{ display: 'block', textAlign: 'center', mt: 1 }}
           >
-            Enter to send · Shift+Enter for a new line
+            Enter to send · Shift+Enter for a new line · Attach images/files · 🌐 toggles web search
           </Typography>
         </Box>
       </Box>

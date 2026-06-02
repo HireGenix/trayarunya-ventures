@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -79,6 +79,35 @@ export default function NewBlogPost() {
   
   const [currentTag, setCurrentTag] = useState('');
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+
+  // Load existing post when editing (?id=...).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (!id) return;
+    setEditId(id);
+    (async () => {
+      try {
+        const res = await fetch(`/api/blog/${id}`);
+        if (res.ok) {
+          const p = await res.json();
+          setFormData({
+            title: p.title || '',
+            slug: p.slug || '',
+            excerpt: p.excerpt || '',
+            content: p.content || '',
+            category: p.category || '',
+            tags: Array.isArray(p.tags) ? p.tags : [],
+            featuredImage: p.coverImage || '',
+            status: p.status || 'Draft',
+          });
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }> | SelectChangeEvent<string>) => {
     const { name, value } = e.target;
@@ -168,15 +197,44 @@ export default function NewBlogPost() {
     return isValid;
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (validateForm()) {
-      // In a real app, you would save the post to the database
-      console.log('Form submitted:', formData);
-      
-      // Redirect to blog admin page
-      window.location.href = '/admin/blog';
+    if (!validateForm() || saving) return;
+
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const payload = {
+        title: formData.title,
+        slug: formData.slug,
+        excerpt: formData.excerpt,
+        content: formData.content,
+        category: formData.category,
+        tags: formData.tags,
+        coverImage: formData.featuredImage,
+        status: formData.status,
+      };
+
+      const res = await fetch(editId ? `/api/blog/${editId}` : '/api/blog', {
+        method: editId ? 'PUT' : 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        window.location.href = '/admin/blog';
+      } else if (res.status === 401) {
+        alert('Your session has expired. Please log in again.');
+      } else {
+        alert('Failed to save the post. Please try again.');
+      }
+    } catch {
+      alert('Network error while saving. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
   
@@ -215,6 +273,7 @@ export default function NewBlogPost() {
             color="primary"
             startIcon={<SaveIcon />}
             onClick={handleSubmit}
+            disabled={saving}
             sx={{
               borderRadius: 2,
               px: 3,
@@ -227,7 +286,7 @@ export default function NewBlogPost() {
               transition: 'all 0.3s ease',
             }}
           >
-            Save Post
+            {saving ? 'Saving…' : editId ? 'Update Post' : 'Save Post'}
           </Button>
         </Box>
       </Box>

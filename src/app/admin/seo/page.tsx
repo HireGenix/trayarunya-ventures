@@ -64,19 +64,17 @@ export default function SEOManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // In a production environment with real API endpoints, we would make API calls
-      // For now, we'll use empty states since the API endpoints aren't available yet
-      
-      // Set empty states for all data
-      setOverviewStats(emptyState.seoOverviewStats);
-      setPageMetrics(emptyState.pageMetrics);
-      setKeywordRankings(emptyState.keywordRankings);
-      setSeoIssues(emptyState.seoIssues);
-      
-      // Show a message to the user
-      setSnackbarMessage('Using empty states until API endpoints are available. No mock data is being used.');
-      setSnackbarSeverity('info');
-      setSnackbarOpen(true);
+      const [overview, pages, keywords, issues] = await Promise.all([
+        getSEOOverviewStats(),
+        getPageMetrics(),
+        getKeywordRankings(),
+        getSEOIssues(),
+      ]);
+
+      setOverviewStats(overview);
+      setPageMetrics(pages);
+      setKeywordRankings(keywords);
+      setSeoIssues(issues);
     } catch (error) {
       console.error('Error loading SEO data:', error);
       
@@ -107,12 +105,11 @@ export default function SEOManagement() {
   const handleRefreshAnalysis = async () => {
     setRefreshing(true);
     try {
-      // In a production environment, this would call the API to refresh the analysis
-      // For now, we'll just reload the empty states
+      await refreshSEOAnalysis();
       await loadData();
-      
-      setSnackbarMessage('SEO analysis refreshed with empty states. No mock data is being used.');
-      setSnackbarSeverity('info');
+
+      setSnackbarMessage('SEO analysis refreshed — the site was re-crawled.');
+      setSnackbarSeverity('success');
       setSnackbarOpen(true);
     } catch (error) {
       console.error('Error refreshing SEO analysis:', error);
