@@ -1,15 +1,18 @@
 'use client';
 
 import React from 'react';
-import { Box, Typography, TextField, Chip } from '@mui/material';
+import { Box, Typography, TextField, Chip, Button, CircularProgress } from '@mui/material';
 import { AnimatePresence, motion } from 'framer-motion';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import SendIcon from '@mui/icons-material/Send';
 import type { LeadFields } from '@/lib/realtime/azureRealtime';
 
 interface LeadPanelProps {
   fields: LeadFields;
   submitted: boolean;
+  submitting?: boolean;
   onChange: (fields: LeadFields) => void;
+  onSubmit?: () => void;
 }
 
 const TEXT_FIELDS: { key: keyof LeadFields; label: string }[] = [
@@ -23,8 +26,13 @@ const TEXT_FIELDS: { key: keyof LeadFields; label: string }[] = [
 
 const SEGMENTS: Array<NonNullable<LeadFields['segment']>> = ['B2B', 'B2C', 'D2C'];
 
-export default function LeadPanel({ fields, submitted, onChange }: LeadPanelProps) {
+export default function LeadPanel({ fields, submitted, submitting, onChange, onSubmit }: LeadPanelProps) {
   const hasAny = Object.values(fields).some((v) => v);
+  const canSubmit =
+    Boolean(fields.name?.trim()) &&
+    /\S+@\S+\.\S+/.test(fields.email?.trim() || '') &&
+    !submitting &&
+    !submitted;
 
   return (
     <Box
@@ -107,6 +115,35 @@ export default function LeadPanel({ fields, submitted, onChange }: LeadPanelProp
           })}
         </Box>
       </Box>
+
+      {onSubmit && (
+        <Box sx={{ mt: 2.5 }}>
+          <Button
+            onClick={onSubmit}
+            disabled={!canSubmit}
+            startIcon={submitting ? <CircularProgress size={16} sx={{ color: '#0a0a0f' }} /> : <SendIcon />}
+            fullWidth
+            sx={{
+              py: 1.2,
+              borderRadius: 99,
+              fontWeight: 800,
+              textTransform: 'none',
+              color: '#0a0a0f',
+              background: 'linear-gradient(90deg,#ffaf06,#ff7a06)',
+              boxShadow: '0 8px 24px rgba(255,175,6,0.3)',
+              '&:hover': { background: 'linear-gradient(90deg,#ffbf2a,#ff8a1a)' },
+              '&.Mui-disabled': { color: 'rgba(10,10,15,0.5)', background: 'rgba(255,175,6,0.25)' },
+            }}
+          >
+            {submitted ? 'Sent to our team' : submitting ? 'Sending…' : 'Send to our team'}
+          </Button>
+          {!submitted && (
+            <Typography sx={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', mt: 1, textAlign: 'center' }}>
+              The AI sends this automatically — or fill it in and send it yourself.
+            </Typography>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }

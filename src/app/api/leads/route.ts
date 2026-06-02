@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         message: validData.message,
         company: validData.company,
         phone: validData.phone,
-        notifyEmail: "sumitshrm12@gmail.com", // Testing email
+        notifyEmail: "sumitsharmaa@trayarunyaventures.com", // Leads inbox
       });
     } catch (emailError) {
       console.error("Failed to send contact emails:", emailError);

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
-import { Box, Container, Typography, Paper } from '@mui/material';
+import React from 'react';
+import { Box, Container, Typography } from '@mui/material';
 import Link from 'next/link';
 import EmailIcon from '@mui/icons-material/Email';
 import PhoneIcon from '@mui/icons-material/Phone';
@@ -10,7 +10,6 @@ import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Layout } from '@/components/Layout';
 import { PageHero, Reveal, SectionHeading, GradientText, FaqAccordion } from '@/components/cinematic';
-import ContactForm from '@/components/Contact/ContactForm';
 import { AIMarketerExperience } from '@/components/Contact/AIMarketer';
 import { companyInfo, faqInfo } from '@/data/websiteInfo';
 
@@ -22,91 +21,56 @@ const promises = [
 ];
 
 export default function ContactPage() {
-  const [showForm, setShowForm] = useState(false);
-  const formRef = useRef<HTMLDivElement | null>(null);
-
-  const handlePreferTyping = () => {
-    setShowForm(true);
-    requestAnimationFrame(() => {
-      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-  };
-
   return (
     <Layout>
       <PageHero
-        eyebrow="TALK TO OUR AI MARKETER"
+        eyebrow="TALK TO OUR AI SALES PARTNER"
         title={
           <>
             Let’s make your growth
             <br /> <GradientText>our problem.</GradientText>
           </>
         }
-        subtitle="Speak with our AI Marketer right now. Tell it where you’re stuck — it’ll understand your business, research your company live, and map how the partnership turns LinkedIn into high-ticket pipeline."
+        subtitle="Speak with our AI Sales Partner right now. Tell it where you’re stuck — it’ll understand your business, research your company live, capture your details, and map how the partnership turns LinkedIn into high-ticket pipeline."
       />
 
       {/* AI Marketer experience */}
       <Box sx={{ background: '#0a0a0f', color: '#fff', pt: { xs: 6, md: 9 }, pb: { xs: 6, md: 8 } }}>
         <Container maxWidth="lg">
           <Reveal>
-            <AIMarketerExperience onPreferTyping={handlePreferTyping} />
+            <AIMarketerExperience />
           </Reveal>
         </Container>
       </Box>
 
-      {/* Contact info + (optional) form */}
+      {/* Contact info */}
       <Box sx={{ background: '#0a0a0f', color: '#fff', pb: { xs: 8, md: 12 } }}>
         <Container maxWidth="lg">
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: showForm ? '0.9fr 1.1fr' : '1fr' }, gap: { xs: 5, md: 6 }, alignItems: 'flex-start' }}>
-            {/* Info side */}
-            <Box>
-              <Reveal>
-                <Typography variant="h4" sx={{ fontWeight: 800, mb: 2 }}>
-                  What happens next
-                </Typography>
-              </Reveal>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 4 }}>
-                {promises.map((p, i) => (
-                  <Reveal key={p} delay={i * 0.06}>
-                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-                      <CheckCircleIcon sx={{ color: '#14bb87', fontSize: 22, mt: '1px' }} />
-                      <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>{p}</Typography>
-                    </Box>
-                  </Reveal>
-                ))}
-              </Box>
-
-              <Reveal delay={0.1}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                  <ContactRow icon={<EmailIcon />} color="#ffaf06" label="Email us" lines={[companyInfo.contact.email]} href={`mailto:${companyInfo.contact.email}`} />
-                  <ContactRow icon={<PhoneIcon />} color="#14bb87" label="Call us" lines={companyInfo.contact.phone} />
-                  <ContactRow icon={<LocationOnIcon />} color="#0A66C2" label="Offices" lines={companyInfo.contact.address} />
-                  <ContactRow icon={<LinkedInIcon />} color="#0A66C2" label="Connect" lines={['Trayarunya Ventures on LinkedIn']} href={companyInfo.contact.socialMedia.linkedin} />
-                </Box>
-              </Reveal>
+          <Box>
+            <Reveal>
+              <Typography variant="h4" sx={{ fontWeight: 800, mb: 2 }}>
+                What happens next
+              </Typography>
+            </Reveal>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 4 }}>
+              {promises.map((p, i) => (
+                <Reveal key={p} delay={i * 0.06}>
+                  <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                    <CheckCircleIcon sx={{ color: '#14bb87', fontSize: 22, mt: '1px' }} />
+                    <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>{p}</Typography>
+                  </Box>
+                </Reveal>
+              ))}
             </Box>
 
-            {/* Form side (revealed on demand) */}
-            {showForm && (
-              <Box ref={formRef}>
-                <Reveal direction="left">
-                  <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', mb: 2 }}>
-                    Prefer to type? Send us a message
-                  </Typography>
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: { xs: 0.5, md: 1 },
-                      borderRadius: 4,
-                      background: 'rgba(255,255,255,0.02)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                    }}
-                  >
-                    <ContactForm />
-                  </Paper>
-                </Reveal>
+            <Reveal delay={0.1}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 2.5, md: 4 } }}>
+                <ContactRow icon={<EmailIcon />} color="#ffaf06" label="Email us" lines={[companyInfo.contact.email]} href={`mailto:${companyInfo.contact.email}`} />
+                <ContactRow icon={<PhoneIcon />} color="#14bb87" label="Call us" lines={companyInfo.contact.phone} />
+                <ContactRow icon={<LocationOnIcon />} color="#0A66C2" label="Offices" lines={companyInfo.contact.address} />
+                <ContactRow icon={<LinkedInIcon />} color="#0A66C2" label="Connect" lines={['Trayarunya Ventures on LinkedIn']} href={companyInfo.contact.socialMedia.linkedin} />
               </Box>
-            )}
+            </Reveal>
           </Box>
         </Container>
       </Box>

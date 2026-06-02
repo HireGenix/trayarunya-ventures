@@ -370,22 +370,7 @@ export class AzureRealtimeMarketer {
         const res = await fetch('/api/leads', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: fields.name || 'AI Voice Lead',
-            email: fields.email,
-            subject: 'AI Voice Marketer — new lead',
-            message: fields.notes || 'Lead captured via AI Voice Marketer on the contact page.',
-            company: fields.company,
-            phone: fields.phone,
-            source: 'ai-voice-marketer',
-            formType: 'ai-voice-marketer',
-            pageUrl: typeof window !== 'undefined' ? window.location.href : undefined,
-            formData: {
-              country: fields.country,
-              industry: fields.industry,
-              segment: fields.segment,
-            },
-          }),
+          body: JSON.stringify(buildLeadPayload(fields)),
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok) {
@@ -479,4 +464,33 @@ export class RealtimeStartError extends Error {
     this.reason = reason;
     this.name = 'RealtimeStartError';
   }
+}
+
+/** Build the /api/leads payload (shared by the AI tool-call and the manual Send button). */
+export function buildLeadPayload(fields: LeadFields) {
+  const summary = [
+    fields.notes ? `Pain / goal: ${fields.notes}` : '',
+    fields.segment ? `Segment: ${fields.segment}` : '',
+    fields.industry ? `Industry: ${fields.industry}` : '',
+    fields.country ? `Country: ${fields.country}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return {
+    name: fields.name || 'AI Voice Lead',
+    email: fields.email,
+    subject: 'AI Sales Partner — new lead',
+    message: summary || 'Lead captured via the AI Sales Partner on the contact page.',
+    company: fields.company,
+    phone: fields.phone,
+    source: 'ai-voice-marketer',
+    formType: 'ai-voice-marketer',
+    pageUrl: typeof window !== 'undefined' ? window.location.href : undefined,
+    formData: {
+      country: fields.country,
+      industry: fields.industry,
+      segment: fields.segment,
+    },
+  };
 }

@@ -5,10 +5,10 @@ import { Box, Typography, Button, CircularProgress } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import MicIcon from '@mui/icons-material/Mic';
 import CallEndIcon from '@mui/icons-material/CallEnd';
-import KeyboardIcon from '@mui/icons-material/Keyboard';
 import GraphicEqIcon from '@mui/icons-material/GraphicEq';
 import {
   AzureRealtimeMarketer,
+  buildLeadPayload,
   type LeadFields,
   type RealtimeStatus,
 } from '@/lib/realtime/azureRealtime';
@@ -17,11 +17,7 @@ import LiveTranscript, { type TranscriptLine } from './LiveTranscript';
 import LeadPanel from './LeadPanel';
 import ConfirmInput from './ConfirmInput';
 
-interface Props {
-  onPreferTyping: () => void;
-}
-
-export default function AIMarketerExperience({ onPreferTyping }: Props) {
+export default function AIMarketerExperience() {
   const [status, setStatus] = useState<RealtimeStatus>('idle');
   const [errorReason, setErrorReason] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -30,6 +26,7 @@ export default function AIMarketerExperience({ onPreferTyping }: Props) {
   const [lines, setLines] = useState<TranscriptLine[]>([]);
   const [lead, setLead] = useState<LeadFields>({});
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [confirmField, setConfirmField] = useState<'company' | 'name' | 'email' | null>(null);
 
   const clientRef = useRef<AzureRealtimeMarketer | null>(null);
@@ -62,6 +59,7 @@ export default function AIMarketerExperience({ onPreferTyping }: Props) {
     setLines([]);
     setLead({});
     setSubmitted(false);
+    setSubmitting(false);
     setConfirmField(null);
 
     const client = new AzureRealtimeMarketer({
@@ -101,6 +99,28 @@ export default function AIMarketerExperience({ onPreferTyping }: Props) {
     setConfirmField(null);
   }, []);
 
+  const handleManualSubmit = useCallback(async () => {
+    if (submitting || submitted) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildLeadPayload(lead)),
+      });
+      if (res.ok) {
+        setSubmitted(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setErrorMsg(data?.error || 'Could not send your details. Please try again.');
+      }
+    } catch {
+      setErrorMsg('Could not send your details. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [lead, submitting, submitted]);
+
   const orbState: 'idle' | 'connecting' | 'live' =
     status === 'live' ? 'live' : status === 'connecting' || status === 'requesting-mic' ? 'connecting' : 'idle';
 
@@ -109,13 +129,13 @@ export default function AIMarketerExperience({ onPreferTyping }: Props) {
       case 'requesting-mic':
         return 'Allow your microphone to begin…';
       case 'connecting':
-        return 'Connecting you to the AI Marketer…';
+        return 'Connecting you to the AI Sales Partner…';
       case 'live':
         return 'Live — just start talking';
       case 'ended':
         return 'Call ended. Thanks for chatting!';
       default:
-        return 'Talk to our AI Marketer about your growth';
+        return 'Talk to our AI Sales Partner about your growth';
     }
   }, [status]);
 
@@ -138,7 +158,7 @@ export default function AIMarketerExperience({ onPreferTyping }: Props) {
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, px: 1.5, py: 0.5, mb: 2, borderRadius: 99, border: '1px solid rgba(255,175,6,0.3)', background: 'rgba(255,175,6,0.08)' }}>
               <GraphicEqIcon sx={{ fontSize: 16, color: '#ffaf06' }} />
               <Typography sx={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: 1, color: '#ffaf06' }}>
-                LIVE AI MARKETER
+                LIVE AI SALES PARTNER
               </Typography>
             </Box>
 
@@ -187,12 +207,6 @@ export default function AIMarketerExperience({ onPreferTyping }: Props) {
                 </motion.div>
               )}
             </AnimatePresence>
-
-            <Box sx={{ mt: 3 }}>
-              <Button onClick={onPreferTyping} startIcon={<KeyboardIcon />} sx={textBtnSx}>
-                Prefer to type? Use the form
-              </Button>
-            </Box>
           </Box>
 
           {/* Right: transcript + confirm input + lead panel */}
@@ -225,7 +239,13 @@ export default function AIMarketerExperience({ onPreferTyping }: Props) {
               )}
             </AnimatePresence>
 
-            <LeadPanel fields={lead} submitted={submitted} onChange={setLead} />
+            <LeadPanel
+              fields={lead}
+              submitted={submitted}
+              submitting={submitting}
+              onChange={setLead}
+              onSubmit={handleManualSubmit}
+            />
           </Box>
         </Box>
       </Box>
@@ -256,11 +276,4 @@ const endBtnSx = {
   textTransform: 'none' as const,
   fontSize: '1rem',
   '&:hover': { background: 'rgba(255,59,48,1)' },
-};
-
-const textBtnSx = {
-  color: 'rgba(255,255,255,0.6)',
-  textTransform: 'none' as const,
-  fontSize: '0.85rem',
-  '&:hover': { color: '#fff', background: 'transparent' },
 };
