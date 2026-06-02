@@ -8,11 +8,31 @@
  *   const { buildDeckPptx } = await import('@/lib/pptxBuilder');
  */
 import { BRAND } from '@/lib/brandKit';
-import type { DeckSpec, DeckSlide, DeckCard, DeckPhase, SlideAccent } from '@/lib/proposalTypes';
+import { lightenHex } from '@/lib/brandColors';
+import type { DeckSpec, DeckSlide, DeckCard, DeckPhase, SlideAccent, BrandTheme } from '@/lib/proposalTypes';
 import { pickIcon, type IconDef } from '@/lib/deckIcons';
 
-const C = BRAND.colors;
+const BASE = BRAND.colors;
+// Mutable working palette — overridden per-build with the client's brand colors.
+let C = { ...BASE };
 const FONT = BRAND.fontFamily;
+
+/** Apply scraped client brand colors to the working palette for one build. */
+function applyBrand(brand?: BrandTheme) {
+  C = { ...BASE };
+  if (brand?.primary) {
+    C.gold = brand.primary;
+    C.goldLight = lightenHex(brand.primary, 0.32);
+  }
+  if (brand?.accent) {
+    C.green = brand.accent;
+    C.greenLight = lightenHex(brand.accent, 0.34);
+  }
+}
+
+function resetBrand() {
+  C = { ...BASE };
+}
 
 // 16:9 canvas in inches.
 const W = 13.333;
@@ -467,26 +487,31 @@ function safeName(s: string): string {
 
 /** Build and download a Gamma-style branded .pptx from a DeckSpec. */
 export async function buildDeckPptx(spec: DeckSpec): Promise<void> {
-  const mod = await import('pptxgenjs');
-  const PptxGenJS = (mod as unknown as { default: new () => any }).default;
-  const pptx = new PptxGenJS();
-  pptx.defineLayout({ name: 'TV_WIDE', width: W, height: H });
-  pptx.layout = 'TV_WIDE';
-  pptx.author = BRAND.company;
-  pptx.company = BRAND.company;
-  pptx.title = spec.title || 'Deck';
+  applyBrand(spec.brand);
+  try {
+    const mod = await import('pptxgenjs');
+    const PptxGenJS = (mod as unknown as { default: new () => any }).default;
+    const pptx = new PptxGenJS();
+    pptx.defineLayout({ name: 'TV_WIDE', width: W, height: H });
+    pptx.layout = 'TV_WIDE';
+    pptx.author = BRAND.company;
+    pptx.company = BRAND.company;
+    pptx.title = spec.title || 'Deck';
 
-  const slides = Array.isArray(spec.slides) && spec.slides.length ? spec.slides : [
-    { layout: 'title' as const, heading: spec.title, subheading: spec.subtitle },
-  ];
+    const slides = Array.isArray(spec.slides) && spec.slides.length ? spec.slides : [
+      { layout: 'title' as const, heading: spec.title, subheading: spec.subtitle },
+    ];
 
-  let sectionCount = 0;
-  slides.forEach((s) => {
-    if (s.layout === 'section') sectionCount += 1;
-    const slide = pptx.addSlide();
-    renderSlide(slide, pptx, spec, s, sectionCount || 1);
-    if (s.note) slide.addNotes(s.note);
-  });
+    let sectionCount = 0;
+    slides.forEach((s) => {
+      if (s.layout === 'section') sectionCount += 1;
+      const slide = pptx.addSlide();
+      renderSlide(slide, pptx, spec, s, sectionCount || 1);
+      if (s.note) slide.addNotes(s.note);
+    });
 
-  await pptx.writeFile({ fileName: `${safeName(spec.title)}-trayarunya.pptx` });
+    await pptx.writeFile({ fileName: `${safeName(spec.title)}-trayarunya.pptx` });
+  } finally {
+    resetBrand();
+  }
 }

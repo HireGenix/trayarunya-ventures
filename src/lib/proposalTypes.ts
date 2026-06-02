@@ -20,6 +20,16 @@ export type SlideLayout =
 /** Accent theme for a slide — drives the Gamma-style color system. */
 export type SlideAccent = 'gold' | 'green' | 'dark' | 'light';
 
+/** Optional client brand colors scraped from the client's website (bare hex, no '#'). */
+export interface BrandTheme {
+  primary?: string;
+  accent?: string;
+  /** Display name of the client/brand. */
+  name?: string;
+  /** Source URL the colors were extracted from. */
+  source?: string;
+}
+
 export interface DeckStat {
   value: string;
   label: string;
@@ -70,6 +80,8 @@ export interface DeckSpec {
   title: string;
   subtitle?: string;
   client?: string;
+  /** Client brand colors (scraped from their site) used to theme the deck. */
+  brand?: BrandTheme;
   slides: DeckSlide[];
 }
 
@@ -90,6 +102,8 @@ export interface ProposalSpec {
   title: string;
   preparedBy?: string;
   intro?: string;
+  /** Client brand colors (scraped from their site) used to theme the proposal. */
+  brand?: BrandTheme;
   sections: ProposalSection[];
   pricing?: ProposalPricing[];
   timeline?: { phase: string; detail: string }[];

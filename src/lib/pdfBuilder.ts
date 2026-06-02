@@ -8,21 +8,43 @@
  *   const { buildProposalPdf } = await import('@/lib/pdfBuilder');
  */
 import { BRAND, rgb } from '@/lib/brandKit';
-import type { ProposalSpec } from '@/lib/proposalTypes';
+import { lightenHex } from '@/lib/brandColors';
+import type { ProposalSpec, BrandTheme } from '@/lib/proposalTypes';
 import { pickIcon, ICONS, type IconDef } from '@/lib/deckIcons';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const GOLD = rgb(BRAND.colors.gold);
-const GOLD_L = rgb(BRAND.colors.goldLight);
+// Brand accents are reassigned per-build when the client's colors are scraped.
+let GOLD = rgb(BRAND.colors.gold);
+let GOLD_L = rgb(BRAND.colors.goldLight);
 const DARK = rgb(BRAND.colors.dark);
 const DARK_ALT = rgb(BRAND.colors.darkAlt);
-const GREEN = rgb(BRAND.colors.green);
+let GREEN = rgb(BRAND.colors.green);
 const INK = rgb(BRAND.colors.ink);
 const MUTED = rgb(BRAND.colors.muted);
 const LINE = rgb(BRAND.colors.line);
 const PAPER = rgb(BRAND.colors.paper);
 const WHITE: [number, number, number] = [255, 255, 255];
+
+/** Apply scraped client brand colors to the accent palette for one build. */
+function applyBrand(brand?: BrandTheme) {
+  GOLD = rgb(BRAND.colors.gold);
+  GOLD_L = rgb(BRAND.colors.goldLight);
+  GREEN = rgb(BRAND.colors.green);
+  if (brand?.primary) {
+    GOLD = rgb(brand.primary);
+    GOLD_L = rgb(lightenHex(brand.primary, 0.32));
+  }
+  if (brand?.accent) {
+    GREEN = rgb(brand.accent);
+  }
+}
+
+function resetBrand() {
+  GOLD = rgb(BRAND.colors.gold);
+  GOLD_L = rgb(BRAND.colors.goldLight);
+  GREEN = rgb(BRAND.colors.green);
+}
 
 /** Mix a color toward white to get a soft background tint. */
 function tint(c: [number, number, number], amt = 0.86): [number, number, number] {
@@ -39,6 +61,8 @@ function safeName(s: string): string {
 
 /** Build and download a Gamma-style branded PDF proposal from a ProposalSpec. */
 export async function buildProposalPdf(spec: ProposalSpec): Promise<void> {
+  applyBrand(spec.brand);
+  try {
   const mod = await import('jspdf');
   const JsPDF = (mod as unknown as { jsPDF: new (o?: any) => any }).jsPDF;
   const doc = new JsPDF({ unit: 'pt', format: 'a4' });
@@ -366,4 +390,7 @@ export async function buildProposalPdf(spec: ProposalSpec): Promise<void> {
 
   addFooter();
   doc.save(`${safeName(spec.title || spec.client)}-trayarunya.pdf`);
+  } finally {
+    resetBrand();
+  }
 }

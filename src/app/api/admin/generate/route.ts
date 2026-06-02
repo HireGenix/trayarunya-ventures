@@ -4,6 +4,7 @@ import { completeText, providerConfigured, type Provider, type ChatMessage } fro
 import { db } from '@/lib/db';
 import { proposalStore } from '@/lib/proposalStore';
 import { BRAND } from '@/lib/brandKit';
+import { extractBrandColors } from '@/lib/brandColors';
 import type { ArtifactType, DeckSpec, ProposalSpec } from '@/lib/proposalTypes';
 import { companyInfo } from '@/data/websiteInfo';
 import { services } from '@/data/servicesData';
@@ -78,10 +79,12 @@ export async function POST(req: NextRequest) {
 
   // Optional lead grounding.
   let leadBlock = '';
+  let leadRecord: Awaited<ReturnType<typeof db.leads.findUnique>> | null = null;
   if (body.leadId) {
     try {
       const lead = await db.leads.findUnique({ where: { id: body.leadId } });
       if (lead) {
+        leadRecord = lead;
         leadBlock = `\n\nTARGET LEAD/CLIENT CONTEXT:\n${JSON.stringify(
           {
             name: lead.name,
@@ -161,6 +164,25 @@ ${type === 'deck' ? DECK_SHAPE : PROPOSAL_SHAPE}
     (typeof (spec as { client?: string }).client === 'string' && (spec as { client?: string }).client) ||
     '';
 
+  // Scrape the client's website for their brand colors so the deck/proposal
+  // is themed to THEIR brand (free, in-process). Never fails generation.
+  try {
+    const site = resolveClientWebsite(body, leadRecord, client);
+    if (site) {
+      const colors = await extractBrandColors(site);
+      if (colors.ok && colors.primary) {
+        (spec as DeckSpec | ProposalSpec).brand = {
+          primary: colors.primary,
+          accent: colors.accent,
+          name: client || undefined,
+          source: colors.source,
+        };
+      }
+    }
+  } catch {
+    /* brand extraction is best-effort */
+  }
+
   const saved = await proposalStore.save({
     type,
     title,
@@ -171,6 +193,48 @@ ${type === 'deck' ? DECK_SHAPE : PROPOSAL_SHAPE}
   });
 
   return json({ ok: true, proposal: saved });
+}
+
+/** Resolve the client's website to scrape brand colors from. */
+function resolveClientWebsite(
+  body: Body,
+  lead: Awaited<ReturnType<typeof db.leads.findUnique>> | null,
+  _client: string
+): string | null {
+  const OWN = /trayarunyaventures?\.com/i;
+  const SOCIAL = /(linkedin|facebook|instagram|twitter|x\.com|youtube|t\.me|wa\.me|whatsapp|tiktok|pinterest)\./i;
+  const FREE_EMAIL = /^(gmail|googlemail|yahoo|ymail|outlook|hotmail|live|icloud|me|proton(mail)?|aol|gmx|zoho|mail)\./i;
+
+  // 1) Explicit URL in the brief or conversation.
+  const texts: string[] = [];
+  if (body.prompt) texts.push(body.prompt);
+  if (Array.isArray(body.conversation)) {
+    for (const m of body.conversation) if (typeof m?.content === 'string') texts.push(m.content);
+  }
+  if (lead?.message) texts.push(lead.message);
+  if (Array.isArray(lead?.notes)) texts.push(...(lead!.notes as string[]));
+
+  const urlRe = /https?:\/\/[^\s)"'<>]+/gi;
+  for (const t of texts) {
+    const found = t.match(urlRe);
+    if (!found) continue;
+    for (const u of found) {
+      if (OWN.test(u) || SOCIAL.test(u)) continue;
+      return u.replace(/[.,;]+$/, '');
+    }
+  }
+
+  // 2) Derive from the lead's business email domain.
+  const email = (lead?.email || '').trim();
+  const at = email.lastIndexOf('@');
+  if (at > -1) {
+    const domain = email.slice(at + 1).toLowerCase();
+    if (domain && !FREE_EMAIL.test(domain) && /\.[a-z]{2,}$/.test(domain) && !OWN.test(domain)) {
+      return `https://${domain}`;
+    }
+  }
+
+  return null;
 }
 
 /** Best-effort extraction of a JSON object from a model response. */
