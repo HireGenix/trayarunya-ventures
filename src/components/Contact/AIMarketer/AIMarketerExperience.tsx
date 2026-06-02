@@ -33,6 +33,7 @@ export default function AIMarketerExperience() {
   const clientRef = useRef<AzureRealtimeMarketer | null>(null);
   const activeAssistantId = useRef<string | null>(null);
   const activeUserId = useRef<string | null>(null);
+  const leadPanelRef = useRef<HTMLDivElement | null>(null);
 
   const upsertLine = useCallback(
     (role: 'user' | 'assistant', text: string, done: boolean) => {
@@ -195,6 +196,20 @@ export default function AIMarketerExperience() {
               )}
             </AnimatePresence>
 
+            {/* Persistent type-instead option */}
+            {(status === 'idle' || status === 'ended') && (
+              <Typography sx={{ mt: 2, color: TEXT.muted, fontSize: '0.85rem' }}>
+                Prefer not to talk?{' '}
+                <Box
+                  component="span"
+                  onClick={() => leadPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                  sx={{ color: '#ffaf06', fontWeight: 700, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                >
+                  Just type your details →
+                </Box>
+              </Typography>
+            )}
+
             {/* Error / fallback messaging */}
             <AnimatePresence>
               {(notConfigured || micDenied || (errorMsg && status === 'error')) && (
@@ -241,13 +256,15 @@ export default function AIMarketerExperience() {
               )}
             </AnimatePresence>
 
-            <LeadPanel
-              fields={lead}
-              submitted={submitted}
-              submitting={submitting}
-              onChange={setLead}
-              onSubmit={handleManualSubmit}
-            />
+            <Box ref={leadPanelRef}>
+              <LeadPanel
+                fields={lead}
+                submitted={submitted}
+                submitting={submitting}
+                onChange={setLead}
+                onSubmit={handleManualSubmit}
+              />
+            </Box>
           </Box>
         </Box>
       </Box>

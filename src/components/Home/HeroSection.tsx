@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   ArrowForward as ArrowForwardIcon,
   LinkedIn as LinkedInIcon,
-  Verified as VerifiedIcon,
+  Star as StarIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
 import { GradientMesh, GradientText, GlowButton, AuroraBackground, MagneticButton, SURFACE, TEXT, CARD } from '@/components/cinematic';
@@ -162,7 +162,7 @@ const HeroSection = () => {
               >
                 <MagneticButton>
                   <GlowButton component={Link} href="/contact" size="large">
-                    Book a Strategy Call
+                    Get a Free LinkedIn Audit
                   </GlowButton>
                 </MagneticButton>
                 <Box
@@ -194,14 +194,51 @@ const HeroSection = () => {
               transition={{ duration: 0.8, delay: 1 }}
             >
               <Stack
-                direction="row"
-                spacing={1}
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={{ xs: 1.5, sm: 2.5 }}
                 justifyContent={{ xs: 'center', md: 'flex-start' }}
                 alignItems="center"
-                sx={{ mt: 3, color: TEXT.muted, fontSize: '0.85rem' }}
+                sx={{ mt: 3.5 }}
               >
-                <VerifiedIcon sx={{ fontSize: 18, color: '#14bb87' }} />
-                B2B is our flagship — trusted by founders to own their growth
+                {/* avatar stack */}
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  {[
+                    { c: 'linear-gradient(135deg,#ffaf06,#ff7a06)', t: 'A' },
+                    { c: 'linear-gradient(135deg,#14bb87,#0e8a63)', t: 'P' },
+                    { c: 'linear-gradient(135deg,#0A66C2,#3b82f6)', t: 'R' },
+                    { c: 'linear-gradient(135deg,#7c5cff,#a78bfa)', t: 'S' },
+                  ].map((a, i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: '50%',
+                        display: 'grid',
+                        placeItems: 'center',
+                        color: '#fff',
+                        fontWeight: 800,
+                        fontSize: '0.78rem',
+                        background: a.c,
+                        border: '2px solid #fff',
+                        boxShadow: '0 2px 8px rgba(15,23,42,0.12)',
+                        ml: i === 0 ? 0 : '-10px',
+                      }}
+                    >
+                      {a.t}
+                    </Box>
+                  ))}
+                </Box>
+                <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+                  <Box sx={{ display: 'flex', gap: 0.2, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
+                    {[0, 1, 2, 3, 4].map((s) => (
+                      <StarIcon key={s} sx={{ fontSize: 16, color: '#ffaf06' }} />
+                    ))}
+                  </Box>
+                  <Typography sx={{ color: TEXT.muted, fontSize: '0.82rem', mt: 0.3 }}>
+                    Trusted by <Box component="span" sx={{ fontWeight: 700, color: TEXT.heading }}>200+ B2B founders</Box> to own their growth
+                  </Typography>
+                </Box>
               </Stack>
             </motion.div>
           </Box>

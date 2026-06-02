@@ -4,7 +4,7 @@ import React from 'react';
 import { Box } from '@mui/material';
 import Header from './Header';
 import Footer from './Footer';
-import { SmoothScroll, CursorGlow, ScrollProgress } from '@/components/cinematic';
+import { SmoothScroll, CursorGlow, ScrollProgress, FloatingCTA } from '@/components/cinematic';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -26,6 +26,7 @@ export default function Layout({ children }: LayoutProps) {
         {children}
       </Box>
       <Footer />
+      <FloatingCTA />
     </Box>
   );
 }
