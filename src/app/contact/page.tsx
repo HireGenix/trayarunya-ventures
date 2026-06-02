@@ -12,7 +12,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import StarIcon from '@mui/icons-material/Star';
 import { Layout } from '@/components/Layout';
 import { PageHero, Reveal, SectionHeading, GradientText, FaqAccordion, SURFACE, TEXT } from '@/components/cinematic';
-import { AIMarketerExperience } from '@/components/Contact/AIMarketer';
+import { RealtimeChatExperience } from '@/components/Contact/AIMarketer';
 import { companyInfo, faqInfo, stats, testimonials } from '@/data/websiteInfo';
 
 const promises = [
@@ -33,7 +33,7 @@ export default function ContactPage() {
             <br /> <GradientText>our problem.</GradientText>
           </>
         }
-        subtitle="Speak with our AI Sales Partner right now. Tell it where you’re stuck — it’ll understand your business, research your company live, capture your details, and map how the partnership turns LinkedIn into high-ticket pipeline."
+        subtitle="Chat with our AI Sales Partner right now. Tell it where you’re stuck — it researches your company live, builds your Ideal Customer Profile on screen, captures your details, and maps how the partnership turns LinkedIn into high-ticket pipeline."
       />
 
       {/* AI Marketer experience */}
@@ -80,7 +80,7 @@ export default function ContactPage() {
           </Reveal>
 
           <Reveal>
-            <AIMarketerExperience />
+            <RealtimeChatExperience />
           </Reveal>
 
           {/* Social proof under the experience */}

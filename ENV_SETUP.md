@@ -8,9 +8,29 @@ below, fill in the blank values, then restart the dev server.
 
 ---
 
-## AI Voice Marketer (Azure OpenAI Realtime — GA)
+## AI Sales Chat (Azure OpenAI GPT-5.5 — Responses API)
 
-A natural-voice AI on the `/contact` page that talks about our services, researches
+The text-based AI Sales Partner on `/contact`. It chats with the visitor, researches
+their company live (Tavily + Crawl4AI) and builds an **Ideal Customer Profile (ICP)**
+on screen in realtime, then emails the lead to the team.
+
+| Variable | What it is | Where to get it |
+|---|---|---|
+| `AZURE_GPT5_ENDPOINT` | Resource base URL, e.g. `https://hiregenix-resource.cognitiveservices.azure.com` (everything before `/openai/responses`) | Azure Portal → resource → Overview |
+| `AZURE_GPT5_KEY` | API key. Can reuse `AZURE_OPENAI_REALTIME_KEY`. | Azure Portal → resource → Keys and Endpoint |
+| `AZURE_GPT5_DEPLOYMENT` | Deployment name — `gpt-5.5` | Azure AI Foundry → Deployments |
+| `AZURE_GPT5_API_VERSION` | Responses API version — `2025-04-01-preview` | — |
+
+## Crawl4AI (web scraping for ICP enrichment — optional)
+
+| Variable | What it is | Where to get it |
+|---|---|---|
+| `CRAWL4AI_API_URL` | Base URL of your Crawl4AI REST server (e.g. `https://your-host`). The agent POSTs `/crawl`. If unset, it falls back to Tavily URL extract. | Your Crawl4AI deployment |
+| `CRAWL4AI_API_TOKEN` | Bearer token for the Crawl4AI server, if it requires one | Your Crawl4AI deployment |
+
+## AI Voice Marketer (Azure OpenAI Realtime — GA) — legacy, not currently rendered
+
+A natural-voice AI that talks about our services, researches
 the visitor's company live (Tavily), and captures lead details on screen.
 
 | Variable | What it is | Where to get it |
