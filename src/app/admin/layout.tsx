@@ -39,6 +39,7 @@ import {
   Person as PersonIcon,
   ChevronLeft as ChevronLeftIcon,
   KeyboardArrowDown as ArrowDownIcon,
+  Slideshow as SlideshowIcon,
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -80,7 +81,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: 'Content',
-    items: [{ text: 'Blog Posts', icon: <ArticleIcon />, path: '/admin/blog' }],
+    items: [
+      { text: 'Blog Posts', icon: <ArticleIcon />, path: '/admin/blog' },
+      { text: 'Proposals', icon: <SlideshowIcon />, path: '/admin/proposals' },
+    ],
   },
   {
     label: 'System',
@@ -98,6 +102,7 @@ function titleForPath(pathname: string): string {
     }
   }
   if (pathname.startsWith('/admin/blog')) return 'Blog Posts';
+  if (pathname.startsWith('/admin/proposals')) return 'Proposals';
   return 'Dashboard';
 }
 

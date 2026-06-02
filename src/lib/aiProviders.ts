@@ -54,6 +54,13 @@ export function providerConfigured(provider: Provider): boolean {
 
 const SYSTEM_PROMPT = `You are the internal AI assistant for the Trayarunya Ventures team — a sharp, helpful copilot for a B2B/B2C/D2C digital-marketing agency. Help staff with marketing strategy, copywriting, campaign planning, lead research, content, analysis, and general work tasks. Be concise, practical, and format answers in clean Markdown when helpful.`;
 
+/**
+ * Maximum output tokens for Claude Opus. Anthropic's Messages API *requires*
+ * a max_tokens value (it cannot be omitted), so "uncapped" means using the
+ * model's full supported output window so long answers are never truncated.
+ */
+const CLAUDE_MAX_OUTPUT_TOKENS = 32000;
+
 /** Stream GPT-5.5 (Azure Responses API) text deltas. */
 async function* streamGpt(
   messages: ChatMessage[],
@@ -139,7 +146,7 @@ async function* streamClaude(
     },
     body: JSON.stringify({
       model: env.model,
-      max_tokens: 4096,
+      max_tokens: CLAUDE_MAX_OUTPUT_TOKENS,
       system,
       messages: messages.map((m) => {
         if (m.role === 'user' && m.images?.length) {
@@ -205,4 +212,95 @@ export function streamChat(opts: {
   return opts.provider === 'claude-opus'
     ? streamClaude(opts.messages, system)
     : streamGpt(opts.messages, system);
+}
+
+/** Non-streaming GPT-5.5 completion (Azure Responses API). Returns full text. */
+async function completeGpt(messages: ChatMessage[], system: string): Promise<string> {
+  const env = getGpt5Env();
+  if (!env) throw new Error('GPT-5.5 is not configured');
+
+  const input = messages.map((m) => ({
+    type: 'message',
+    role: m.role,
+    content: [{ type: m.role === 'assistant' ? 'output_text' : 'input_text', text: m.content }],
+  }));
+
+  const res = await fetch(responsesUrl(env), {
+    method: 'POST',
+    headers: { 'api-key': env.apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: env.deployment,
+      instructions: system,
+      input,
+      stream: false,
+      store: false,
+    }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`GPT-5.5 error ${res.status}: ${detail.slice(0, 300)}`);
+  }
+
+  const data = (await res.json()) as Record<string, unknown>;
+  if (typeof data.output_text === 'string' && data.output_text) return data.output_text;
+  // Fallback: walk the output array for output_text parts.
+  const output = data.output as Array<Record<string, unknown>> | undefined;
+  let text = '';
+  if (Array.isArray(output)) {
+    for (const item of output) {
+      const content = item.content as Array<Record<string, unknown>> | undefined;
+      if (Array.isArray(content)) {
+        for (const part of content) {
+          if (part.type === 'output_text' && typeof part.text === 'string') text += part.text;
+        }
+      }
+    }
+  }
+  return text;
+}
+
+/** Non-streaming Claude Opus completion (Azure Anthropic Messages API). */
+async function completeClaude(messages: ChatMessage[], system: string): Promise<string> {
+  const env = getAnthropicEnv();
+  if (!env) throw new Error('Claude Opus is not configured');
+
+  const res = await fetch(env.endpoint, {
+    method: 'POST',
+    headers: {
+      'x-api-key': env.apiKey,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: env.model,
+      max_tokens: CLAUDE_MAX_OUTPUT_TOKENS,
+      system,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      stream: false,
+    }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Claude error ${res.status}: ${detail.slice(0, 300)}`);
+  }
+
+  const data = (await res.json()) as { content?: Array<{ type?: string; text?: string }> };
+  return (data.content || [])
+    .filter((c) => c.type === 'text' && typeof c.text === 'string')
+    .map((c) => c.text)
+    .join('');
+}
+
+/** Non-streaming completion across providers. */
+export function completeText(opts: {
+  provider: Provider;
+  messages: ChatMessage[];
+  system?: string;
+}): Promise<string> {
+  const system = opts.system || SYSTEM_PROMPT;
+  return opts.provider === 'claude-opus'
+    ? completeClaude(opts.messages, system)
+    : completeGpt(opts.messages, system);
 }

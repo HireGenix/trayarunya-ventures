@@ -20,6 +20,10 @@ import {
   useTheme,
   useMediaQuery,
   Drawer,
+  Menu,
+  ListItemIcon,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -33,6 +37,9 @@ import {
   TravelExplore as TravelExploreIcon,
   Close as CloseIcon,
   Language as LanguageIcon,
+  AutoAwesome as AutoAwesomeIcon,
+  Slideshow as SlideshowIcon,
+  PictureAsPdf as PictureAsPdfIcon,
 } from '@mui/icons-material';
 import { Chip, Stack } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
@@ -90,6 +97,11 @@ export default function AssistantPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [webSearchOn, setWebSearchOn] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // AI document generation (PowerPoint deck / PDF proposal).
+  const [createMenuAnchor, setCreateMenuAnchor] = useState<null | HTMLElement>(null);
+  const [generating, setGenerating] = useState<null | 'deck' | 'proposal'>(null);
+  const [toast, setToast] = useState<{ msg: string; sev: 'success' | 'error' | 'info' } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
@@ -361,6 +373,61 @@ export default function AssistantPage() {
 
   const copyMessage = (text: string) => {
     navigator.clipboard?.writeText(text);
+  };
+
+  const generateArtifact = async (type: 'deck' | 'proposal') => {
+    setCreateMenuAnchor(null);
+    if (generating) return;
+    setGenerating(type);
+    const label = type === 'deck' ? 'PowerPoint deck' : 'PDF proposal';
+    setToast({ msg: `Generating your ${label}…`, sev: 'info' });
+
+    // Use the typed input as an extra brief, plus the conversation as source material.
+    const prompt = input.trim();
+    const conversation = messages
+      .filter((m) => m.content && m.content.trim())
+      .map((m) => ({ role: m.role, content: m.content }));
+
+    try {
+      const res = await fetch('/api/admin/generate', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ type, provider, prompt: prompt || undefined, conversation }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.proposal) {
+        setToast({ msg: data?.message || `Could not generate the ${label}.`, sev: 'error' });
+        setGenerating(null);
+        return;
+      }
+
+      const { proposal } = data;
+      if (type === 'deck') {
+        const { buildDeckPptx } = await import('@/lib/pptxBuilder');
+        await buildDeckPptx(proposal.spec);
+      } else {
+        const { buildProposalPdf } = await import('@/lib/pdfBuilder');
+        await buildProposalPdf(proposal.spec);
+      }
+
+      setToast({ msg: `${label} ready — downloaded & saved to Proposals.`, sev: 'success' });
+
+      // Drop a note into the chat so there's a visible record + link.
+      const note: Msg = {
+        role: 'assistant',
+        content: `📎 **${label} generated:** *${proposal.title}*${
+          proposal.client ? ` — for ${proposal.client}` : ''
+        }\n\nThe file has been downloaded and saved to the **[Proposals](/admin/proposals)** page, where you can preview or re-download it anytime.`,
+        ts: Date.now(),
+      };
+      const next = [...messages, note];
+      setMessages(next);
+      persist(next, provider, activeIdRef.current);
+    } catch {
+      setToast({ msg: `Something went wrong creating the ${label}.`, sev: 'error' });
+    } finally {
+      setGenerating(null);
+    }
   };
 
   const sidebar = (
@@ -712,6 +779,39 @@ export default function AssistantPage() {
                   <AttachFileIcon />
                 </IconButton>
               </Tooltip>
+              <Tooltip title="Create a branded PowerPoint deck or PDF proposal">
+                <IconButton
+                  onClick={(e) => setCreateMenuAnchor(e.currentTarget)}
+                  disabled={streaming || generating !== null}
+                  color="primary"
+                  sx={{ bgcolor: alpha(theme.palette.primary.main, 0.12) }}
+                >
+                  {generating ? <CircularProgress size={20} color="inherit" /> : <AutoAwesomeIcon />}
+                </IconButton>
+              </Tooltip>
+              <Menu
+                anchorEl={createMenuAnchor}
+                open={Boolean(createMenuAnchor)}
+                onClose={() => setCreateMenuAnchor(null)}
+                anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+                transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+              >
+                <Typography variant="caption" sx={{ px: 2, py: 1, display: 'block', color: 'text.secondary' }}>
+                  Generate from this chat
+                </Typography>
+                <MenuItem onClick={() => generateArtifact('deck')}>
+                  <ListItemIcon>
+                    <SlideshowIcon fontSize="small" color="primary" />
+                  </ListItemIcon>
+                  PowerPoint deck (.pptx)
+                </MenuItem>
+                <MenuItem onClick={() => generateArtifact('proposal')}>
+                  <ListItemIcon>
+                    <PictureAsPdfIcon fontSize="small" color="error" />
+                  </ListItemIcon>
+                  PDF proposal (.pdf)
+                </MenuItem>
+              </Menu>
               <Tooltip title={webSearchOn ? 'Web search ON — your next message searches the web' : 'Turn on web search'}>
                 <IconButton
                   onClick={() => setWebSearchOn((v) => !v)}
@@ -762,10 +862,22 @@ export default function AssistantPage() {
             color="text.secondary"
             sx={{ display: 'block', textAlign: 'center', mt: 1 }}
           >
-            Enter to send · Shift+Enter for a new line · Attach images/files · 🌐 toggles web search
+            Enter to send · Shift+Enter for a new line · Attach images/files · 🌐 web search · ✨ make a deck/proposal
           </Typography>
         </Box>
       </Box>
+      <Snackbar
+        open={Boolean(toast)}
+        autoHideDuration={5000}
+        onClose={() => setToast(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        {toast ? (
+          <Alert onClose={() => setToast(null)} severity={toast.sev} variant="filled" sx={{ width: '100%' }}>
+            {toast.msg}
+          </Alert>
+        ) : undefined}
+      </Snackbar>
     </Box>
   );
 }

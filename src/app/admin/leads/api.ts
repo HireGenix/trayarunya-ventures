@@ -166,7 +166,7 @@ export async function createLead(lead: Omit<Lead, 'id' | 'date'>): Promise<Lead>
       throw new APIError('Missing required lead fields', 400);
     }
     
-    return fetchAPI<Lead>('', {
+    return fetchAPI<Lead>('/admin', {
       method: 'POST',
       body: JSON.stringify(lead),
     });
