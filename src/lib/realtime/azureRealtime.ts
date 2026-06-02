@@ -57,6 +57,8 @@ export class AzureRealtimeMarketer {
   private assistantBuffer = '';
   private userBuffer = '';
   private greeted = false;
+  private responseActive = false;
+  private pendingResponse = false;
 
   constructor(callbacks: RealtimeCallbacks) {
     this.cb = callbacks;
@@ -176,7 +178,22 @@ export class AzureRealtimeMarketer {
         content: [{ type: 'input_text', text: 'Hello' }],
       },
     });
-    setTimeout(() => this.send({ type: 'response.create' }), 120);
+    setTimeout(() => this.requestResponse(), 120);
+  }
+
+  /**
+   * Ask the model to produce a response, respecting the one-active-response rule.
+   * If a response is already in flight, cancel it so the newest user input wins;
+   * the response.done handler will then fire the queued response.create.
+   */
+  private requestResponse(): void {
+    if (this.responseActive) {
+      this.pendingResponse = true;
+      this.send({ type: 'response.cancel' });
+      return;
+    }
+    this.responseActive = true;
+    this.send({ type: 'response.create' });
   }
 
   private send(obj: unknown): void {
@@ -203,7 +220,7 @@ export class AzureRealtimeMarketer {
       },
     });
     // Small delay — give the server time to process the item before requesting response
-    setTimeout(() => this.send({ type: 'response.create' }), 150);
+    setTimeout(() => this.requestResponse(), 200);
   }
 
   /** Detect when AI asks for confirmable fields → show inline input to the user */
@@ -246,6 +263,22 @@ export class AzureRealtimeMarketer {
       case 'session.created':
       case 'session.updated': {
         this.triggerGreeting();
+        break;
+      }
+
+      // ── Response lifecycle — enforce one-active-response rule ──
+      case 'response.created': {
+        this.responseActive = true;
+        break;
+      }
+      case 'response.done':
+      case 'response.cancelled': {
+        this.responseActive = false;
+        // A newer user input was queued while a response was in flight — fire it now.
+        if (this.pendingResponse) {
+          this.pendingResponse = false;
+          setTimeout(() => this.requestResponse(), 60);
+        }
         break;
       }
 
@@ -327,7 +360,21 @@ export class AzureRealtimeMarketer {
         break;
       }
       case 'error': {
-        const msg = (evt.error as { message?: string })?.message || 'Realtime error.';
+        const errObj = (evt.error as { message?: string; code?: string }) || {};
+        const msg = errObj.message || 'Realtime error.';
+        const code = errObj.code || '';
+        // Recover gracefully from response-state races instead of deadlocking.
+        if (
+          code.includes('active_response') ||
+          /active response|already has|cancellation failed/i.test(msg)
+        ) {
+          this.responseActive = false;
+          if (this.pendingResponse) {
+            this.pendingResponse = false;
+            setTimeout(() => this.requestResponse(), 80);
+          }
+          break;
+        }
         this.cb.onError?.(msg);
         break;
       }
@@ -393,7 +440,7 @@ export class AzureRealtimeMarketer {
         output: JSON.stringify(output),
       },
     });
-    setTimeout(() => this.send({ type: 'response.create' }), 150);
+    setTimeout(() => this.requestResponse(), 150);
   }
 
   private monitorLevel(stream: MediaStream, who: 'user' | 'ai'): void {
@@ -450,6 +497,8 @@ export class AzureRealtimeMarketer {
     this.micStream = null;
     this.audioCtx = null;
     this.greeted = false;
+    this.responseActive = false;
+    this.pendingResponse = false;
     if (this.audioEl) {
       this.audioEl.srcObject = null;
       this.audioEl = null;
