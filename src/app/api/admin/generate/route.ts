@@ -31,14 +31,16 @@ const DECK_SHAPE = `{
   "subtitle": "string (one-line value prop)",
   "client": "string (client/company name, or '' if generic)",
   "slides": [
-    { "layout": "title", "heading": "string", "subheading": "string" },
-    { "layout": "agenda", "heading": "Agenda", "bullets": ["...", "..."] },
-    { "layout": "section", "heading": "Section title", "subheading": "optional" },
-    { "layout": "content", "heading": "string", "bullets": ["concise point", "..."], "note": "speaker note" },
-    { "layout": "stats", "heading": "string", "stats": [ { "value": "3x", "label": "pipeline" } ] },
-    { "layout": "twoColumn", "heading": "string", "left": ["..."], "right": ["..."] },
-    { "layout": "quote", "quote": "string", "attribution": "string" },
-    { "layout": "closing", "heading": "Let's build your pipeline", "subheading": "optional CTA" }
+    { "layout": "title", "heading": "string", "subheading": "string", "accent": "dark" },
+    { "layout": "agenda", "kicker": "Agenda", "heading": "What we'll cover", "bullets": ["...", "..."] },
+    { "layout": "section", "heading": "Section title", "subheading": "optional", "accent": "green" },
+    { "layout": "content", "kicker": "optional eyebrow", "heading": "string", "bullets": ["concise point", "..."], "note": "speaker note" },
+    { "layout": "cards", "kicker": "optional", "heading": "string", "cards": [ { "title": "Card title", "body": "1-2 line desc", "badge": "01" } ] },
+    { "layout": "stats", "heading": "string", "stats": [ { "value": "3x", "label": "pipeline growth" } ] },
+    { "layout": "twoColumn", "heading": "string", "leftHeading": "The problem", "left": ["..."], "rightHeading": "Our fix", "right": ["..."] },
+    { "layout": "timeline", "heading": "How we'll roll out", "phases": [ { "phase": "Phase 1 — Foundations", "detail": "..." } ] },
+    { "layout": "quote", "quote": "string", "attribution": "string", "accent": "green" },
+    { "layout": "closing", "kicker": "Let's partner up", "heading": "Let's build your pipeline", "subheading": "optional CTA" }
   ]
 }`;
 
@@ -127,7 +129,7 @@ OUTPUT RULES — CRITICAL:
 - Respond with a SINGLE valid JSON object and NOTHING else. No markdown, no code fences, no commentary.
 - Match EXACTLY this ${type === 'deck' ? 'DeckSpec' : 'ProposalSpec'} shape:
 ${type === 'deck' ? DECK_SHAPE : PROPOSAL_SHAPE}
-- For a deck: produce 8-12 slides. ALWAYS start with a "title" slide and end with a "closing" slide. Mix layouts (agenda, content, stats, twoColumn, section, quote) for a compelling, visual narrative. Keep bullets concise (max ~12 words). Make stats punchy and credible.
+- For a deck: produce 8-12 slides for a Gamma-style, visually rich narrative. ALWAYS start with a "title" slide and end with a "closing" slide. Use a VARIETY of layouts — favour "cards", "stats", "timeline", "twoColumn", "section" and "quote" over plain bullet "content" slides (use at most 2-3 content slides). Use "cards" to break ideas into 3-6 punchy concept cards (each with a short title + 1-line body). Use "stats" for credible metrics (3x pipeline, 40% reply rate, etc.). Use "timeline" for rollout phases. Use "twoColumn" for problem/solution or before/after with leftHeading + rightHeading. Add a short "kicker" eyebrow to most slides. You may set "accent" to "gold", "green", "dark" or "light" to vary the mood. Keep all text tight (headings <8 words, bullets/card bodies <14 words). Make stats punchy and credible.
 - For a proposal: 4-7 sections (e.g. Understanding Your Challenge, Our Approach, What We'll Do, Why ${BRAND.company}, Expected Outcomes). Write persuasive, specific, confident copy. Include realistic pricing tiers and a 3-phase timeline.
 - Be specific to the client/context provided. If little context is given, craft a strong, generic-but-premium ${BRAND.company} ${type}.`;
 

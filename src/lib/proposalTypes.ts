@@ -10,29 +10,58 @@ export type SlideLayout =
   | 'agenda'
   | 'section'
   | 'content'
+  | 'cards'
   | 'stats'
   | 'twoColumn'
+  | 'timeline'
   | 'quote'
   | 'closing';
+
+/** Accent theme for a slide — drives the Gamma-style color system. */
+export type SlideAccent = 'gold' | 'green' | 'dark' | 'light';
 
 export interface DeckStat {
   value: string;
   label: string;
 }
 
+export interface DeckCard {
+  /** Short title for the card. */
+  title: string;
+  /** 1-2 line description. */
+  body?: string;
+  /** Optional short tag shown as a badge (e.g. a number, %, or emoji). */
+  badge?: string;
+}
+
+export interface DeckPhase {
+  phase: string;
+  detail?: string;
+}
+
 export interface DeckSlide {
   layout: SlideLayout;
+  /** Small eyebrow/kicker label above the heading. */
+  kicker?: string;
   heading?: string;
   subheading?: string;
   bullets?: string[];
   /** For 'stats' layout. */
   stats?: DeckStat[];
+  /** For 'cards'/'bento' layout. */
+  cards?: DeckCard[];
+  /** For 'timeline' layout. */
+  phases?: DeckPhase[];
   /** For 'twoColumn' layout. */
   left?: string[];
   right?: string[];
+  leftHeading?: string;
+  rightHeading?: string;
   /** For 'quote' layout. */
   quote?: string;
   attribution?: string;
+  /** Optional accent theme override. */
+  accent?: SlideAccent;
   /** Speaker note. */
   note?: string;
 }

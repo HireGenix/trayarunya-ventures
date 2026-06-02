@@ -422,6 +422,11 @@ function PreviewBody({ proposal }: { proposal: Proposal }) {
         {(spec.slides || []).map((s, i) => (
           <Box key={i} sx={{ mb: 2, pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
             <Chip label={`${i + 1}. ${s.layout}`} size="small" sx={{ mb: 1 }} />
+            {s.kicker && (
+              <Typography variant="caption" sx={{ color: '#ffaf06', fontWeight: 700, letterSpacing: 1, display: 'block', textTransform: 'uppercase' }}>
+                {s.kicker}
+              </Typography>
+            )}
             {s.heading && (
               <Typography variant="subtitle1" fontWeight={700}>
                 {s.heading}
@@ -441,6 +446,50 @@ function PreviewBody({ proposal }: { proposal: Proposal }) {
                   </li>
                 ))}
               </ul>
+            )}
+            {Array.isArray(s.cards) && s.cards.length > 0 && (
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1, mt: 1 }}>
+                {s.cards.map((c, j) => (
+                  <Box key={j} sx={{ p: 1.25, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="body2" fontWeight={700}>
+                      {c.badge ? `${c.badge} · ` : ''}{c.title}
+                    </Typography>
+                    {c.body && (
+                      <Typography variant="caption" color="text.secondary">
+                        {c.body}
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            )}
+            {(Array.isArray(s.left) || Array.isArray(s.right)) && (
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mt: 1 }}>
+                {[{ h: s.leftHeading, items: s.left }, { h: s.rightHeading, items: s.right }].map((col, j) => (
+                  <Box key={j}>
+                    {col.h && (
+                      <Typography variant="caption" fontWeight={700} color={j === 0 ? 'error.main' : 'success.main'}>
+                        {col.h}
+                      </Typography>
+                    )}
+                    <ul style={{ marginTop: 2, paddingLeft: 18 }}>
+                      {(col.items || []).map((it, k) => (
+                        <li key={k}><Typography variant="body2">{it}</Typography></li>
+                      ))}
+                    </ul>
+                  </Box>
+                ))}
+              </Box>
+            )}
+            {Array.isArray(s.phases) && s.phases.length > 0 && (
+              <Box sx={{ mt: 1 }}>
+                {s.phases.map((p, j) => (
+                  <Box key={j} sx={{ display: 'flex', gap: 1, py: 0.25 }}>
+                    <Typography variant="body2" fontWeight={700} color="primary">{p.phase}</Typography>
+                    {p.detail && <Typography variant="body2" color="text.secondary">— {p.detail}</Typography>}
+                  </Box>
+                ))}
+              </Box>
             )}
             {Array.isArray(s.stats) && (
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 1 }}>

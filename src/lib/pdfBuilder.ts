@@ -1,6 +1,9 @@
 /**
  * Client-side PDF proposal generator using jsPDF.
- * Renders a branded Trayarunya Ventures proposal from a ProposalSpec.
+ * Renders a Gamma-style, design-led Trayarunya Ventures proposal from a
+ * ProposalSpec: bold cover with geometric accents, numbered section badges,
+ * card-styled blocks, an accent timeline and premium pricing cards.
+ *
  * Import dynamically from a client component:
  *   const { buildProposalPdf } = await import('@/lib/pdfBuilder');
  */
@@ -10,18 +13,21 @@ import type { ProposalSpec } from '@/lib/proposalTypes';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const GOLD = rgb(BRAND.colors.gold);
+const GOLD_L = rgb(BRAND.colors.goldLight);
 const DARK = rgb(BRAND.colors.dark);
+const DARK_ALT = rgb(BRAND.colors.darkAlt);
 const GREEN = rgb(BRAND.colors.green);
 const INK = rgb(BRAND.colors.ink);
 const MUTED = rgb(BRAND.colors.muted);
 const LINE = rgb(BRAND.colors.line);
 const PAPER = rgb(BRAND.colors.paper);
+const WHITE: [number, number, number] = [255, 255, 255];
 
 function safeName(s: string): string {
   return (s || 'proposal').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'proposal';
 }
 
-/** Build and download a branded PDF proposal from a ProposalSpec. */
+/** Build and download a Gamma-style branded PDF proposal from a ProposalSpec. */
 export async function buildProposalPdf(spec: ProposalSpec): Promise<void> {
   const mod = await import('jspdf');
   const JsPDF = (mod as unknown as { jsPDF: new (o?: any) => any }).jsPDF;
@@ -32,18 +38,27 @@ export async function buildProposalPdf(spec: ProposalSpec): Promise<void> {
   const margin = 48;
   const contentW = pageW - margin * 2;
 
+  const setFill = (c: [number, number, number]) => doc.setFillColor(c[0], c[1], c[2]);
+  const setText = (c: [number, number, number]) => doc.setTextColor(c[0], c[1], c[2]);
+  const setDraw = (c: [number, number, number]) => doc.setDrawColor(c[0], c[1], c[2]);
+
   let pageNum = 0;
 
   const addFooter = () => {
     pageNum += 1;
-    doc.setDrawColor(LINE[0], LINE[1], LINE[2]);
+    setDraw(LINE);
     doc.setLineWidth(0.5);
     doc.line(margin, pageH - 36, pageW - margin, pageH - 36);
-    doc.setFont('helvetica', 'normal');
+    setFill(GOLD);
+    doc.circle(margin + 3, pageH - 24, 2.5, 'F');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
-    doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-    doc.text(`${BRAND.company} · ${BRAND.contact.website}`, margin, pageH - 22);
-    doc.text(`Page ${pageNum}`, pageW - margin, pageH - 22, { align: 'right' });
+    setText(INK);
+    doc.text(BRAND.company, margin + 12, pageH - 21);
+    doc.setFont('helvetica', 'normal');
+    setText(MUTED);
+    doc.text(BRAND.contact.website, pageW / 2, pageH - 21, { align: 'center' });
+    doc.text(`${pageNum}`, pageW - margin, pageH - 21, { align: 'right' });
   };
 
   let y = margin;
@@ -56,197 +71,255 @@ export async function buildProposalPdf(spec: ProposalSpec): Promise<void> {
     }
   };
 
-  // ---- Cover page ----
-  doc.setFillColor(DARK[0], DARK[1], DARK[2]);
+  /* ------------------------------- Cover ------------------------------- */
+  setFill(DARK);
   doc.rect(0, 0, pageW, pageH, 'F');
-  doc.setFillColor(GOLD[0], GOLD[1], GOLD[2]);
-  doc.rect(0, 0, pageW, 8, 'F');
-  doc.rect(margin, 150, 70, 5, 'F');
+  // Decorative geometry.
+  setFill(DARK_ALT);
+  doc.circle(pageW + 30, 80, 150, 'F');
+  setFill(GOLD);
+  doc.circle(pageW - 70, pageH - 90, 80, 'F');
+  setFill(GREEN);
+  doc.circle(pageW - 150, pageH - 40, 36, 'F');
+  // Top accent bar.
+  setFill(GOLD);
+  doc.rect(0, 0, pageW, 10, 'F');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
-  doc.setTextColor(GOLD[0], GOLD[1], GOLD[2]);
-  doc.text(BRAND.company.toUpperCase(), margin, 120);
+  setText(GOLD);
+  doc.text(BRAND.company.toUpperCase(), margin, 130);
 
-  doc.setFontSize(30);
-  doc.setTextColor(255, 255, 255);
-  const titleLines = doc.splitTextToSize(spec.title || 'Marketing Partnership Proposal', contentW);
-  doc.text(titleLines, margin, 200);
+  setFill(GOLD);
+  doc.rect(margin, 150, 64, 5, 'F');
 
-  let coverY = 200 + titleLines.length * 34 + 10;
+  doc.setFontSize(34);
+  setText(WHITE);
+  const titleLines = doc.splitTextToSize(spec.title || 'Marketing Partnership Proposal', contentW - 40);
+  doc.text(titleLines, margin, 210);
+
+  let coverY = 210 + titleLines.length * 38 + 12;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(14);
-  doc.setTextColor(GREEN[0], GREEN[1], GREEN[2]);
+  doc.setFontSize(15);
+  setText(rgb(BRAND.colors.greenLight));
   doc.text(`Prepared for ${spec.client || 'your team'}`, margin, coverY);
 
-  coverY += 26;
+  coverY += 30;
   doc.setFontSize(11);
-  doc.setTextColor(220, 226, 236);
+  setText([220, 226, 236]);
   doc.text(`Prepared by ${spec.preparedBy || BRAND.company}`, margin, coverY);
-  doc.text(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), margin, coverY + 18);
-
-  // Cover contact block
-  doc.setTextColor(GOLD[0], GOLD[1], GOLD[2]);
-  doc.setFontSize(10);
   doc.text(
-    `${BRAND.contact.email}   ·   ${BRAND.contact.phone}   ·   ${BRAND.contact.website}`,
+    new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
     margin,
-    pageH - 60
+    coverY + 18
   );
 
-  // ---- Body ----
-  doc.addPage();
-  y = margin;
+  // Cover contact pill row.
+  const contactY = pageH - 70;
+  doc.setFontSize(9.5);
+  setText(WHITE);
+  const chips = [BRAND.contact.email, BRAND.contact.phone, BRAND.contact.website];
+  let chipX = margin;
+  chips.forEach((txt) => {
+    const w = doc.getTextWidth(txt) + 24;
+    setFill(DARK_ALT);
+    doc.roundedRect(chipX, contactY - 13, w, 22, 11, 11, 'F');
+    setText(WHITE);
+    doc.text(txt, chipX + 12, contactY + 1.5);
+    chipX += w + 10;
+  });
 
-  const heading = (text: string) => {
-    ensureSpace(50);
+  /* -------------------------------- Body ------------------------------- */
+  doc.addPage();
+  y = margin + 6;
+
+  let sectionIndex = 0;
+
+  const sectionHeading = (text: string, numbered = true) => {
+    ensureSpace(54);
+    if (numbered) {
+      sectionIndex += 1;
+      setFill(GOLD);
+      doc.roundedRect(margin, y - 14, 26, 26, 6, 6, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      setText(DARK);
+      doc.text(String(sectionIndex).padStart(2, '0'), margin + 13, y + 3.5, { align: 'center' });
+    }
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
-    doc.setTextColor(DARK[0], DARK[1], DARK[2]);
-    doc.text(text, margin, y);
-    doc.setFillColor(GOLD[0], GOLD[1], GOLD[2]);
-    doc.rect(margin, y + 6, 36, 3, 'F');
-    y += 28;
+    doc.setFontSize(17);
+    setText(DARK);
+    doc.text(text, margin + (numbered ? 38 : 0), y + 4);
+    y += 24;
+    setFill(GOLD);
+    doc.rect(margin + (numbered ? 38 : 0), y - 4, 40, 3, 'F');
+    y += 16;
   };
 
   const paragraph = (text: string) => {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
-    doc.setTextColor(INK[0], INK[1], INK[2]);
+    setText(INK);
     const lines = doc.splitTextToSize(text, contentW);
     lines.forEach((ln: string) => {
       ensureSpace(16);
       doc.text(ln, margin, y);
       y += 16;
     });
-    y += 6;
+    y += 8;
   };
 
   const bullet = (text: string) => {
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize?.(11);
     doc.setFontSize(11);
-    doc.setTextColor(INK[0], INK[1], INK[2]);
-    const lines = doc.splitTextToSize(text, contentW - 18);
-    ensureSpace(lines.length * 15 + 2);
-    doc.setFillColor(GOLD[0], GOLD[1], GOLD[2]);
-    doc.circle(margin + 3, y - 3.5, 2.2, 'F');
+    setText(INK);
+    const lines = doc.splitTextToSize(text, contentW - 22);
+    ensureSpace(lines.length * 15 + 4);
+    setFill(GREEN);
+    doc.circle(margin + 4, y - 3.5, 2.4, 'F');
     lines.forEach((ln: string, i: number) => {
-      doc.text(ln, margin + 16, y);
+      doc.text(ln, margin + 18, y);
       if (i < lines.length - 1) y += 15;
     });
-    y += 16;
+    y += 17;
   };
 
-  // Intro
+  /* Intro — premium callout card. */
   if (spec.intro) {
-    doc.setFillColor(PAPER[0], PAPER[1], PAPER[2]);
-    const introLines = doc.splitTextToSize(spec.intro, contentW - 28);
-    const boxH = introLines.length * 15 + 28;
-    ensureSpace(boxH + 10);
-    doc.roundedRect(margin, y - 4, contentW, boxH, 6, 6, 'F');
-    doc.setFillColor(GOLD[0], GOLD[1], GOLD[2]);
-    doc.rect(margin, y - 4, 4, boxH, 'F');
     doc.setFont('helvetica', 'italic');
-    doc.setFontSize(11);
-    doc.setTextColor(INK[0], INK[1], INK[2]);
-    let iy = y + 16;
+    doc.setFontSize(12);
+    const introLines = doc.splitTextToSize(spec.intro, contentW - 44);
+    const boxH = introLines.length * 17 + 34;
+    ensureSpace(boxH + 12);
+    setFill(PAPER);
+    doc.roundedRect(margin, y - 4, contentW, boxH, 10, 10, 'F');
+    setFill(GOLD);
+    doc.roundedRect(margin, y - 4, 6, boxH, 3, 3, 'F');
+    setText(INK);
+    let iy = y + 22;
     introLines.forEach((ln: string) => {
-      doc.text(ln, margin + 16, iy);
-      iy += 15;
+      doc.text(ln, margin + 22, iy);
+      iy += 17;
     });
-    y += boxH + 16;
+    y += boxH + 22;
   }
 
-  // Sections
+  /* Sections. */
   (spec.sections || []).forEach((sec) => {
-    heading(sec.heading || 'Section');
+    sectionHeading(sec.heading || 'Section');
     if (sec.body) paragraph(sec.body);
     (sec.bullets || []).forEach((b) => bullet(b));
-    y += 4;
+    y += 6;
   });
 
-  // Timeline
+  /* Timeline — accent cards with connector. */
   if (spec.timeline && spec.timeline.length) {
-    heading('Engagement Timeline');
-    spec.timeline.forEach((t) => {
-      ensureSpace(40);
-      doc.setFillColor(GREEN[0], GREEN[1], GREEN[2]);
-      doc.circle(margin + 3, y - 3.5, 3, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(DARK[0], DARK[1], DARK[2]);
-      doc.text(t.phase || '', margin + 16, y);
-      y += 15;
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-      const lines = doc.splitTextToSize(t.detail || '', contentW - 18);
-      lines.forEach((ln: string) => {
-        ensureSpace(14);
-        doc.text(ln, margin + 16, y);
-        y += 14;
-      });
-      y += 8;
-    });
-  }
-
-  // Pricing table
-  if (spec.pricing && spec.pricing.length) {
-    heading('Investment');
-    const rowH = 30;
-    // header row
-    ensureSpace(rowH + 8);
-    doc.setFillColor(DARK[0], DARK[1], DARK[2]);
-    doc.rect(margin, y - 14, contentW, rowH, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.setTextColor(255, 255, 255);
-    doc.text('PACKAGE', margin + 12, y + 4);
-    doc.text('INCLUDES', margin + contentW * 0.34, y + 4);
-    doc.text('INVESTMENT', pageW - margin - 12, y + 4, { align: 'right' });
-    y += rowH + 2;
-
-    spec.pricing.forEach((p, i) => {
-      const detailLines = doc.splitTextToSize(p.detail || '', contentW * 0.42);
-      const thisH = Math.max(rowH, detailLines.length * 13 + 14);
-      ensureSpace(thisH + 4);
-      if (i % 2 === 0) {
-        doc.setFillColor(PAPER[0], PAPER[1], PAPER[2]);
-        doc.rect(margin, y - 14, contentW, thisH, 'F');
-      }
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(INK[0], INK[1], INK[2]);
-      doc.text(doc.splitTextToSize(p.item || '', contentW * 0.3), margin + 12, y + 2);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(MUTED[0], MUTED[1], MUTED[2]);
-      doc.text(detailLines, margin + contentW * 0.34, y + 2);
+    sectionHeading('Engagement Timeline');
+    const accents: [number, number, number][] = [GOLD, GREEN, GOLD_L, DARK_ALT];
+    spec.timeline.forEach((t, i) => {
+      const ac = accents[i % accents.length];
+      const detailLines = doc.splitTextToSize(t.detail || '', contentW - 70);
+      const cardH = Math.max(46, detailLines.length * 14 + 34);
+      ensureSpace(cardH + 10);
+      setFill(PAPER);
+      doc.roundedRect(margin, y - 6, contentW, cardH, 8, 8, 'F');
+      setFill(ac);
+      doc.roundedRect(margin, y - 6, 6, cardH, 3, 3, 'F');
+      // phase number circle
+      setFill(ac);
+      doc.circle(margin + 32, y + cardH / 2 - 6, 13, 'F');
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
-      doc.setTextColor(GREEN[0], GREEN[1], GREEN[2]);
-      doc.text(p.price || '', pageW - margin - 12, y + 2, { align: 'right' });
-      y += thisH;
+      setText(WHITE);
+      doc.text(String(i + 1), margin + 32, y + cardH / 2 - 2, { align: 'center' });
+      // phase title
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      setText(DARK);
+      doc.text(t.phase || `Phase ${i + 1}`, margin + 56, y + 14);
+      // detail
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      setText(MUTED);
+      let ty = y + 30;
+      detailLines.forEach((ln: string) => {
+        doc.text(ln, margin + 56, ty);
+        ty += 14;
+      });
+      y += cardH + 12;
     });
-    y += 16;
+    y += 4;
   }
 
-  // CTA
-  if (spec.cta) {
-    ensureSpace(80);
-    doc.setFillColor(GOLD[0], GOLD[1], GOLD[2]);
-    const ctaLines = doc.splitTextToSize(spec.cta, contentW - 32);
-    const boxH = ctaLines.length * 16 + 30;
-    doc.roundedRect(margin, y, contentW, boxH, 8, 8, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.setTextColor(DARK[0], DARK[1], DARK[2]);
-    let cy = y + 24;
-    ctaLines.forEach((ln: string) => {
-      doc.text(ln, margin + 16, cy);
-      cy += 16;
+  /* Pricing — premium cards. */
+  if (spec.pricing && spec.pricing.length) {
+    sectionHeading('Investment');
+    spec.pricing.forEach((p, i) => {
+      const accent = i === spec.pricing!.length - 1 ? GREEN : GOLD;
+      const detailLines = doc.splitTextToSize(p.detail || '', contentW * 0.5);
+      const cardH = Math.max(58, detailLines.length * 13 + 44);
+      ensureSpace(cardH + 10);
+      // card
+      setFill(WHITE);
+      setDraw(LINE);
+      doc.setLineWidth(1);
+      doc.roundedRect(margin, y - 6, contentW, cardH, 10, 10, 'FD');
+      setFill(accent);
+      doc.roundedRect(margin, y - 6, contentW, 6, 3, 3, 'F');
+      // package name
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      setText(DARK);
+      doc.text(doc.splitTextToSize(p.item || '', contentW * 0.42), margin + 18, y + 20);
+      // detail
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      setText(MUTED);
+      let dy = y + 38;
+      detailLines.forEach((ln: string) => {
+        doc.text(ln, margin + 18, dy);
+        dy += 13;
+      });
+      // price pill
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
+      const priceTxt = p.price || '';
+      const pw = doc.getTextWidth(priceTxt) + 28;
+      setFill(accent);
+      doc.roundedRect(pageW - margin - pw - 14, y + 8, pw, 30, 15, 15, 'F');
+      setText(accent === GREEN ? WHITE : DARK);
+      doc.text(priceTxt, pageW - margin - 14 - pw / 2, y + 27, { align: 'center' });
+      y += cardH + 12;
     });
-    y += boxH + 12;
+    y += 6;
+  }
+
+  /* CTA — bold gold banner. */
+  if (spec.cta) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    const ctaLines = doc.splitTextToSize(spec.cta, contentW - 48);
+    const boxH = ctaLines.length * 19 + 40;
+    ensureSpace(boxH + 12);
+    setFill(DARK);
+    doc.roundedRect(margin, y, contentW, boxH, 12, 12, 'F');
+    setFill(GOLD);
+    doc.circle(margin + contentW - 34, y + 26, 42, 'F');
+    setFill(GOLD);
+    doc.rect(margin, y, 8, boxH, 'F');
+    setText(WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    setText(GOLD);
+    doc.text('NEXT STEP', margin + 24, y + 26);
+    doc.setFontSize(14);
+    setText(WHITE);
+    let cy = y + 48;
+    ctaLines.forEach((ln: string) => {
+      doc.text(ln, margin + 24, cy);
+      cy += 19;
+    });
+    y += boxH + 14;
   }
 
   addFooter();
