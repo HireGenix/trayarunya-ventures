@@ -17,6 +17,9 @@ import VoiceOrb from './VoiceOrb';
 import LiveTranscript, { type TranscriptLine } from './LiveTranscript';
 import LeadPanel from './LeadPanel';
 import ConfirmInput from './ConfirmInput';
+import ChatInput from './ChatInput';
+import LeadProgress from './LeadProgress';
+import QuickReplies, { OPENER_PROMPTS, LIVE_PROMPTS } from './QuickReplies';
 
 export default function AIMarketerExperience() {
   const [status, setStatus] = useState<RealtimeStatus>('idle');
@@ -34,6 +37,7 @@ export default function AIMarketerExperience() {
   const activeAssistantId = useRef<string | null>(null);
   const activeUserId = useRef<string | null>(null);
   const leadPanelRef = useRef<HTMLDivElement | null>(null);
+  const pendingSeedRef = useRef<string | null>(null);
 
   const upsertLine = useCallback(
     (role: 'user' | 'assistant', text: string, done: boolean) => {
@@ -55,7 +59,7 @@ export default function AIMarketerExperience() {
     []
   );
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (seed?: string) => {
     setErrorReason(null);
     setErrorMsg(null);
     setLines([]);
@@ -63,11 +67,17 @@ export default function AIMarketerExperience() {
     setSubmitted(false);
     setSubmitting(false);
     setConfirmField(null);
+    pendingSeedRef.current = typeof seed === 'string' ? seed : null;
 
     const client = new AzureRealtimeMarketer({
       onStatus: (s, detail) => {
         setStatus(s);
         if (s === 'error' && detail) setErrorReason(detail);
+        if (s === 'live' && pendingSeedRef.current) {
+          const seedText = pendingSeedRef.current;
+          pendingSeedRef.current = null;
+          setTimeout(() => clientRef.current?.sendUserText(seedText), 1000);
+        }
       },
       onAiLevel: setAiLevel,
       onUserLevel: setUserLevel,
@@ -99,6 +109,10 @@ export default function AIMarketerExperience() {
   const handleConfirmSubmit = useCallback((text: string) => {
     clientRef.current?.sendUserText(text);
     setConfirmField(null);
+  }, []);
+
+  const sendText = useCallback((text: string) => {
+    clientRef.current?.sendUserText(text);
   }, []);
 
   const handleManualSubmit = useCallback(async () => {
@@ -176,7 +190,7 @@ export default function AIMarketerExperience() {
               {status === 'idle' || status === 'ended' ? (
                 <motion.div key="start" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                   <Button
-                    onClick={start}
+                    onClick={() => start()}
                     startIcon={<MicIcon />}
                     sx={primaryBtnSx}
                   >
@@ -210,6 +224,17 @@ export default function AIMarketerExperience() {
               </Typography>
             )}
 
+            {/* Opener quick-reply prompts — start the call with intent */}
+            {(status === 'idle' || status === 'ended') && (
+              <Box sx={{ mt: 2.5 }}>
+                <QuickReplies
+                  prompts={OPENER_PROMPTS}
+                  label="Or jump straight in:"
+                  onSelect={(t) => start(t)}
+                />
+              </Box>
+            )}
+
             {/* Error / fallback messaging */}
             <AnimatePresence>
               {(notConfigured || micDenied || (errorMsg && status === 'error')) && (
@@ -226,8 +251,12 @@ export default function AIMarketerExperience() {
             </AnimatePresence>
           </Box>
 
-          {/* Right: transcript + confirm input + lead panel */}
+          {/* Right: progress + transcript + chat input + confirm + lead panel */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            {(status === 'live' || Object.values(lead).some(Boolean)) && (
+              <LeadProgress fields={lead} />
+            )}
+
             <Box
               sx={{
                 borderRadius: 3,
@@ -244,6 +273,14 @@ export default function AIMarketerExperience() {
                 <LiveTranscript lines={lines} />
               )}
             </Box>
+
+            {/* Live interactivity — quick replies + type alongside voice */}
+            {status === 'live' && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <QuickReplies prompts={LIVE_PROMPTS} onSelect={sendText} />
+                <ChatInput onSend={sendText} />
+              </Box>
+            )}
 
             {/* Inline confirm input — appears when AI asks for company/name/email */}
             <AnimatePresence>
