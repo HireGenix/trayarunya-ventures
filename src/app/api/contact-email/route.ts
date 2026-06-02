@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       message: validData.message,
       company: validData.company,
       phone: validData.phone,
-      notifyEmail: "sumitshrm12@gmail.com", // Testing email
+      notifyEmail: "sumitsharmaa@trayarunyaventures.com", // Testing email
     };
 
     let result;
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
           port: process.env.SMTP_PORT,
           user: process.env.SMTP_USER,
           fromEmail: process.env.FROM_EMAIL,
-          testEmail: "sumitshrm12@gmail.com",
+          testEmail: "sumitsharmaa@trayarunyaventures.com",
         },
       },
       {

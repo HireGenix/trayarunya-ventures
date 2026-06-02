@@ -201,7 +201,7 @@ This is an automated confirmation email. Please do not reply to this email.
 }
 
 export async function sendContactEmails(params: ContactEmailParams) {
-  const { email, notifyEmail = "sumitshrm12@gmail.com" } = params;
+  const { email, notifyEmail = "sumitsharmaa@trayarunyaventures.com" } = params;
 
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
     throw new Error("SMTP configuration is missing in environment variables");
@@ -257,7 +257,7 @@ export async function sendContactEmails(params: ContactEmailParams) {
 
 // Helper function to send only admin notification (for testing)
 export async function sendAdminNotification(params: ContactEmailParams) {
-  const { notifyEmail = "sumitshrm12@gmail.com" } = params;
+  const { notifyEmail = "sumitsharmaa@trayarunyaventures.com" } = params;
 
   try {
     const transporter = await createTransporter();
