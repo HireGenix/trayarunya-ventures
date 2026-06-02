@@ -103,6 +103,16 @@ Responses API, reuses `AZURE_GPT5_*`) and **Claude Opus** (above) per conversati
 | Variable | Notes |
 |---|---|
 | `JWT_SECRET` | Secret used to sign admin JWTs. **Set a strong value in production.** Falls back to a built-in default if unset |
+| `ADMIN_EMAIL` | Optional. Overrides the default admin email (`admin@trayarunyaventures.com`) |
+| `ADMIN_PASSWORD` | Optional. Overrides the default admin password (`admin123`). **Set this in production / on Vercel for a secure login.** |
+| `SUPERADMIN_EMAIL` | Optional. Overrides the default super-admin email |
+| `SUPERADMIN_PASSWORD` | Optional. Overrides the default super-admin password (`superadmin123`). **Set this in production.** |
+
+> 🔐 **Live login on Vercel:** the user store now falls back to an in-memory seed when the
+> filesystem is read-only (as on Vercel), so the default admin accounts always work. Set
+> `ADMIN_PASSWORD` / `SUPERADMIN_PASSWORD` (and `JWT_SECRET`) in the Vercel project env to
+> secure the live login. Users created at `/admin/users` won't persist across redeploys until
+> a real database is added.
 
 ### Server storage (file-based)
 

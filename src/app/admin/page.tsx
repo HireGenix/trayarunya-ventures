@@ -131,57 +131,62 @@ function StatCard({
       elevation={0}
       sx={{
         height: '100%',
-        borderRadius: 4,
-        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)',
-        overflow: 'hidden',
-        position: 'relative',
+        borderRadius: 3,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+        border: '1px solid rgba(0,0,0,0.07)',
+        transition: 'box-shadow .2s ease, transform .2s ease',
+        '&:hover': { boxShadow: '0 8px 28px rgba(0,0,0,0.10)', transform: 'translateY(-3px)' },
       }}
     >
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          width: 100,
-          height: 100,
-          borderRadius: '0 0 0 100%',
-          backgroundColor: alpha(color, 0.1),
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'flex-end',
-          p: 2,
-        }}
-      >
-        <Box sx={{ color }}>{icon}</Box>
-      </Box>
-      <CardContent sx={{ p: 3 }}>
-        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-          {title}
-        </Typography>
+      <CardContent sx={{ p: 2.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+          <Box
+            sx={{
+              width: 44,
+              height: 44,
+              borderRadius: 2.5,
+              bgcolor: alpha(color, 0.12),
+              color,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {icon}
+          </Box>
+          {change && !loading && (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.25,
+                px: 1,
+                py: 0.25,
+                borderRadius: 5,
+                bgcolor: alpha(isPositive ? '#14bb87' : '#d92c4a', 0.12),
+              }}
+            >
+              {isPositive ? (
+                <TrendingUpIcon sx={{ color: '#14bb87', fontSize: 15 }} />
+              ) : (
+                <TrendingDownIcon sx={{ color: '#d92c4a', fontSize: 15 }} />
+              )}
+              <Typography variant="caption" fontWeight={700} color={isPositive ? '#0e8a63' : '#b01e38'}>
+                {change}
+              </Typography>
+            </Box>
+          )}
+        </Box>
         {loading ? (
-          <Skeleton width={80} height={48} />
+          <Skeleton width={80} height={40} />
         ) : (
-          <Typography variant="h4" component="div" fontWeight={700} sx={{ mb: 1 }}>
+          <Typography variant="h4" component="div" fontWeight={800} sx={{ mb: 0.5, fontSize: 30 }}>
             {value}
           </Typography>
         )}
-        {change && !loading && (
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {isPositive ? (
-              <TrendingUpIcon sx={{ color: 'success.main', fontSize: 16, mr: 0.5 }} />
-            ) : (
-              <TrendingDownIcon sx={{ color: 'error.main', fontSize: 16, mr: 0.5 }} />
-            )}
-            <Typography
-              variant="body2"
-              color={isPositive ? 'success.main' : 'error.main'}
-              fontWeight={500}
-            >
-              {change}
-            </Typography>
-          </Box>
-        )}
+        <Typography variant="body2" color="text.secondary" fontWeight={500}>
+          {title}
+        </Typography>
       </CardContent>
     </Card>
   );
@@ -274,7 +279,13 @@ export default function AdminDashboard() {
     <Box>
       <Box
         sx={{
-          mb: 4,
+          mb: 3,
+          p: { xs: 3, md: 3.5 },
+          borderRadius: 4,
+          position: 'relative',
+          overflow: 'hidden',
+          background: 'linear-gradient(120deg, #0e1726 0%, #1a2942 100%)',
+          color: '#fff',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: { xs: 'flex-start', sm: 'center' },
@@ -282,19 +293,41 @@ export default function AdminDashboard() {
           gap: 2,
         }}
       >
-        <Box>
-          <Typography variant="h4" component="h1" fontWeight={700} gutterBottom>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '-40%',
+            right: '-5%',
+            width: 320,
+            height: 320,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,175,6,0.30) 0%, rgba(0,0,0,0) 70%)',
+            filter: 'blur(40px)',
+            pointerEvents: 'none',
+          }}
+        />
+        <Box sx={{ position: 'relative', zIndex: 1 }}>
+          <Typography variant="h4" component="h1" fontWeight={800} sx={{ mb: 0.5, fontSize: { xs: 24, md: 30 } }}>
             Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''} 👋
           </Typography>
-          <Typography variant="body1" color="text.secondary">
+          <Typography sx={{ color: 'rgba(255,255,255,0.7)' }}>
             Live overview of your leads, pipeline, and team — straight from your data.
           </Typography>
         </Box>
         <Button
-          variant="outlined"
-          startIcon={loading ? <CircularProgress size={16} /> : <RefreshIcon />}
+          variant="contained"
+          startIcon={loading ? <CircularProgress size={16} sx={{ color: '#0e1726' }} /> : <RefreshIcon />}
           onClick={load}
           disabled={loading}
+          sx={{
+            position: 'relative',
+            zIndex: 1,
+            bgcolor: '#ffaf06',
+            color: '#0e1726',
+            fontWeight: 700,
+            borderRadius: 2,
+            '&:hover': { bgcolor: '#e69e00' },
+          }}
         >
           Refresh
         </Button>

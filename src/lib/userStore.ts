@@ -47,18 +47,34 @@ export function verifyPassword(password: string, stored: string): boolean {
   }
 }
 
+/**
+ * In-memory fallback used when the filesystem is not writable
+ * (e.g. Vercel serverless — the deployment dir is read-only, only /tmp is writable).
+ * When set, it becomes the source of truth for the lifetime of the invocation so
+ * the default admin accounts always exist and login works on any platform.
+ */
+let memUsers: StoredUser[] | null = null;
+
 function readUsers(): StoredUser[] {
+  if (memUsers) return memUsers;
   try {
     const data = fs.readFileSync(USERS_FILE, 'utf8');
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return [];
+    return memUsers ?? [];
   }
 }
 
 function writeUsers(users: StoredUser[]): void {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    memUsers = null; // filesystem is the source of truth
+  } catch {
+    // Read-only filesystem (serverless) — keep everything in memory instead.
+    memUsers = users;
+  }
 }
 
 function toPublic(u: StoredUser): PublicUser {
@@ -67,31 +83,44 @@ function toPublic(u: StoredUser): PublicUser {
   return rest;
 }
 
-/** Seed default admin + superadmin if the store is empty. */
+// Default admin credentials — overridable via env for secure production logins.
+const DEFAULT_ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'admin@trayarunyaventures.com').toLowerCase();
+const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const DEFAULT_SUPERADMIN_EMAIL = (
+  process.env.SUPERADMIN_EMAIL || 'superadmin@trayarunyaventures.com'
+).toLowerCase();
+const DEFAULT_SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || 'superadmin123';
+
+/** Seed default admin + superadmin if the store is empty (FS or in-memory). */
 function ensureSeeded(): void {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (fs.existsSync(USERS_FILE)) {
-    const existing = readUsers();
-    if (existing.length > 0) return;
+  if (memUsers && memUsers.length > 0) return;
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      const data = fs.readFileSync(USERS_FILE, 'utf8');
+      const existing = JSON.parse(data);
+      if (Array.isArray(existing) && existing.length > 0) return;
+    }
+  } catch {
+    /* fall through to seed */
   }
   const now = new Date().toISOString();
   const seed: StoredUser[] = [
     {
       id: '1',
-      email: 'admin@trayarunyaventures.com',
+      email: DEFAULT_ADMIN_EMAIL,
       name: 'Admin User',
       role: 'admin',
-      passwordHash: hashPassword('admin123'),
+      passwordHash: hashPassword(DEFAULT_ADMIN_PASSWORD),
       active: true,
       createdAt: now,
       updatedAt: now,
     },
     {
       id: '2',
-      email: 'superadmin@trayarunyaventures.com',
+      email: DEFAULT_SUPERADMIN_EMAIL,
       name: 'Super Admin',
       role: 'superadmin',
-      passwordHash: hashPassword('superadmin123'),
+      passwordHash: hashPassword(DEFAULT_SUPERADMIN_PASSWORD),
       active: true,
       createdAt: now,
       updatedAt: now,
@@ -113,11 +142,13 @@ export const userStore = {
   },
 
   findByEmail(email: string): StoredUser | null {
+    ensureSeeded();
     const e = email.trim().toLowerCase();
     return readUsers().find((u) => u.email.toLowerCase() === e) || null;
   },
 
   findById(id: string): StoredUser | null {
+    ensureSeeded();
     return readUsers().find((u) => u.id === id) || null;
   },
 
