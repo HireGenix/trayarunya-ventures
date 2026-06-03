@@ -26,16 +26,23 @@ import SendIcon from '@mui/icons-material/Send';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import ImageIcon from '@mui/icons-material/Image';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import ShareIcon from '@mui/icons-material/Share';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import AutorenewIcon from '@mui/icons-material/Autorenew';
 import { useAuth } from '@/lib/auth';
 import {
   Social,
   Content,
   Calendar,
+  Analytics,
   assetUrl,
   type SocialAccount,
   type Schedule,
   type ContentItem,
   type ContentCalendar,
+  type PostStat,
 } from '@/lib/api';
 import { useConfirm } from '@/components/ConfirmDialog';
 
@@ -104,6 +111,8 @@ export default function PublishingPage() {
   const [scheduleItem, setScheduleItem] = useState<ContentItem | null>(null);
   const [scheduleAt, setScheduleAt] = useState('');
   const [scheduling, setScheduling] = useState(false);
+  const [postStats, setPostStats] = useState<Record<string, PostStat>>({});
+  const [refreshingStats, setRefreshingStats] = useState(false);
 
   const refresh = () => {
     Promise.all([
@@ -112,14 +121,39 @@ export default function PublishingPage() {
       Social.schedules().catch(() => []),
       Content.list().catch(() => []),
       Calendar.list().catch(() => []),
-    ]).then(([p, a, s, c, cal]) => {
+      Analytics.posts(60).catch(() => []),
+    ]).then(([p, a, s, c, cal, ps]) => {
       setProviders(p as Record<string, boolean>);
       setAccounts(a as SocialAccount[]);
       setSchedules(s as Schedule[]);
       setContent(c as ContentItem[]);
       setCalendars(cal as ContentCalendar[]);
+      const statMap: Record<string, PostStat> = {};
+      for (const stat of ps as PostStat[]) statMap[stat.schedule_id] = stat;
+      setPostStats(statMap);
       setLoading(false);
     });
+  };
+
+  const refreshResults = async () => {
+    setRefreshingStats(true);
+    setError('');
+    try {
+      const { refreshed } = await Analytics.refresh(60);
+      const ps = await Analytics.posts(60).catch(() => []);
+      const statMap: Record<string, PostStat> = {};
+      for (const stat of ps as PostStat[]) statMap[stat.schedule_id] = stat;
+      setPostStats(statMap);
+      setMsg(
+        refreshed > 0
+          ? `Pulled fresh engagement for ${refreshed} published post${refreshed === 1 ? '' : 's'}.`
+          : 'No published posts to refresh yet.',
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not refresh results');
+    } finally {
+      setRefreshingStats(false);
+    }
   };
 
   useEffect(() => {
@@ -631,44 +665,109 @@ export default function PublishingPage() {
       {/* Recent / scheduled */}
       <Card>
         <CardContent sx={{ p: 3 }}>
-          <Typography variant="h6" fontWeight={800} gutterBottom>
-            Recent / scheduled posts
-          </Typography>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+            <Typography variant="h6" fontWeight={800}>
+              Recent / scheduled posts
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={
+                refreshingStats ? <CircularProgress size={14} /> : <AutorenewIcon fontSize="small" />
+              }
+              onClick={refreshResults}
+              disabled={refreshingStats}
+            >
+              {refreshingStats ? 'Refreshing…' : 'Refresh results'}
+            </Button>
+          </Stack>
           {schedules.length === 0 ? (
             <Typography color="text.secondary">Nothing scheduled or published yet.</Typography>
           ) : (
             <Stack spacing={1}>
-              {schedules.map((s) => (
-                <Stack key={s.id} direction="row" spacing={2} alignItems="center" sx={{ py: 0.5 }}>
-                  <Chip
-                    size="small"
-                    label={s.status}
-                    color={
-                      s.status === 'published'
-                        ? 'success'
-                        : s.status === 'failed'
-                          ? 'error'
-                          : 'default'
-                    }
-                  />
-                  <Typography variant="body2" sx={{ flex: 1 }} noWrap>
-                    {s.external_post_id ? `Post ${s.external_post_id}` : s.error || 'Pending'}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {new Date(s.scheduled_at).toLocaleString()}
-                  </Typography>
-                  <Tooltip title="Delete post">
-                    <IconButton
-                      size="small"
-                      onClick={() => removeSchedule(s)}
-                      aria-label="delete post"
-                      sx={{ color: 'text.disabled' }}
-                    >
-                      <DeleteOutlineIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Stack>
-              ))}
+              {schedules.map((s) => {
+                const stat = postStats[s.id];
+                return (
+                  <Box key={s.id} sx={{ py: 0.5 }}>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <Chip
+                        size="small"
+                        label={s.status}
+                        color={
+                          s.status === 'published'
+                            ? 'success'
+                            : s.status === 'failed'
+                              ? 'error'
+                              : 'default'
+                        }
+                      />
+                      <Typography variant="body2" sx={{ flex: 1 }} noWrap>
+                        {s.external_post_id ? `Post ${s.external_post_id}` : s.error || 'Pending'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(s.scheduled_at).toLocaleString()}
+                      </Typography>
+                      <Tooltip title="Delete post">
+                        <IconButton
+                          size="small"
+                          onClick={() => removeSchedule(s)}
+                          aria-label="delete post"
+                          sx={{ color: 'text.disabled' }}
+                        >
+                          <DeleteOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                    {s.status === 'published' && stat && (
+                      <Stack
+                        direction="row"
+                        spacing={2}
+                        alignItems="center"
+                        sx={{ pl: 0.5, mt: 0.5, color: 'text.secondary' }}
+                      >
+                        <Tooltip title="Impressions">
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <VisibilityIcon sx={{ fontSize: 15 }} />
+                            <Typography variant="caption">
+                              {stat.impressions.toLocaleString()}
+                            </Typography>
+                          </Stack>
+                        </Tooltip>
+                        <Tooltip title="Likes">
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <FavoriteBorderIcon sx={{ fontSize: 15 }} />
+                            <Typography variant="caption">{stat.likes.toLocaleString()}</Typography>
+                          </Stack>
+                        </Tooltip>
+                        <Tooltip title="Comments">
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <ChatBubbleOutlineIcon sx={{ fontSize: 15 }} />
+                            <Typography variant="caption">
+                              {stat.comments.toLocaleString()}
+                            </Typography>
+                          </Stack>
+                        </Tooltip>
+                        <Tooltip title="Shares">
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <ShareIcon sx={{ fontSize: 15 }} />
+                            <Typography variant="caption">{stat.shares.toLocaleString()}</Typography>
+                          </Stack>
+                        </Tooltip>
+                        {stat.simulated && (
+                          <Tooltip title="Estimated until the platform exposes live numbers for this post">
+                            <Chip
+                              size="small"
+                              label="estimated"
+                              variant="outlined"
+                              sx={{ height: 18, fontSize: 10 }}
+                            />
+                          </Tooltip>
+                        )}
+                      </Stack>
+                    )}
+                  </Box>
+                );
+              })}
             </Stack>
           )}
         </CardContent>

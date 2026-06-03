@@ -672,6 +672,7 @@ export interface Campaign {
   objective: string | null;
   status: string;
   daily_budget: number | null;
+  external_id: string | null;
   plan: Record<string, unknown> | null;
   assets: Record<string, unknown> | null;
   recommendations: CampaignRecommendations | null;
@@ -732,7 +733,6 @@ export interface CampaignMetrics {
   totals: AdMetricTotals;
   kpis: AdKpis;
   series: AdSeriesPoint[];
-  simulated: boolean;
 }
 
 export const AD_PLATFORMS = [
@@ -827,6 +827,22 @@ export interface BillingSummary {
   usage: { metric: string; quantity: number; period: string }[];
 }
 
+export interface PostStat {
+  schedule_id: string;
+  content_item_id: string;
+  title: string | null;
+  platform: string;
+  external_post_id: string | null;
+  published_at: string | null;
+  impressions: number;
+  clicks: number;
+  engagements: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  simulated: boolean;
+}
+
 export const Analytics = {
   summary: () => api<AnalyticsSummary>('/analytics/summary', { workspace: true }),
   ingest: (body: {
@@ -839,6 +855,13 @@ export const Analytics = {
     spend?: number;
     ref_id?: string;
   }) => api('/analytics/metrics', { method: 'POST', body, workspace: true }),
+  refresh: (lookbackDays = 30) =>
+    api<{ refreshed: number }>(
+      `/analytics/refresh?lookback_days=${lookbackDays}`,
+      { method: 'POST', workspace: true },
+    ),
+  posts: (days = 30) =>
+    api<PostStat[]>(`/analytics/posts?days=${days}`, { workspace: true }),
 };
 
 export const Billing = {

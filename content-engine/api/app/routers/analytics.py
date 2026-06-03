@@ -4,7 +4,7 @@ endpoint) and feed the learning loop."""
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel
@@ -13,7 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
-from app.models import ContentItem, ContentStatus, Metric, Schedule, ScheduleStatus
+from app.models import (
+    ContentItem,
+    ContentStatus,
+    Metric,
+    Schedule,
+    ScheduleStatus,
+    SocialAccount,
+)
 from app.schemas import AnalyticsSummary, MetricOut
 
 
@@ -25,6 +32,26 @@ class MetricIngest(BaseModel):
     engagements: int = 0
     conversions: int = 0
     spend: float = 0.0
+
+
+class RefreshResult(BaseModel):
+    refreshed: int
+
+
+class PostStat(BaseModel):
+    schedule_id: str
+    content_item_id: str
+    title: str | None
+    platform: str
+    external_post_id: str | None
+    published_at: datetime | None
+    impressions: int
+    clicks: int
+    engagements: int
+    likes: int
+    comments: int
+    shares: int
+    simulated: bool
 
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -118,3 +145,98 @@ async def summary(
         published_count=published_count,
         scheduled_count=scheduled_count,
     )
+
+
+@router.post("/refresh", response_model=RefreshResult)
+async def refresh_metrics(
+    lookback_days: int = Query(default=30, ge=1, le=365),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> RefreshResult:
+    """Pull live engagement back from this workspace's published posts now.
+
+    Runs the results loop on demand (the scheduler also does this every 30 min)
+    so the dashboard can show fresh numbers immediately after a manual click.
+    """
+    from app.services.post_metrics import refresh_post_metrics
+
+    n = await refresh_post_metrics(
+        db, workspace_id=ctx.workspace.id, lookback_days=lookback_days
+    )
+    await db.commit()
+    return RefreshResult(refreshed=n)
+
+
+@router.get("/posts", response_model=list[PostStat])
+async def post_stats(
+    days: int = Query(default=30, ge=1, le=365),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> list[PostStat]:
+    """Per-post engagement for published posts, newest first.
+
+    Reads the latest ``Metric`` row (source=platform, ref_id=schedule) for each
+    published schedule so the publishing UI can show real results on each card.
+    """
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    schedules = (
+        await db.execute(
+            select(Schedule)
+            .where(
+                Schedule.workspace_id == ctx.workspace.id,
+                Schedule.status == ScheduleStatus.published,
+                Schedule.external_post_id.is_not(None),
+            )
+            .order_by(Schedule.scheduled_at.desc())
+        )
+    ).scalars().all()
+
+    # Map schedule_id -> latest metric row.
+    metric_rows = (
+        await db.execute(
+            select(Metric).where(
+                Metric.workspace_id == ctx.workspace.id,
+                Metric.ref_id.is_not(None),
+            )
+        )
+    ).scalars().all()
+    latest_by_ref: dict = {}
+    for m in metric_rows:
+        prev = latest_by_ref.get(m.ref_id)
+        if prev is None or m.metric_date >= prev.metric_date:
+            latest_by_ref[m.ref_id] = m
+
+    out: list[PostStat] = []
+    for sched in schedules:
+        published_at = sched.updated_at or sched.scheduled_at
+        if published_at and published_at < since:
+            continue
+        account = await db.get(SocialAccount, sched.social_account_id)
+        platform = "unknown"
+        if account is not None:
+            platform = (
+                account.platform.value
+                if hasattr(account.platform, "value")
+                else str(account.platform)
+            )
+        item = await db.get(ContentItem, sched.content_item_id)
+        m = latest_by_ref.get(sched.id)
+        extra = (m.extra or {}) if m else {}
+        out.append(
+            PostStat(
+                schedule_id=str(sched.id),
+                content_item_id=str(sched.content_item_id),
+                title=item.title if item else None,
+                platform=platform,
+                external_post_id=sched.external_post_id,
+                published_at=published_at,
+                impressions=int(m.impressions) if m else 0,
+                clicks=int(m.clicks) if m else 0,
+                engagements=int(m.engagements) if m else 0,
+                likes=int(extra.get("likes", 0) or 0),
+                comments=int(extra.get("comments", 0) or 0),
+                shares=int(extra.get("shares", 0) or 0),
+                simulated=bool(extra.get("simulated", False)),
+            )
+        )
+    return out

@@ -103,3 +103,37 @@ async def scheduler_loop(stop: asyncio.Event | None = None) -> None:
             await asyncio.sleep(POLL_INTERVAL_SECONDS)
         except asyncio.CancelledError:
             break
+
+
+# How often the results loop pulls fresh engagement back from published posts.
+METRICS_REFRESH_SECONDS = 1800  # 30 minutes
+
+
+async def metrics_refresh_loop(stop: asyncio.Event | None = None) -> None:
+    """Periodically pull real engagement back from every published post.
+
+    Runs the results loop so analytics/dashboards reflect live performance
+    without any manual ingestion. A first pass runs shortly after startup, then
+    every ``METRICS_REFRESH_SECONDS``.
+    """
+    from app.services.post_metrics import run_refresh
+
+    log.info("Metrics refresh loop started (every %ss)", METRICS_REFRESH_SECONDS)
+    # Small initial delay so the app finishes booting before the first sweep.
+    try:
+        await asyncio.sleep(20)
+    except asyncio.CancelledError:
+        return
+    while not (stop and stop.is_set()):
+        try:
+            n = await run_refresh()
+            if n:
+                log.info("Results loop refreshed %s published post(s)", n)
+        except asyncio.CancelledError:
+            break
+        except Exception:  # noqa: BLE001
+            log.exception("Metrics refresh tick failed")
+        try:
+            await asyncio.sleep(METRICS_REFRESH_SECONDS)
+        except asyncio.CancelledError:
+            break

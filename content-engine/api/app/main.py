@@ -62,19 +62,23 @@ async def lifespan(app: FastAPI):
             await seed_plans(db)
 
     # Start the publishing scheduler: fires due, approved/scheduled posts.
-    from app.services.scheduler import scheduler_loop
+    # Plus the results loop: pulls real engagement back from published posts.
+    from app.services.scheduler import metrics_refresh_loop, scheduler_loop
 
     stop = asyncio.Event()
     scheduler_task = asyncio.create_task(scheduler_loop(stop))
+    metrics_task = asyncio.create_task(metrics_refresh_loop(stop))
     try:
         yield
     finally:
         stop.set()
         scheduler_task.cancel()
-        try:
-            await scheduler_task
-        except (asyncio.CancelledError, Exception):  # noqa: BLE001
-            pass
+        metrics_task.cancel()
+        for task in (scheduler_task, metrics_task):
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                pass
 
 
 def create_app() -> FastAPI:
