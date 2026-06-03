@@ -59,6 +59,8 @@ class Organization(Base, UUIDMixin, TimestampMixin):
         Enum(OrgType, name="org_type"), default=OrgType.company, nullable=False
     )
     plan: Mapped[str] = mapped_column(String(50), default="free", nullable=False)
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
     workspaces: Mapped[list["Workspace"]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"

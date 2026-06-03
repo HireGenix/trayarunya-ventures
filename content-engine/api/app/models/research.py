@@ -109,3 +109,6 @@ class Insight(Base, UUIDMixin, TimestampMixin):
     intent: Mapped[str | None] = mapped_column(String(40), nullable=True)
     score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    tags: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    # new | tagged | actioned | archived
+    status: Mapped[str] = mapped_column(String(30), default="new", nullable=False)

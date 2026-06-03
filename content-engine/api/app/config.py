@@ -91,9 +91,52 @@ class Settings(BaseSettings):
     google_ads_developer_token: str | None = None
     google_ads_login_customer_id: str | None = None
 
+    # --- Meta (Facebook/Instagram) Ads ---
+    meta_ads_access_token: str | None = None
+    meta_ads_account_id: str | None = None
+
+    # --- LinkedIn Ads ---
+    linkedin_ads_access_token: str | None = None
+    linkedin_ads_account_id: str | None = None
+
+    # --- Stripe billing ---
+    stripe_secret_key: str | None = None
+    stripe_webhook_secret: str | None = None
+    stripe_success_url: str = Field(
+        default="http://localhost:3100/dashboard/billing?checkout=success"
+    )
+    stripe_cancel_url: str = Field(
+        default="http://localhost:3100/dashboard/billing?checkout=cancel"
+    )
+
+    @property
+    def stripe_configured(self) -> bool:
+        return bool(self.stripe_secret_key)
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def google_ads_configured(self) -> bool:
+        # OAuth-based connect: needs the Google OAuth app credentials. The Ads
+        # developer token is only required for live reporting calls.
+        return bool(self.google_client_id and self.google_client_secret)
+
+    @property
+    def meta_ads_configured(self) -> bool:
+        return bool(self.meta_app_id and self.meta_app_secret)
+
+    @property
+    def linkedin_ads_configured(self) -> bool:
+        return bool(self.linkedin_client_id and self.linkedin_client_secret)
+
+    def ads_platform_configured(self, platform: str) -> bool:
+        return {
+            "google_ads": self.google_ads_configured,
+            "meta_ads": self.meta_ads_configured,
+            "linkedin_ads": self.linkedin_ads_configured,
+        }.get(platform, False)
 
     @property
     def gpt5_configured(self) -> bool:

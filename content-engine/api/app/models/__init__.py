@@ -21,6 +21,7 @@ from app.models.social import (
 from app.models.ads import AdAccount, Campaign, Metric, AdPlatform, CampaignStatus
 from app.models.billing import Plan, UsageRecord
 from app.models.report import Report
+from app.models.engagement import Notification, LearningSignal
 
 __all__ = [
     "Base",
@@ -55,4 +56,6 @@ __all__ = [
     "Plan",
     "UsageRecord",
     "Report",
+    "Notification",
+    "LearningSignal",
 ]

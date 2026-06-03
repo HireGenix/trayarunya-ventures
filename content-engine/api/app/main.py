@@ -59,6 +59,13 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS metrics_synced_at TIMESTAMPTZ",
                 # reports table additions (create_all handles the table; these handle future columns)
                 "ALTER TABLE reports ADD COLUMN IF NOT EXISTS views INTEGER NOT NULL DEFAULT 0",
+                # insights → action: tagging + lifecycle status
+                "ALTER TABLE insights ADD COLUMN IF NOT EXISTS tags JSONB",
+                "ALTER TABLE insights ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'new'",
+                # billing → Stripe checkout
+                "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(120)",
+                "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(120)",
+                "ALTER TABLE plans ADD COLUMN IF NOT EXISTS stripe_price_id VARCHAR(120)",
             ):
                 await conn.execute(text(ddl))
         async with AsyncSessionLocal() as db:

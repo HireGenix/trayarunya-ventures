@@ -20,6 +20,7 @@ class Plan(Base, UUIDMixin, TimestampMixin):
     # Limits: workspaces, research_jobs, content_items, social_accounts, ad_accounts, seats
     limits: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     features: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    stripe_price_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
 
 class UsageRecord(Base, UUIDMixin, TimestampMixin):
