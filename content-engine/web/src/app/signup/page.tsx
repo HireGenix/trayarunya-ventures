@@ -94,7 +94,7 @@ export default function SignupPage() {
           </form>
           <Typography sx={{ mt: 3 }} color="text.secondary">
             Already have an account?{' '}
-            <Link href="/login" style={{ color: '#d99000', fontWeight: 600 }}>
+            <Link href="/login" style={{ color: '#E59400', fontWeight: 600 }}>
               Log in
             </Link>
           </Typography>

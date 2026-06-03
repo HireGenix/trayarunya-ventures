@@ -91,7 +91,7 @@ export default function LoginPage() {
           </form>
           <Typography sx={{ mt: 3 }} color="text.secondary">
             No account?{' '}
-            <Link href="/signup" style={{ color: '#d99000', fontWeight: 600 }}>
+            <Link href="/signup" style={{ color: '#E59400', fontWeight: 600 }}>
               Start free
             </Link>
           </Typography>

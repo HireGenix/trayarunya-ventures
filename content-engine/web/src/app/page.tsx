@@ -23,7 +23,7 @@ export default function Landing() {
       <Container maxWidth="lg" sx={{ py: 3 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography variant="h6" fontWeight={800}>
-            Trayarunya <span style={{ color: '#ffaf06' }}>Content Engine</span>
+            Trayarunya <span style={{ color: '#E59400' }}>Content Engine</span>
           </Typography>
           <Stack direction="row" spacing={1.5}>
             <Button component={Link} href="/login" color="inherit">
@@ -50,8 +50,8 @@ export default function Landing() {
           />
           <Typography variant="h1" sx={{ maxWidth: 900, lineHeight: 1.05 }}>
             Your content team that{' '}
-            <span style={{ color: '#ffaf06' }}>researches, strategises</span> and{' '}
-            <span style={{ color: '#14bb87' }}>ships</span> — on autopilot.
+            <span style={{ color: '#E59400' }}>researches, strategises</span> and{' '}
+            <span style={{ color: '#15A36E' }}>ships</span> — on autopilot.
           </Typography>
           <Typography variant="h5" color="text.secondary" sx={{ mt: 3, maxWidth: 720, fontWeight: 400 }}>
             One closed loop from market research to published posts and optimised ads.
@@ -99,7 +99,7 @@ export default function Landing() {
                       'linear-gradient(160deg, rgba(255,175,6,0.06), rgba(20,187,135,0.04))',
                   }}
                 >
-                  <Typography variant="h3" sx={{ color: '#ffaf06', fontWeight: 800 }}>
+                  <Typography variant="h3" sx={{ color: '#E59400', fontWeight: 800 }}>
                     {s.n}
                   </Typography>
                   <Typography variant="h5" sx={{ mt: 1, mb: 1.5 }}>
