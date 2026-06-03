@@ -23,6 +23,7 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material';
 import {
   Slideshow as SlideshowIcon,
   PictureAsPdf as PictureAsPdfIcon,
@@ -38,9 +39,56 @@ import type {
   Proposal,
   DeckSpec,
   ProposalSpec,
+  BrandTheme,
 } from '@/lib/proposalTypes';
 
 const GOLD = '#ffaf06';
+
+/** Small brand-color chips showing the client's scraped brand palette. */
+function BrandSwatch({
+  brand,
+  sx,
+  showSource = false,
+}: {
+  brand: BrandTheme;
+  sx?: SxProps<Theme>;
+  showSource?: boolean;
+}) {
+  const colors = [brand.primary, brand.accent].filter(Boolean) as string[];
+  if (!colors.length) return null;
+  let host = '';
+  if (showSource && brand.source) {
+    try {
+      host = new URL(brand.source).hostname.replace(/^www\./, '');
+    } catch {
+      host = '';
+    }
+  }
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, ...sx }}>
+      <Box sx={{ display: 'flex', gap: 0.5 }}>
+        {colors.map((c) => (
+          <Tooltip key={c} title={`#${c}`}>
+            <Box
+              sx={{
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                bgcolor: `#${c}`,
+                border: '1px solid',
+                borderColor: 'divider',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.12)',
+              }}
+            />
+          </Tooltip>
+        ))}
+      </Box>
+      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+        {showSource && host ? `Brand colors · ${host}` : 'Brand-matched'}
+      </Typography>
+    </Box>
+  );
+}
 
 export default function ProposalsPage() {
   const theme = useTheme();
@@ -294,6 +342,9 @@ export default function ProposalsPage() {
                       For {p.client}
                     </Typography>
                   )}
+                  {p.brand?.primary && (
+                    <BrandSwatch brand={p.brand} sx={{ mt: 1 }} />
+                  )}
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
                     {fmtDate(p.createdAt)} · {p.createdBy}
                   </Typography>
@@ -377,7 +428,15 @@ export default function ProposalsPage() {
           {preview?.title}
           {preview?.client ? ` — ${preview.client}` : ''}
         </DialogTitle>
-        <DialogContent dividers>{preview && <PreviewBody proposal={preview} />}</DialogContent>
+        <DialogContent dividers>
+          {preview && (() => {
+            const pBrand = (preview.spec as { brand?: BrandTheme }).brand;
+            return pBrand?.primary ? (
+              <BrandSwatch brand={pBrand} sx={{ mb: 2 }} showSource />
+            ) : null;
+          })()}
+          {preview && <PreviewBody proposal={preview} />}
+        </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setPreview(null)}>Close</Button>
           {preview && (

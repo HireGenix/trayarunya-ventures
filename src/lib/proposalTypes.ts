@@ -125,4 +125,7 @@ export interface Proposal {
 export type ProposalSummary = Pick<
   Proposal,
   'id' | 'type' | 'title' | 'client' | 'createdAt' | 'createdBy' | 'leadId'
->;
+> & {
+  /** Client brand colors scraped at generation time (for a UI swatch). */
+  brand?: BrandTheme;
+};

@@ -17,6 +17,7 @@ function writeAll(items: Proposal[]): Promise<void> {
 }
 
 function summary(p: Proposal): ProposalSummary {
+  const brand = (p.spec as { brand?: import('@/lib/proposalTypes').BrandTheme } | undefined)?.brand;
   return {
     id: p.id,
     type: p.type,
@@ -25,6 +26,7 @@ function summary(p: Proposal): ProposalSummary {
     createdAt: p.createdAt,
     createdBy: p.createdBy,
     leadId: p.leadId,
+    ...(brand && brand.primary ? { brand } : {}),
   };
 }
 
