@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -140,3 +140,205 @@ class StrategyOut(BaseModel):
 
 
 TokenResponse.model_rebuild()
+
+
+# ---------- Brand Brain (M1) ----------
+class BrandBuildRequest(BaseModel):
+    website: str = Field(min_length=3, max_length=500)
+
+
+class BrandOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    website: str | None
+    primary_color: str | None
+    accent_color: str | None
+    logo_url: str | None
+    mission: str | None
+    value_prop: str | None
+    voice: dict[str, Any] | None
+    audience: dict[str, Any] | None
+    pillars: list[Any] | None
+    keywords: list[Any] | None
+    profile: dict[str, Any] | None
+    created_at: datetime
+    updated_at: datetime
+
+
+# ---------- Insights explorer (M1) ----------
+class InsightExplorerOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    research_job_id: uuid.UUID | None
+    kind: str
+    text: str
+    intent: str | None
+    score: float
+    created_at: datetime
+
+
+# ---------- Content Studio (M2) ----------
+class ContentGenerateRequest(BaseModel):
+    content_type: str = Field(default="social_post")
+    topic: str = Field(min_length=2, max_length=500)
+    platform: str | None = None
+    strategy_id: uuid.UUID | None = None
+    count: int = Field(default=1, ge=1, le=10)
+    notes: str | None = None
+
+
+class ContentUpdate(BaseModel):
+    title: str | None = None
+    body: str | None = None
+    status: str | None = None
+    platform: str | None = None
+    variants: dict[str, Any] | None = None
+    meta: dict[str, Any] | None = None
+
+
+class ContentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    strategy_id: uuid.UUID | None
+    content_type: str
+    status: str
+    platform: str | None
+    title: str | None
+    body: str
+    variants: dict[str, Any] | None
+    meta: dict[str, Any] | None
+    created_at: datetime
+    updated_at: datetime
+
+
+# ---------- Social / Publishing (M3-M4) ----------
+class SocialAccountOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    platform: str
+    external_id: str | None
+    display_name: str | None
+    scopes: list[Any] | None
+    is_active: bool
+    created_at: datetime
+
+
+class OAuthStartOut(BaseModel):
+    authorization_url: str
+    state: str
+
+
+class ManualConnectRequest(BaseModel):
+    platform: str
+    display_name: str | None = None
+    access_token: str
+    external_id: str | None = None
+
+
+class ScheduleCreate(BaseModel):
+    content_item_id: uuid.UUID
+    social_account_id: uuid.UUID
+    scheduled_at: datetime
+
+
+class ScheduleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    content_item_id: uuid.UUID
+    social_account_id: uuid.UUID
+    scheduled_at: datetime
+    status: str
+    external_post_id: str | None
+    error: str | None
+    created_at: datetime
+
+
+class PublishNowRequest(BaseModel):
+    content_item_id: uuid.UUID
+    social_account_id: uuid.UUID
+
+
+# ---------- Ads (M5) ----------
+class AdAccountOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    platform: str
+    external_id: str | None
+    name: str | None
+    is_grant: bool
+    created_at: datetime
+
+
+class AdAccountCreate(BaseModel):
+    platform: str = Field(default="google_ads")
+    name: str
+    external_id: str | None = None
+    is_grant: bool = False
+
+
+class CampaignGenerateRequest(BaseModel):
+    ad_account_id: uuid.UUID
+    objective: str = Field(min_length=2, max_length=300)
+    product: str = Field(min_length=2, max_length=300)
+    daily_budget: float | None = None
+    strategy_id: uuid.UUID | None = None
+
+
+class CampaignOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    ad_account_id: uuid.UUID
+    name: str
+    objective: str | None
+    status: str
+    daily_budget: float | None
+    plan: dict[str, Any] | None
+    assets: dict[str, Any] | None
+    created_at: datetime
+
+
+# ---------- Analytics / Learning (M6) ----------
+class MetricOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    source: str
+    ref_id: uuid.UUID | None
+    metric_date: date
+    impressions: int
+    clicks: int
+    engagements: int
+    conversions: int
+    spend: float
+
+
+class AnalyticsSummary(BaseModel):
+    totals: dict[str, float]
+    by_source: dict[str, dict[str, float]]
+    series: list[dict[str, Any]]
+    content_count: int
+    published_count: int
+    scheduled_count: int
+
+
+# ---------- Billing (M6) ----------
+class PlanOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    code: str
+    name: str
+    price_monthly: int
+    limits: dict[str, Any] | None
+    features: list[Any] | None
+
+
+class UsageOut(BaseModel):
+    metric: str
+    quantity: int
+    period: date
+
+
+class BillingSummary(BaseModel):
+    plan: PlanOut | None
+    usage: list[UsageOut]

@@ -31,6 +31,13 @@ import InsightsIcon from '@mui/icons-material/Insights';
 import DashboardIcon from '@mui/icons-material/SpaceDashboard';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
+import PaletteIcon from '@mui/icons-material/Palette';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import SendIcon from '@mui/icons-material/Send';
+import CampaignIcon from '@mui/icons-material/Campaign';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
 import { useAuth } from '@/lib/auth';
 import { Workspaces } from '@/lib/api';
 
@@ -38,8 +45,15 @@ const DRAWER_WIDTH = 264;
 
 const NAV = [
   { href: '/dashboard', label: 'Overview', icon: <DashboardIcon /> },
+  { href: '/dashboard/brand', label: 'Brand Brain', icon: <PaletteIcon /> },
   { href: '/dashboard/research', label: 'Research', icon: <ScienceIcon /> },
+  { href: '/dashboard/insights', label: 'Insights', icon: <TravelExploreIcon /> },
   { href: '/dashboard/strategy', label: 'Strategy', icon: <InsightsIcon /> },
+  { href: '/dashboard/studio', label: 'Content Studio', icon: <AutoAwesomeIcon /> },
+  { href: '/dashboard/publishing', label: 'Publishing', icon: <SendIcon /> },
+  { href: '/dashboard/ads', label: 'Ads', icon: <CampaignIcon /> },
+  { href: '/dashboard/analytics', label: 'Analytics', icon: <BarChartIcon /> },
+  { href: '/dashboard/billing', label: 'Billing', icon: <CreditCardIcon /> },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

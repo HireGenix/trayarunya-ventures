@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 
 import redis.asyncio as aioredis
+from redis.exceptions import RedisError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from app.config import settings
 
@@ -21,7 +23,15 @@ _redis: aioredis.Redis | None = None
 def get_redis() -> aioredis.Redis:
     global _redis
     if _redis is None:
-        _redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+        # socket_timeout must exceed the blocking-pop timeout so BRPOPLPUSH can
+        # block server-side without the client raising a read timeout while idle.
+        _redis = aioredis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            socket_timeout=30,
+            socket_keepalive=True,
+            health_check_interval=30,
+        )
     return _redis
 
 
@@ -36,7 +46,11 @@ async def enqueue(job_type: str, payload: dict) -> bool:
 
 async def reserve(timeout: int = 5) -> dict | None:
     r = get_redis()
-    raw = await r.brpoplpush(JOBS_KEY, PROCESSING_KEY, timeout=timeout)
+    try:
+        raw = await r.brpoplpush(JOBS_KEY, PROCESSING_KEY, timeout=timeout)
+    except (RedisTimeoutError, RedisError):
+        # Idle queue / transient connection blip — treat as "no job".
+        return None
     if not raw:
         return None
     try:

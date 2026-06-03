@@ -60,6 +60,24 @@ class Settings(BaseSettings):
     azure_blob_connection_string: str | None = None
     azure_blob_container: str = "content-assets"
 
+    # --- OAuth: social networks (native OAuth; you create the developer apps) ---
+    oauth_redirect_base: str = Field(
+        default="http://localhost:8099",
+        description="Public base URL of THIS API; callbacks are <base>/api/v1/social/<net>/callback.",
+    )
+    linkedin_client_id: str | None = None
+    linkedin_client_secret: str | None = None
+    x_client_id: str | None = None
+    x_client_secret: str | None = None
+    meta_app_id: str | None = None
+    meta_app_secret: str | None = None
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+
+    # --- Google Ads (M5) ---
+    google_ads_developer_token: str | None = None
+    google_ads_login_customer_id: str | None = None
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

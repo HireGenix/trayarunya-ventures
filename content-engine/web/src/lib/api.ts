@@ -180,3 +180,218 @@ export const Strategies = {
   list: () => api<Strategy[]>('/strategies', { workspace: true }),
   get: (id: string) => api<Strategy>(`/strategies/${id}`, { workspace: true }),
 };
+
+// ---------- M1: Brand Brain + Insights ----------
+export interface Brand {
+  id: string;
+  workspace_id: string;
+  website: string | null;
+  primary_color: string | null;
+  accent_color: string | null;
+  logo_url: string | null;
+  mission: string | null;
+  value_prop: string | null;
+  voice: Record<string, unknown> | null;
+  audience: Record<string, unknown> | null;
+  pillars: unknown[] | null;
+  keywords: unknown[] | null;
+  profile: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface ExplorerInsight {
+  id: string;
+  research_job_id: string | null;
+  kind: string;
+  text: string;
+  intent: string | null;
+  score: number;
+  created_at: string;
+}
+
+export const Brand = {
+  get: () => api<Brand | null>('/brand', { workspace: true }),
+  build: (body: { website: string }) =>
+    api<Brand>('/brand', { method: 'POST', body, workspace: true }),
+};
+
+export const Insights = {
+  list: (params?: { kind?: string; intent?: string; q?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.kind) qs.set('kind', params.kind);
+    if (params?.intent) qs.set('intent', params.intent);
+    if (params?.q) qs.set('q', params.q);
+    const s = qs.toString();
+    return api<ExplorerInsight[]>(`/insights${s ? `?${s}` : ''}`, { workspace: true });
+  },
+};
+
+// ---------- M2: Content Studio ----------
+export interface ContentItem {
+  id: string;
+  workspace_id: string;
+  strategy_id: string | null;
+  content_type: string;
+  status: string;
+  platform: string | null;
+  title: string | null;
+  body: string;
+  variants: Record<string, string> | null;
+  meta: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const Content = {
+  generate: (body: {
+    content_type: string;
+    topic: string;
+    platform?: string;
+    strategy_id?: string;
+    count?: number;
+    notes?: string;
+  }) =>
+    api<ContentItem[]>('/content/generate', { method: 'POST', body, workspace: true }),
+  list: () => api<ContentItem[]>('/content', { workspace: true }),
+  get: (id: string) => api<ContentItem>(`/content/${id}`, { workspace: true }),
+  update: (
+    id: string,
+    body: Partial<Pick<ContentItem, 'title' | 'body' | 'status' | 'platform' | 'variants' | 'meta'>>,
+  ) => api<ContentItem>(`/content/${id}`, { method: 'PATCH', body, workspace: true }),
+  remove: (id: string) =>
+    api<void>(`/content/${id}`, { method: 'DELETE', workspace: true }),
+};
+
+// ---------- M3/M4: Social Publishing ----------
+export interface SocialAccount {
+  id: string;
+  platform: string;
+  external_id: string | null;
+  display_name: string | null;
+  scopes: unknown[] | null;
+  is_active: boolean;
+  created_at: string;
+}
+export interface Schedule {
+  id: string;
+  content_item_id: string;
+  social_account_id: string;
+  scheduled_at: string;
+  status: string;
+  external_post_id: string | null;
+  error: string | null;
+  created_at: string;
+}
+
+export const Social = {
+  providers: () => api<Record<string, boolean>>('/social/providers', { workspace: true }),
+  accounts: () => api<SocialAccount[]>('/social/accounts', { workspace: true }),
+  connect: (platform: string) =>
+    api<{ authorization_url: string; state: string }>(`/social/${platform}/connect`, {
+      method: 'POST',
+      workspace: true,
+    }),
+  connectManual: (body: {
+    platform: string;
+    display_name?: string;
+    access_token: string;
+    external_id?: string;
+  }) =>
+    api<SocialAccount>('/social/connect/manual', { method: 'POST', body, workspace: true }),
+  removeAccount: (id: string) =>
+    api<void>(`/social/accounts/${id}`, { method: 'DELETE', workspace: true }),
+  schedules: () => api<Schedule[]>('/social/schedules', { workspace: true }),
+  schedule: (body: { content_item_id: string; social_account_id: string; scheduled_at: string }) =>
+    api<Schedule>('/social/schedules', { method: 'POST', body, workspace: true }),
+  removeSchedule: (id: string) =>
+    api<void>(`/social/schedules/${id}`, { method: 'DELETE', workspace: true }),
+  publishNow: (body: { content_item_id: string; social_account_id: string }) =>
+    api<Schedule>('/social/publish', { method: 'POST', body, workspace: true }),
+};
+
+// ---------- M5: Ads ----------
+export interface AdAccount {
+  id: string;
+  platform: string;
+  external_id: string | null;
+  name: string | null;
+  is_grant: boolean;
+  created_at: string;
+}
+export interface Campaign {
+  id: string;
+  ad_account_id: string;
+  name: string;
+  objective: string | null;
+  status: string;
+  daily_budget: number | null;
+  plan: Record<string, unknown> | null;
+  assets: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export const Ads = {
+  accounts: () => api<AdAccount[]>('/ads/accounts', { workspace: true }),
+  createAccount: (body: {
+    platform?: string;
+    name: string;
+    external_id?: string;
+    is_grant?: boolean;
+  }) => api<AdAccount>('/ads/accounts', { method: 'POST', body, workspace: true }),
+  generate: (body: {
+    ad_account_id: string;
+    objective: string;
+    product: string;
+    daily_budget?: number;
+    strategy_id?: string;
+  }) => api<Campaign>('/ads/campaigns/generate', { method: 'POST', body, workspace: true }),
+  campaigns: () => api<Campaign[]>('/ads/campaigns', { workspace: true }),
+  campaign: (id: string) => api<Campaign>(`/ads/campaigns/${id}`, { workspace: true }),
+  setStatus: (id: string, statusValue: string) =>
+    api<Campaign>(`/ads/campaigns/${id}/status`, {
+      method: 'PATCH',
+      body: { status: statusValue },
+      workspace: true,
+    }),
+};
+
+// ---------- M6: Analytics + Billing ----------
+export interface AnalyticsSummary {
+  totals: Record<string, number>;
+  by_source: Record<string, Record<string, number>>;
+  series: { date: string; impressions: number; clicks: number; engagements: number; conversions: number; spend: number }[];
+  content_count: number;
+  published_count: number;
+  scheduled_count: number;
+}
+export interface Plan {
+  id: string;
+  code: string;
+  name: string;
+  price_monthly: number;
+  limits: Record<string, unknown> | null;
+  features: unknown[] | null;
+}
+export interface BillingSummary {
+  plan: Plan | null;
+  usage: { metric: string; quantity: number; period: string }[];
+}
+
+export const Analytics = {
+  summary: () => api<AnalyticsSummary>('/analytics/summary', { workspace: true }),
+  ingest: (body: {
+    source: string;
+    metric_date: string;
+    impressions?: number;
+    clicks?: number;
+    engagements?: number;
+    conversions?: number;
+    spend?: number;
+    ref_id?: string;
+  }) => api('/analytics/metrics', { method: 'POST', body, workspace: true }),
+};
+
+export const Billing = {
+  plans: () => api<Plan[]>('/billing/plans', { workspace: true }),
+  summary: () => api<BillingSummary>('/billing/summary', { workspace: true }),
+};

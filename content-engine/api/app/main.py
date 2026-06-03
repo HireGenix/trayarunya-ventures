@@ -8,7 +8,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import auth, health, research, strategy, workspaces
+from app.routers import (
+    ads,
+    analytics,
+    auth,
+    billing,
+    brand,
+    content,
+    health,
+    insights,
+    research,
+    social,
+    strategy,
+    workspaces,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -18,11 +31,14 @@ async def lifespan(app: FastAPI):
     # In production, schema is managed by Alembic migrations. For local/dev we
     # create tables on startup so the app is runnable without a migration step.
     if settings.environment == "development":
-        from app.db import engine
+        from app.db import AsyncSessionLocal, engine
         from app.models import Base
+        from app.services.billing import seed_plans
 
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        async with AsyncSessionLocal() as db:
+            await seed_plans(db)
     yield
 
 
@@ -45,8 +61,15 @@ def create_app() -> FastAPI:
     p = settings.api_v1_prefix
     app.include_router(auth.router, prefix=p)
     app.include_router(workspaces.router, prefix=p)
+    app.include_router(brand.router, prefix=p)
     app.include_router(research.router, prefix=p)
+    app.include_router(insights.router, prefix=p)
     app.include_router(strategy.router, prefix=p)
+    app.include_router(content.router, prefix=p)
+    app.include_router(social.router, prefix=p)
+    app.include_router(ads.router, prefix=p)
+    app.include_router(analytics.router, prefix=p)
+    app.include_router(billing.router, prefix=p)
 
     @app.get("/")
     async def root() -> dict:
