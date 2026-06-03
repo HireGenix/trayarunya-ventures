@@ -203,6 +203,27 @@ export default function PublishingPage() {
     }
   };
 
+  const removeContent = async (item: ContentItem) => {
+    const ok = await confirm({
+      title: 'Delete post?',
+      message: (
+        <>
+          Delete <b>{item.title || item.body.slice(0, 40) || 'this post'}</b> permanently? The
+          generated copy and assets will be removed. This cannot be undone.
+        </>
+      ),
+    });
+    if (!ok) return;
+    const prev = content;
+    setContent((cur) => cur.filter((x) => x.id !== item.id));
+    try {
+      await Content.remove(item.id);
+    } catch {
+      setContent(prev);
+      setError('Could not delete the post. Please try again.');
+    }
+  };
+
   const publishItem = async (item: ContentItem) => {
     const account = accountFor(item.platform || '');
     if (!account) return;
@@ -477,27 +498,38 @@ export default function PublishingPage() {
                                       alignItems="center"
                                     >
                                       <Chip size="small" label={item.status} variant="outlined" />
-                                      <Tooltip
-                                        title={account ? 'Publish now' : 'Connect an account first'}
-                                      >
-                                        <span>
-                                          <Button
+                                      <Stack direction="row" spacing={0.5} alignItems="center">
+                                        <Tooltip title="Delete post">
+                                          <IconButton
                                             size="small"
-                                            variant="contained"
-                                            startIcon={
-                                              publishing === item.id ? (
-                                                <CircularProgress size={14} color="inherit" />
-                                              ) : (
-                                                <SendIcon />
-                                              )
-                                            }
-                                            disabled={!account || publishing !== null}
-                                            onClick={() => publishItem(item)}
+                                            aria-label="delete post"
+                                            onClick={() => removeContent(item)}
                                           >
-                                            Publish
-                                          </Button>
-                                        </span>
-                                      </Tooltip>
+                                            <DeleteOutlineIcon fontSize="small" />
+                                          </IconButton>
+                                        </Tooltip>
+                                        <Tooltip
+                                          title={account ? 'Publish now' : 'Connect an account first'}
+                                        >
+                                          <span>
+                                            <Button
+                                              size="small"
+                                              variant="contained"
+                                              startIcon={
+                                                publishing === item.id ? (
+                                                  <CircularProgress size={14} color="inherit" />
+                                                ) : (
+                                                  <SendIcon />
+                                                )
+                                              }
+                                              disabled={!account || publishing !== null}
+                                              onClick={() => publishItem(item)}
+                                            >
+                                              Publish
+                                            </Button>
+                                          </span>
+                                        </Tooltip>
+                                      </Stack>
                                     </Stack>
                                   </CardContent>
                                 </Card>
