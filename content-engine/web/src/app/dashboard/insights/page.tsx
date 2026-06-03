@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -22,11 +22,13 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import BoltIcon from '@mui/icons-material/BoltOutlined';
 import SearchIcon from '@mui/icons-material/SearchOutlined';
 import FilterListIcon from '@mui/icons-material/FilterListOutlined';
+import BubbleChartIcon from '@mui/icons-material/BubbleChart';
 import { useAuth } from '@/lib/auth';
 import { Insights, Research, type Insight, type ResearchJob } from '@/lib/api';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { BRAND } from '@/theme/theme';
 
+/* ── Constants ── */
 const INTENT_COLORS: Record<string, string> = {
   informational: '#2563EB',
   commercial: BRAND.teal,
@@ -57,83 +59,206 @@ function clusterInsights(items: Insight[]): Cluster[] {
     .map((c, i) => ({ ...c, color: CLUSTER_COLORS[i % CLUSTER_COLORS.length] }));
 }
 
-function truncate(s: string, n: number) { return s.length > n ? `${s.slice(0, n - 1)}…` : s; }
-
-function wrapLabel(text: string, maxChars: number, maxLines: number): string[] {
-  const words = text.trim().split(/\s+/);
-  const lines: string[] = [];
-  let cur = '';
-  for (const w of words) {
-    const candidate = cur ? `${cur} ${w}` : w;
-    if (candidate.length <= maxChars) { cur = candidate; }
-    else {
-      if (cur) lines.push(cur);
-      cur = w.length > maxChars ? truncate(w, maxChars) : w;
-      if (lines.length === maxLines - 1) break;
-    }
-  }
-  if (cur && lines.length < maxLines) lines.push(cur);
-  if (lines.length === maxLines) {
-    const consumed = lines.join(' ').length;
-    if (consumed < text.trim().length) lines[maxLines - 1] = truncate(lines[maxLines - 1], maxChars - 1).replace(/…?$/, '…');
-  }
-  return lines;
-}
-
-function ClusterWheel({ topic, clusters, activeKey, onSelect }: { topic: string; clusters: Cluster[]; activeKey: string | null; onSelect: (key: string | null) => void }) {
+/* ── Bubble Galaxy Visualization ── */
+function BubbleGalaxy({ topic, clusters, activeKey, onSelect }: { topic: string; clusters: Cluster[]; activeKey: string | null; onSelect: (key: string | null) => void }) {
   const theme = useTheme();
-  const W = 1200; const H = 1200; const cx = W / 2; const cy = H / 2;
-  const centerR = 66; const hubR = 210; const leafR = 430;
-  const N = Math.max(clusters.length, 1);
-  const single = clusters.length === 1;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [dims, setDims] = useState({ w: 900, h: 520 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const { width } = entries[0].contentRect;
+      setDims({ w: width, h: Math.max(420, Math.min(600, width * 0.55)) });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const maxItems = Math.max(...clusters.map((c) => c.items.length), 1);
+  const cx = dims.w / 2;
+  const cy = dims.h / 2;
+  const orbitR = Math.min(cx, cy) * 0.55;
+
+  // Exploded cluster: show child insight bubbles around it
+  const expandedCluster = clusters.find((c) => c.key === activeKey) || null;
+
+  // Position clusters in orbit
+  const N = clusters.length || 1;
+  const clusterPositions = clusters.map((c, i) => {
+    const angle = -Math.PI / 2 + (2 * Math.PI * i) / N;
+    const jitter = ((i % 3) - 1) * 12;
+    return {
+      ...c,
+      x: cx + (orbitR + jitter) * Math.cos(angle),
+      y: cy + (orbitR + jitter) * Math.sin(angle),
+      r: 18 + (c.items.length / maxItems) * 32,
+      angle,
+    };
+  });
+
   return (
-    <Box component="svg" viewBox={`0 0 ${W} ${H}`} sx={{ width: '100%', height: 'auto', maxWidth: 980, mx: 'auto', display: 'block', overflow: 'visible' }}>
-      {clusters.map((c, i) => {
-        const baseAngle = -Math.PI / 2 + (2 * Math.PI * i) / N;
-        const hx = cx + hubR * Math.cos(baseAngle);
-        const hy = cy + hubR * Math.sin(baseAngle);
-        const isActive = activeKey === c.key;
-        const dim = activeKey !== null && !isActive;
-        const leaves = c.items.slice(0, 12);
-        const showLeaves = isActive || single;
-        return (
-          <g key={c.key} opacity={dim ? 0.15 : 1} style={{ transition: 'opacity .2s' }}>
-            <line x1={cx} y1={cy} x2={hx} y2={hy} stroke={c.color} strokeWidth={2.5} opacity={0.55} />
-            {showLeaves && leaves.map((leaf, j) => {
-              const ang = -Math.PI / 2 + (2 * Math.PI * j) / leaves.length;
-              const lx = cx + leafR * Math.cos(ang); const ly = cy + leafR * Math.sin(ang);
-              const cosA = Math.cos(ang);
-              const anchor = cosA < -0.25 ? 'end' : cosA > 0.25 ? 'start' : 'middle';
-              const tx = lx + (anchor === 'end' ? -10 : anchor === 'start' ? 10 : 0);
-              const lines = wrapLabel(leaf.text, 24, 3);
-              const lh = 16; const startY = ly - ((lines.length - 1) * lh) / 2;
-              return (
-                <g key={leaf.id}>
-                  <line x1={hx} y1={hy} x2={lx} y2={ly} stroke={c.color} strokeWidth={1} opacity={0.35} />
-                  <circle cx={lx} cy={ly} r={5} fill={c.color} />
-                  <text x={tx} y={startY} textAnchor={anchor} fontSize={14} fill={theme.palette.text.primary}>
-                    {lines.map((ln, k) => <tspan key={k} x={tx} dy={k === 0 ? 0 : lh}>{ln}</tspan>)}
-                  </text>
-                </g>
-              );
-            })}
-            <g style={{ cursor: 'pointer' }} onClick={() => onSelect(isActive ? null : c.key)}>
-              <circle cx={hx} cy={hy} r={isActive ? 36 : 32} fill={c.color} stroke={theme.palette.background.paper} strokeWidth={3} />
-              <text x={hx} y={hy - 2} textAnchor="middle" fontSize={13} fontWeight={700} fill="#fff">{truncate(c.label, 10)}</text>
-              <text x={hx} y={hy + 13} textAnchor="middle" fontSize={11} fill="#fff" opacity={0.85}>{c.items.length}</text>
+    <Box ref={containerRef} sx={{ position: 'relative', width: '100%', overflow: 'hidden', borderRadius: 4 }}>
+      <Box
+        component="svg"
+        viewBox={`0 0 ${dims.w} ${dims.h}`}
+        sx={{
+          width: '100%', height: 'auto', display: 'block',
+          background: 'linear-gradient(145deg, #0B0F18 0%, #111827 50%, #0D1117 100%)',
+          borderRadius: 4,
+        }}
+      >
+        <defs>
+          {clusters.map((c) => (
+            <radialGradient key={`g-${c.key}`} id={`glow-${c.key.replace(/[^a-z0-9]/gi,'')}`}>
+              <stop offset="0%" stopColor={c.color} stopOpacity={0.6} />
+              <stop offset="100%" stopColor={c.color} stopOpacity={0} />
+            </radialGradient>
+          ))}
+          <radialGradient id="center-glow">
+            <stop offset="0%" stopColor={BRAND.teal} stopOpacity={0.5} />
+            <stop offset="100%" stopColor={BRAND.teal} stopOpacity={0} />
+          </radialGradient>
+          <filter id="blur-sm"><feGaussianBlur stdDeviation="3" /></filter>
+          <filter id="blur-lg"><feGaussianBlur stdDeviation="8" /></filter>
+        </defs>
+
+        {/* Ambient particles */}
+        {Array.from({ length: 60 }).map((_, idx) => {
+          const px = ((idx * 137.5) % dims.w);
+          const py = ((idx * 97.3 + 41) % dims.h);
+          const r = 0.6 + (idx % 4) * 0.4;
+          return <circle key={`star-${idx}`} cx={px} cy={py} r={r} fill="#fff" opacity={0.08 + (idx % 5) * 0.04}>
+            <animate attributeName="opacity" values={`${0.08 + (idx % 5) * 0.04};${0.2 + (idx % 3) * 0.08};${0.08 + (idx % 5) * 0.04}`} dur={`${3 + (idx % 4)}s`} repeatCount="indefinite" />
+          </circle>;
+        })}
+
+        {/* Orbit ring (subtle) */}
+        <circle cx={cx} cy={cy} r={orbitR} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={1} strokeDasharray="4,8" />
+
+        {/* Connection lines from center to cluster bubbles */}
+        {clusterPositions.map((cp) => {
+          const isActive = activeKey === cp.key;
+          const isHov = hovered === cp.key;
+          const dim = activeKey !== null && !isActive;
+          return (
+            <line key={`line-${cp.key}`}
+              x1={cx} y1={cy} x2={cp.x} y2={cp.y}
+              stroke={cp.color}
+              strokeWidth={isActive || isHov ? 1.5 : 0.8}
+              opacity={dim ? 0.04 : isActive ? 0.5 : 0.12}
+              style={{ transition: 'all .4s ease' }}
+            />
+          );
+        })}
+
+        {/* Cluster bubbles */}
+        {clusterPositions.map((cp) => {
+          const isActive = activeKey === cp.key;
+          const isHov = hovered === cp.key;
+          const dim = activeKey !== null && !isActive;
+          const scale = isActive ? 1.18 : isHov ? 1.08 : 1;
+          const bubbleR = cp.r * scale;
+          return (
+            <g key={cp.key}
+              style={{ cursor: 'pointer', transition: 'opacity .4s ease' }}
+              opacity={dim ? 0.18 : 1}
+              onClick={() => onSelect(isActive ? null : cp.key)}
+              onMouseEnter={() => setHovered(cp.key)}
+              onMouseLeave={() => setHovered(null)}
+            >
+              {/* Glow halo */}
+              <circle cx={cp.x} cy={cp.y} r={bubbleR * 2.4} fill={`url(#glow-${cp.key.replace(/[^a-z0-9]/gi,'')})`} opacity={isActive ? 0.7 : isHov ? 0.5 : 0.2} filter="url(#blur-lg)" style={{ transition: 'all .4s' }} />
+
+              {/* Main bubble */}
+              <circle cx={cp.x} cy={cp.y} r={bubbleR} fill={cp.color} opacity={0.82} style={{ transition: 'all .35s ease' }}>
+                {isActive && <animate attributeName="opacity" values="0.82;0.92;0.82" dur="2s" repeatCount="indefinite" />}
+              </circle>
+
+              {/* Inner bright ring */}
+              <circle cx={cp.x} cy={cp.y} r={bubbleR * 0.7} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth={1} style={{ transition: 'all .35s' }} />
+
+              {/* Label */}
+              <text x={cp.x} y={cp.y - 3} textAnchor="middle" fontSize={bubbleR > 32 ? 12 : 10} fontWeight={800} fill="#fff" style={{ pointerEvents: 'none', textTransform: 'capitalize' }}>
+                {cp.label.length > 12 ? cp.label.slice(0, 11) + '…' : cp.label}
+              </text>
+              <text x={cp.x} y={cp.y + 12} textAnchor="middle" fontSize={10} fill="rgba(255,255,255,0.75)" fontWeight={600} style={{ pointerEvents: 'none' }}>
+                {cp.items.length}
+              </text>
             </g>
-          </g>
+          );
+        })}
+
+        {/* Exploded child insight bubbles (when cluster is active) */}
+        {expandedCluster && (() => {
+          const parent = clusterPositions.find((cp) => cp.key === expandedCluster.key);
+          if (!parent) return null;
+          const children = expandedCluster.items.slice(0, 18);
+          const childOrbitR = parent.r * 2.6;
+          return children.map((child, ci) => {
+            const angle = (2 * Math.PI * ci) / children.length - Math.PI / 2;
+            const jitter = ((ci % 3) - 1) * 4;
+            const childX = parent.x + (childOrbitR + jitter) * Math.cos(angle);
+            const childY = parent.y + (childOrbitR + jitter) * Math.sin(angle);
+            const childR = 4 + child.score * 6;
+            return (
+              <g key={`child-${child.id}`} opacity={0} style={{ animation: `fadeIn .4s ease ${ci * 0.03}s forwards` }}>
+                <line x1={parent.x} y1={parent.y} x2={childX} y2={childY} stroke={parent.color} strokeWidth={0.5} opacity={0.25} />
+                <circle cx={childX} cy={childY} r={childR * 1.8} fill={parent.color} opacity={0.12} filter="url(#blur-sm)" />
+                <circle cx={childX} cy={childY} r={childR} fill={parent.color} opacity={0.9}>
+                  <animate attributeName="opacity" values="0.9;1;0.9" dur={`${2 + (ci % 3)}s`} repeatCount="indefinite" />
+                </circle>
+              </g>
+            );
+          });
+        })()}
+
+        {/* Center hub */}
+        <g style={{ cursor: 'pointer' }} onClick={() => onSelect(null)}>
+          <circle cx={cx} cy={cy} r={52} fill="url(#center-glow)" filter="url(#blur-lg)" />
+          <circle cx={cx} cy={cy} r={34} fill={theme.palette.primary.main} opacity={0.92}>
+            <animate attributeName="r" values="34;36;34" dur="3s" repeatCount="indefinite" />
+          </circle>
+          <circle cx={cx} cy={cy} r={28} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
+          <text x={cx} y={cy - 4} textAnchor="middle" fontSize={11} fontWeight={900} fill="#fff" style={{ pointerEvents: 'none' }}>
+            {topic.length > 14 ? topic.slice(0, 13) + '…' : topic}
+          </text>
+          <text x={cx} y={cy + 10} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.7)" fontWeight={600} style={{ pointerEvents: 'none' }}>
+            galaxy
+          </text>
+        </g>
+      </Box>
+
+      {/* CSS keyframe for child fade-in */}
+      <style>{`@keyframes fadeIn { to { opacity: 1; } }`}</style>
+
+      {/* Hovered / active cluster tooltip overlay */}
+      {(hovered || activeKey) && (() => {
+        const key = activeKey || hovered;
+        const cp = clusterPositions.find((c) => c.key === key);
+        if (!cp) return null;
+        return (
+          <Box sx={{
+            position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)',
+            bgcolor: 'rgba(17,21,27,0.85)', backdropFilter: 'blur(12px)',
+            border: `1px solid ${cp.color}44`, borderRadius: 3,
+            px: 2.5, py: 1.2, display: 'flex', gap: 2, alignItems: 'center',
+            boxShadow: `0 8px 32px ${cp.color}22`,
+          }}>
+            <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: cp.color, boxShadow: `0 0 8px ${cp.color}` }} />
+            <Typography sx={{ color: '#fff', fontWeight: 800, fontSize: 13, textTransform: 'capitalize' }}>{cp.label}</Typography>
+            <Typography sx={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{cp.items.length} insights</Typography>
+            {activeKey === cp.key && <Chip label="Click center to reset" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', fontSize: 10, height: 22 }} />}
+          </Box>
         );
-      })}
-      <g style={{ cursor: 'pointer' }} onClick={() => onSelect(null)}>
-        <circle cx={cx} cy={cy} r={centerR} fill={theme.palette.primary.main} stroke={theme.palette.background.paper} strokeWidth={4} />
-        <text x={cx} y={cy - 4} textAnchor="middle" fontSize={14} fontWeight={800} fill="#fff"><tspan x={cx}>{truncate(topic, 16)}</tspan></text>
-        <text x={cx} y={cy + 16} textAnchor="middle" fontSize={11} fill="#fff" opacity={0.85}>content clusters</text>
-      </g>
+      })()}
     </Box>
   );
 }
 
+/* ── Main Page ── */
 export default function InsightsPage() {
   const { activeWorkspace } = useAuth();
   const [jobs, setJobs] = useState<ResearchJob[]>([]);
@@ -146,7 +271,7 @@ export default function InsightsPage() {
   const [activeCluster, setActiveCluster] = useState<string | null>(null);
   const confirm = useConfirm();
 
-  const removeInsight = async (ins: Insight) => {
+  const removeInsight = useCallback(async (ins: Insight) => {
     const ok = await confirm({
       title: 'Delete insight?',
       message: (<>This will permanently remove <b>&quot;{ins.text}&quot;</b> from this research&apos;s explorer.</>),
@@ -155,7 +280,7 @@ export default function InsightsPage() {
     const prev = items;
     setItems((list) => list.filter((x) => x.id !== ins.id));
     try { await Insights.remove(ins.id); } catch { setItems(prev); }
-  };
+  }, [confirm, items]);
 
   useEffect(() => {
     if (!activeWorkspace) return;
@@ -203,12 +328,12 @@ export default function InsightsPage() {
         <Box sx={{ position: 'absolute', bottom: -120, left: '28%', width: 360, height: 360, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,187,135,0.30), transparent 65%)', filter: 'blur(10px)' }} />
         <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ md: 'center' }} spacing={3} sx={{ position: 'relative' }}>
           <Box maxWidth={700}>
-            <Chip icon={<BoltIcon />} label="Insight intelligence map" sx={{ mb: 2, bgcolor: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.16)', fontWeight: 800 }} />
+            <Chip icon={<BoltIcon />} label="Insight intelligence galaxy" sx={{ mb: 2, bgcolor: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.16)', fontWeight: 800 }} />
             <Typography variant="h3" fontWeight={950} sx={{ lineHeight: 1.05, letterSpacing: -1 }}>
               Every question your audience is asking — mapped.
             </Typography>
             <Typography sx={{ mt: 1.4, color: 'rgba(255,255,255,0.72)', maxWidth: 620 }}>
-              Explore the content cluster web to find buyer questions, topic gaps, and content angles mined from deep research.
+              Explore the insight galaxy — click any cluster bubble to explode it into individual insights mined from deep research.
             </Typography>
           </Box>
           <Grid container spacing={1} sx={{ minWidth: { md: 280 }, maxWidth: 320 }}>
@@ -261,15 +386,15 @@ export default function InsightsPage() {
         <Box sx={{ display: 'grid', placeItems: 'center', minHeight: 240 }}><CircularProgress /></Box>
       ) : !jobId ? (
         <Card sx={{ borderRadius: 4, p: 4, textAlign: 'center', border: '1px dashed rgba(17,21,27,0.18)' }}>
-          <HubIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+          <BubbleChartIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
           <Typography variant="h6" fontWeight={900}>Select a research to explore</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.6 }}>Pick a client or research job above to visualise its content cluster web.</Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.6 }}>Pick a client or research job above to launch the insight galaxy.</Typography>
         </Card>
       ) : items.length === 0 ? (
         <Card sx={{ borderRadius: 4, p: 4, textAlign: 'center', border: '1px dashed rgba(17,21,27,0.18)' }}>
-          <HubIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+          <BubbleChartIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
           <Typography variant="h6" fontWeight={900}>No insights mined yet</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.6 }}>Open this research and run the deep research job to populate the insight explorer.</Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.6 }}>Open this research and run deep research to populate the insight galaxy.</Typography>
         </Card>
       ) : (
         <>
@@ -287,17 +412,17 @@ export default function InsightsPage() {
             ))}
           </Stack>
 
-          {/* ── Cluster web ── */}
-          <Card sx={{ borderRadius: 4, border: '1px solid rgba(17,21,27,0.08)', boxShadow: '0 18px 45px rgba(17,21,27,0.06)', overflow: 'visible' }}>
-            <CardContent sx={{ p: { xs: 1.5, sm: 3 } }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1} sx={{ mb: 1 }}>
+          {/* ── Bubble Galaxy ── */}
+          <Card sx={{ borderRadius: 4, border: '1px solid rgba(17,21,27,0.08)', boxShadow: '0 18px 45px rgba(17,21,27,0.06)', overflow: 'hidden' }}>
+            <CardContent sx={{ p: { xs: 0.5, sm: 1.5 } }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1} sx={{ mb: 1, px: { xs: 1, sm: 1.5 }, pt: 1 }}>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <HubIcon sx={{ color: BRAND.teal }} />
-                  <Typography variant="subtitle1" fontWeight={900}>Content cluster web</Typography>
+                  <BubbleChartIcon sx={{ color: BRAND.teal }} />
+                  <Typography variant="subtitle1" fontWeight={900}>Insight galaxy</Typography>
                 </Stack>
-                <Typography variant="caption" color="text.secondary">Click a cluster to expand · click center to reset</Typography>
+                <Typography variant="caption" color="text.secondary">Click a bubble to expand · click center to reset</Typography>
               </Stack>
-              <ClusterWheel topic={selectedJob?.topic || 'Research'} clusters={clusters} activeKey={activeCluster} onSelect={setActiveCluster} />
+              <BubbleGalaxy topic={selectedJob?.topic || 'Research'} clusters={clusters} activeKey={activeCluster} onSelect={setActiveCluster} />
             </CardContent>
           </Card>
 
