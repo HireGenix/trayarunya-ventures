@@ -7,6 +7,8 @@ from app.models.strategy import Strategy
 from app.models.content import (
     ContentItem,
     Asset,
+    ContentCalendar,
+    ContentImage,
     ContentStatus,
     ContentType,
 )
@@ -35,6 +37,8 @@ __all__ = [
     "Strategy",
     "ContentItem",
     "Asset",
+    "ContentCalendar",
+    "ContentImage",
     "ContentStatus",
     "ContentType",
     "SocialAccount",

@@ -60,6 +60,19 @@ class Settings(BaseSettings):
     azure_blob_connection_string: str | None = None
     azure_blob_container: str = "content-assets"
 
+    # --- Azure image generation (text-to-image for social graphics) ---
+    azure_image_endpoint: str | None = None  # gpt-image base, e.g. https://<res>.cognitiveservices.azure.com
+    azure_image_key: str | None = None
+    azure_image_deployment: str = "gpt-image-2-1"
+    azure_image_api_version: str = "2024-02-01"
+    # Optional alternative image models (graceful fallback to gpt-image when unset/erroring)
+    azure_mai_image_endpoint: str | None = None
+    azure_mai_image_key: str | None = None
+    azure_mai_image_deployment: str = "MAI-Image-2.5"
+    azure_flux_endpoint: str | None = None  # full BFL provider URL incl ?api-version=preview
+    azure_flux_key: str | None = None
+    azure_flux_model: str = "flux-2-pro"
+
     # --- OAuth: social networks (native OAuth; you create the developer apps) ---
     oauth_redirect_base: str = Field(
         default="http://localhost:8099",
@@ -85,6 +98,10 @@ class Settings(BaseSettings):
     @property
     def gpt5_configured(self) -> bool:
         return bool(self.azure_gpt5_endpoint and self.azure_gpt5_key)
+
+    @property
+    def image_configured(self) -> bool:
+        return bool(self.azure_image_endpoint and self.azure_image_key)
 
     @property
     def claude_configured(self) -> bool:

@@ -15,6 +15,7 @@ from app.schemas import (
     InsightOut,
     ResearchCreate,
     ResearchOut,
+    ResearchUpdate,
 )
 from app.services.research_runner import run_research_job
 from app.worker.queue import enqueue
@@ -74,6 +75,33 @@ async def get_research(
     db: AsyncSession = Depends(get_db),
 ) -> ResearchOut:
     return ResearchOut.model_validate(await _get_job(db, ctx, job_id))
+
+
+@router.patch("/{job_id}", response_model=ResearchOut)
+async def update_research(
+    job_id: uuid.UUID,
+    data: ResearchUpdate,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> ResearchOut:
+    job = await _get_job(db, ctx, job_id)
+    payload = data.model_dump(exclude_unset=True)
+    for field, value in payload.items():
+        setattr(job, field, value)
+    await db.commit()
+    await db.refresh(job)
+    return ResearchOut.model_validate(job)
+
+
+@router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_research(
+    job_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    job = await _get_job(db, ctx, job_id)
+    await db.delete(job)
+    await db.commit()
 
 
 @router.get("/{job_id}/insights", response_model=list[InsightOut])

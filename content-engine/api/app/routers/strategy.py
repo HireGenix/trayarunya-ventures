@@ -11,7 +11,7 @@ from app.agents.strategist import run_strategy
 from app.db import get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
 from app.models import JobStatus, ResearchJob, Strategy
-from app.schemas import StrategyCreate, StrategyOut
+from app.schemas import StrategyCreate, StrategyOut, StrategyUpdate
 
 router = APIRouter(prefix="/strategies", tags=["strategy"])
 
@@ -80,3 +80,39 @@ async def get_strategy(
     if strategy is None or strategy.workspace_id != ctx.workspace.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Strategy not found")
     return StrategyOut.model_validate(strategy)
+
+
+async def _get_strategy(
+    db: AsyncSession, ctx: WorkspaceContext, strategy_id: uuid.UUID
+) -> Strategy:
+    strategy = await db.get(Strategy, strategy_id)
+    if strategy is None or strategy.workspace_id != ctx.workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Strategy not found")
+    return strategy
+
+
+@router.patch("/{strategy_id}", response_model=StrategyOut)
+async def update_strategy(
+    strategy_id: uuid.UUID,
+    data: StrategyUpdate,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> StrategyOut:
+    strategy = await _get_strategy(db, ctx, strategy_id)
+    payload = data.model_dump(exclude_unset=True)
+    for field, value in payload.items():
+        setattr(strategy, field, value)
+    await db.commit()
+    await db.refresh(strategy)
+    return StrategyOut.model_validate(strategy)
+
+
+@router.delete("/{strategy_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_strategy(
+    strategy_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    strategy = await _get_strategy(db, ctx, strategy_id)
+    await db.delete(strategy)
+    await db.commit()

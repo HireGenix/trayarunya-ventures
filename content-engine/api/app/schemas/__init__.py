@@ -81,6 +81,12 @@ class ResearchCreate(BaseModel):
     competitors: list[str] = Field(default_factory=list)
 
 
+class ResearchUpdate(BaseModel):
+    topic: str | None = Field(default=None, min_length=2, max_length=500)
+    target_url: str | None = None
+    summary: str | None = None
+
+
 class ResearchOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -139,6 +145,15 @@ class StrategyOut(BaseModel):
     created_at: datetime
 
 
+class StrategyUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=2, max_length=300)
+    objective: str | None = None
+    positioning: str | None = None
+    pillars: list[Any] | None = None
+    lead_magnets: list[Any] | None = None
+    kpis: list[Any] | None = None
+
+
 TokenResponse.model_rebuild()
 
 
@@ -186,6 +201,8 @@ class ContentGenerateRequest(BaseModel):
     strategy_id: uuid.UUID | None = None
     count: int = Field(default=1, ge=1, le=10)
     notes: str | None = None
+    provider: str | None = None
+    scheduled_date: str | None = None
 
 
 class ContentUpdate(BaseModel):
@@ -209,6 +226,8 @@ class ContentOut(BaseModel):
     body: str
     variants: dict[str, Any] | None
     meta: dict[str, Any] | None
+    image_url: str | None = None
+    image_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -342,3 +361,67 @@ class UsageOut(BaseModel):
 class BillingSummary(BaseModel):
     plan: PlanOut | None
     usage: list[UsageOut]
+
+
+# ---------- Content Calendar (date-aware planning) ----------
+class CalendarGenerateRequest(BaseModel):
+    client_name: str | None = None
+    title: str | None = None
+    strategy_id: uuid.UUID | None = None
+    start_date: date | None = None  # defaults to today on the server
+    end_date: date | None = None  # defaults to end of the start month
+    platforms: list[str] | None = None
+    goal: str | None = None
+    provider: str | None = None
+
+
+class CalendarEntryGenerateRequest(BaseModel):
+    provider: str | None = None
+    notes: str | None = None
+    with_image: bool = True
+    image_style: str | None = None
+    image_provider: str | None = None
+
+
+class CalendarOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    strategy_id: uuid.UUID | None
+    title: str
+    client_name: str | None
+    start_date: date
+    end_date: date
+    platforms: list[Any] | None
+    entries: list[Any] | None
+    meta: dict[str, Any] | None
+    created_at: datetime
+    updated_at: datetime
+
+
+# ---------- Image generation (social graphics) ----------
+class ImageGenerateRequest(BaseModel):
+    prompt: str | None = None  # explicit prompt overrides topic/headline
+    topic: str | None = None
+    headline: str | None = None
+    platform: str | None = None
+    style: str = "modern_gradient"
+    size: str | None = None
+    provider: str | None = None  # gpt-image | mai | flux
+    content_item_id: uuid.UUID | None = None
+    use_brand: bool = True
+    extra: str | None = None
+
+
+class ImageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    content_item_id: uuid.UUID | None
+    prompt: str | None
+    provider: str | None
+    style: str | None
+    size: str | None
+    mime: str
+    url: str
+    created_at: datetime

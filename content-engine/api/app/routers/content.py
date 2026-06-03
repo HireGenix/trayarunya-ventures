@@ -11,10 +11,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.writer import generate_content
 from app.db import get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
-from app.models import BrandBrain, ContentItem, ContentStatus, ContentType, Strategy
+from app.models import BrandBrain, ContentImage, ContentItem, ContentStatus, ContentType, Strategy
 from app.schemas import ContentGenerateRequest, ContentOut, ContentUpdate
 
 router = APIRouter(prefix="/content", tags=["content"])
+
+# Map a friendly model id from the UI to an LLM provider the adapters understand.
+PROVIDER_MAP = {
+    "gpt-5.5": "gpt-5.5",
+    "gpt5": "gpt-5.5",
+    "gpt": "gpt-5.5",
+    "claude": "claude-opus",
+    "claude-opus": "claude-opus",
+    "opus": "claude-opus",
+}
+
+
+def _provider(value: str | None):
+    if not value:
+        return None
+    return PROVIDER_MAP.get(value.lower())
 
 
 def _coerce_type(value: str) -> ContentType:
@@ -22,6 +38,33 @@ def _coerce_type(value: str) -> ContentType:
         return ContentType(value)
     except ValueError:
         return ContentType.social_post
+
+
+async def _latest_images(
+    db: AsyncSession, item_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, ContentImage]:
+    """Return the most recent image per content item id."""
+    if not item_ids:
+        return {}
+    res = await db.execute(
+        select(ContentImage)
+        .where(ContentImage.content_item_id.in_(item_ids))
+        .order_by(ContentImage.created_at.desc())
+    )
+    latest: dict[uuid.UUID, ContentImage] = {}
+    for img in res.scalars().all():
+        cid = img.content_item_id
+        if cid is not None and cid not in latest:
+            latest[cid] = img
+    return latest
+
+
+def _out_with_image(item: ContentItem, img: ContentImage | None) -> ContentOut:
+    out = ContentOut.model_validate(item)
+    if img is not None:
+        out.image_url = f"/api/v1/images/{img.id}/raw"
+        out.image_id = img.id
+    return out
 
 
 @router.post("/generate", response_model=list[ContentOut], status_code=status.HTTP_201_CREATED)
@@ -67,6 +110,8 @@ async def generate(
             notes=data.notes,
             brand=brand,
             strategy=strategy,
+            provider=_provider(data.provider),
+            scheduled_date=data.scheduled_date,
         )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Generation failed: {exc}")
@@ -85,7 +130,11 @@ async def generate(
             variants=it.get("variants") or {
                 k: it.get(k) for k in ("hook", "hashtags", "cta") if it.get(k)
             },
-            meta={"topic": data.topic},
+            meta={
+                "topic": data.topic,
+                "provider": data.provider,
+                "scheduled_date": data.scheduled_date,
+            },
         )
         db.add(item)
         created.append(item)
@@ -114,7 +163,9 @@ async def list_content(
             pass
     stmt = stmt.order_by(ContentItem.created_at.desc())
     res = await db.execute(stmt)
-    return [ContentOut.model_validate(c) for c in res.scalars().all()]
+    items = list(res.scalars().all())
+    images = await _latest_images(db, [i.id for i in items])
+    return [_out_with_image(i, images.get(i.id)) for i in items]
 
 
 async def _get_item(db: AsyncSession, ctx: WorkspaceContext, item_id: uuid.UUID) -> ContentItem:
@@ -130,7 +181,9 @@ async def get_content(
     ctx: WorkspaceContext = Depends(get_workspace_ctx),
     db: AsyncSession = Depends(get_db),
 ) -> ContentOut:
-    return ContentOut.model_validate(await _get_item(db, ctx, item_id))
+    item = await _get_item(db, ctx, item_id)
+    images = await _latest_images(db, [item.id])
+    return _out_with_image(item, images.get(item.id))
 
 
 @router.patch("/{item_id}", response_model=ContentOut)

@@ -14,8 +14,10 @@ from app.routers import (
     auth,
     billing,
     brand,
+    calendar,
     content,
     health,
+    images,
     insights,
     research,
     social,
@@ -66,6 +68,8 @@ def create_app() -> FastAPI:
     app.include_router(insights.router, prefix=p)
     app.include_router(strategy.router, prefix=p)
     app.include_router(content.router, prefix=p)
+    app.include_router(calendar.router, prefix=p)
+    app.include_router(images.router, prefix=p)
     app.include_router(social.router, prefix=p)
     app.include_router(ads.router, prefix=p)
     app.include_router(analytics.router, prefix=p)

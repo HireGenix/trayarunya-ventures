@@ -101,19 +101,38 @@ async def complete(
     system: str,
     provider: Provider | None = None,
 ) -> str:
-    """Complete with the requested provider, falling back to whatever is configured."""
+    """Complete with the requested provider, falling back to whatever is configured.
+
+    If the requested provider is configured but fails at call time (e.g. the
+    endpoint is unreachable), transparently fall back to the other provider so
+    content generation stays resilient to a single provider outage.
+    """
     chosen: Provider | None = provider
     if chosen is None:
         chosen = "claude-opus" if settings.claude_configured else "gpt-5.5"
-    if chosen == "claude-opus" and settings.claude_configured:
-        return await complete_claude(messages, system)
-    if chosen == "gpt-5.5" and settings.gpt5_configured:
-        return await complete_gpt5(messages, system)
-    # Fall back to the other provider if the requested one is unavailable.
-    if settings.claude_configured:
-        return await complete_claude(messages, system)
-    if settings.gpt5_configured:
-        return await complete_gpt5(messages, system)
+
+    order: list[Provider] = []
+    if chosen == "claude-opus":
+        order = ["claude-opus", "gpt-5.5"]
+    else:
+        order = ["gpt-5.5", "claude-opus"]
+
+    last_error: Exception | None = None
+    for prov in order:
+        if prov == "claude-opus" and not settings.claude_configured:
+            continue
+        if prov == "gpt-5.5" and not settings.gpt5_configured:
+            continue
+        try:
+            if prov == "claude-opus":
+                return await complete_claude(messages, system)
+            return await complete_gpt5(messages, system)
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+            continue
+
+    if last_error:
+        raise last_error
     raise RuntimeError("No Azure LLM provider configured")
 
 

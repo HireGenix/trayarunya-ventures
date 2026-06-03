@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -18,26 +18,67 @@ import {
   MenuItem,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import SendIcon from '@mui/icons-material/Send';
+import ImageIcon from '@mui/icons-material/Image';
 import { useAuth } from '@/lib/auth';
 import {
   Social,
   Content,
+  Calendar,
+  assetUrl,
   type SocialAccount,
   type Schedule,
   type ContentItem,
+  type ContentCalendar,
 } from '@/lib/api';
 
 const PLATFORM_LABEL: Record<string, string> = {
   linkedin: 'LinkedIn',
   x: 'X (Twitter)',
+  twitter: 'X (Twitter)',
   facebook: 'Facebook',
   instagram: 'Instagram',
   youtube: 'YouTube',
   tiktok: 'TikTok',
+  threads: 'Threads',
+  blog: 'Blog',
+  newsletter: 'Newsletter',
+  quora: 'Quora',
+  reddit: 'Reddit',
+  medium: 'Medium',
 };
+
+interface ClientGroup {
+  client: string;
+  platforms: Record<string, ContentItem[]>;
+}
+
+function buildGroups(
+  items: ContentItem[],
+  calendars: ContentCalendar[],
+  fallbackClient: string,
+): ClientGroup[] {
+  const calClient = new Map<string, string>();
+  for (const c of calendars) calClient.set(c.id, c.client_name || c.title);
+
+  const byClient = new Map<string, ClientGroup>();
+  for (const item of items) {
+    const calId = (item.meta?.calendar_id as string) || '';
+    const client = (calId && calClient.get(calId)) || fallbackClient;
+    let group = byClient.get(client);
+    if (!group) {
+      group = { client, platforms: {} };
+      byClient.set(client, group);
+    }
+    const plat = item.platform || 'other';
+    (group.platforms[plat] ||= []).push(item);
+  }
+  return Array.from(byClient.values());
+}
 
 export default function PublishingPage() {
   const { activeWorkspace } = useAuth();
@@ -45,17 +86,16 @@ export default function PublishingPage() {
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [content, setContent] = useState<ContentItem[]>([]);
+  const [calendars, setCalendars] = useState<ContentCalendar[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
+  const [publishing, setPublishing] = useState<string | null>(null);
 
   const [manualOpen, setManualOpen] = useState(false);
   const [mPlatform, setMPlatform] = useState('linkedin');
   const [mToken, setMToken] = useState('');
   const [mName, setMName] = useState('');
-
-  const [pubContent, setPubContent] = useState('');
-  const [pubAccount, setPubAccount] = useState('');
 
   const refresh = () => {
     Promise.all([
@@ -63,11 +103,13 @@ export default function PublishingPage() {
       Social.accounts().catch(() => []),
       Social.schedules().catch(() => []),
       Content.list().catch(() => []),
-    ]).then(([p, a, s, c]) => {
-      setProviders(p);
-      setAccounts(a);
-      setSchedules(s);
-      setContent(c);
+      Calendar.list().catch(() => []),
+    ]).then(([p, a, s, c, cal]) => {
+      setProviders(p as Record<string, boolean>);
+      setAccounts(a as SocialAccount[]);
+      setSchedules(s as Schedule[]);
+      setContent(c as ContentItem[]);
+      setCalendars(cal as ContentCalendar[]);
       setLoading(false);
     });
   };
@@ -78,6 +120,16 @@ export default function PublishingPage() {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWorkspace]);
+
+  const accountFor = (platform: string): SocialAccount | undefined =>
+    accounts.find(
+      (a) => a.is_active && (a.platform === platform || (platform === 'x' && a.platform === 'twitter')),
+    );
+
+  const groups = useMemo(
+    () => buildGroups(content, calendars, activeWorkspace?.name || 'Quick create'),
+    [content, calendars, activeWorkspace],
+  );
 
   const connect = async (platform: string) => {
     setError('');
@@ -117,20 +169,25 @@ export default function PublishingPage() {
     refresh();
   };
 
-  const publishNow = async () => {
-    if (!pubContent || !pubAccount) return;
+  const publishItem = async (item: ContentItem) => {
+    const account = accountFor(item.platform || '');
+    if (!account) return;
+    setPublishing(item.id);
     setError('');
     setMsg('');
     try {
       const s = await Social.publishNow({
-        content_item_id: pubContent,
-        social_account_id: pubAccount,
+        content_item_id: item.id,
+        social_account_id: account.id,
       });
-      if (s.status === 'published') setMsg('Published successfully.');
+      if (s.status === 'published')
+        setMsg(`Published to ${PLATFORM_LABEL[item.platform || ''] || item.platform}.`);
       else setError(s.error || `Status: ${s.status}`);
       refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Publish failed');
+    } finally {
+      setPublishing(null);
     }
   };
 
@@ -148,122 +205,209 @@ export default function PublishingPage() {
 
   return (
     <Stack spacing={3}>
-      {error && <Alert severity="error">{error}</Alert>}
-      {msg && <Alert severity="success">{msg}</Alert>}
+      {error && (
+        <Alert severity="error" onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
+      {msg && (
+        <Alert severity="success" onClose={() => setMsg('')}>
+          {msg}
+        </Alert>
+      )}
 
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                <Typography variant="h6" fontWeight={800}>
-                  Connected accounts
-                </Typography>
-                <Button size="small" onClick={() => setManualOpen(true)}>
-                  Paste token
-                </Button>
-              </Stack>
-
-              <Stack spacing={1.5} sx={{ mb: 3 }}>
-                {accounts.length === 0 && (
-                  <Typography color="text.secondary">No accounts connected yet.</Typography>
-                )}
-                {accounts.map((a) => (
-                  <Card key={a.id} variant="outlined">
-                    <Stack direction="row" alignItems="center" sx={{ p: 1.5 }}>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography fontWeight={600}>
-                          {PLATFORM_LABEL[a.platform] || a.platform}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {a.display_name || a.external_id || 'connected'}
-                        </Typography>
-                      </Box>
-                      <Chip
-                        size="small"
-                        label={a.is_active ? 'active' : 'inactive'}
-                        color={a.is_active ? 'success' : 'default'}
-                        sx={{ mr: 1 }}
-                      />
-                      <IconButton onClick={() => removeAccount(a.id)} aria-label="remove">
-                        <DeleteOutlineIcon />
-                      </IconButton>
-                    </Stack>
-                  </Card>
-                ))}
-              </Stack>
-
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                CONNECT A NETWORK
-              </Typography>
-              <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1 }}>
-                {supported.map((p) => (
-                  <Button
-                    key={p}
-                    variant="outlined"
+      {/* Connected accounts */}
+      <Card>
+        <CardContent sx={{ p: 3 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+            <Typography variant="h6" fontWeight={800}>
+              Connected accounts
+            </Typography>
+            <Button size="small" onClick={() => setManualOpen(true)}>
+              Paste token
+            </Button>
+          </Stack>
+          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
+            {accounts.length === 0 && (
+              <Typography color="text.secondary">No accounts connected yet.</Typography>
+            )}
+            {accounts.map((a) => (
+              <Card key={a.id} variant="outlined" sx={{ minWidth: 200 }}>
+                <Stack direction="row" alignItems="center" sx={{ p: 1.5 }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography fontWeight={600}>
+                      {PLATFORM_LABEL[a.platform] || a.platform}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {a.display_name || a.external_id || 'connected'}
+                    </Typography>
+                  </Box>
+                  <Chip
                     size="small"
-                    onClick={() => connect(p)}
-                    disabled={!providers[p]}
-                    title={providers[p] ? '' : 'OAuth app not configured on server'}
-                  >
-                    {PLATFORM_LABEL[p] || p}
-                  </Button>
-                ))}
-              </Stack>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                Disabled networks need OAuth credentials in the server env. Use “Paste token” to test
-                publishing with a personal access token.
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+                    label={a.is_active ? 'active' : 'inactive'}
+                    color={a.is_active ? 'success' : 'default'}
+                    sx={{ mr: 1 }}
+                  />
+                  <IconButton onClick={() => removeAccount(a.id)} aria-label="remove" size="small">
+                    <DeleteOutlineIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+              </Card>
+            ))}
+          </Stack>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            CONNECT A NETWORK
+          </Typography>
+          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1 }}>
+            {supported.map((p) => (
+              <Button
+                key={p}
+                variant="outlined"
+                size="small"
+                onClick={() => connect(p)}
+                disabled={!providers[p]}
+                title={providers[p] ? '' : 'OAuth app not configured on server'}
+              >
+                {PLATFORM_LABEL[p] || p}
+              </Button>
+            ))}
+          </Stack>
+        </CardContent>
+      </Card>
 
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={800} gutterBottom>
-                Publish now
-              </Typography>
-              <Stack spacing={2}>
-                <TextField
-                  select
-                  label="Content"
-                  value={pubContent}
-                  onChange={(e) => setPubContent(e.target.value)}
-                  fullWidth
-                >
-                  {content.map((c) => (
-                    <MenuItem key={c.id} value={c.id}>
-                      {(c.title || c.body.slice(0, 40)) + ` · ${c.content_type}`}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <TextField
-                  select
-                  label="Account"
-                  value={pubAccount}
-                  onChange={(e) => setPubAccount(e.target.value)}
-                  fullWidth
-                >
-                  {accounts.map((a) => (
-                    <MenuItem key={a.id} value={a.id}>
-                      {PLATFORM_LABEL[a.platform] || a.platform} · {a.display_name || a.id.slice(0, 6)}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <Button
-                  variant="contained"
-                  onClick={publishNow}
-                  disabled={!pubContent || !pubAccount}
-                >
-                  Publish
-                </Button>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      {/* Ready posts grouped by client -> platform */}
+      <Box>
+        <Typography variant="h6" fontWeight={800} sx={{ mb: 1 }}>
+          Ready to publish
+        </Typography>
+        {groups.length === 0 ? (
+          <Alert severity="info">
+            No generated posts yet. Generate content in <strong>Content Studio</strong> to see
+            ready-to-publish posts grouped by client and platform here.
+          </Alert>
+        ) : (
+          <Stack spacing={3}>
+            {groups.map((group) => (
+              <Card key={group.client}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 2 }}>
+                    {group.client}
+                  </Typography>
+                  <Stack spacing={2.5}>
+                    {Object.entries(group.platforms).map(([platform, items]) => {
+                      const account = accountFor(platform);
+                      return (
+                        <Box key={platform}>
+                          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                            <Chip
+                              size="small"
+                              label={PLATFORM_LABEL[platform] || platform}
+                              color="primary"
+                            />
+                            <Typography variant="caption" color="text.secondary">
+                              {items.length} post{items.length > 1 ? 's' : ''}
+                            </Typography>
+                            {!account && (
+                              <Chip
+                                size="small"
+                                variant="outlined"
+                                color="warning"
+                                label="no connected account"
+                              />
+                            )}
+                          </Stack>
+                          <Grid container spacing={2}>
+                            {items.map((item) => (
+                              <Grid key={item.id} size={{ xs: 12, sm: 6, md: 4 }}>
+                                <Card variant="outlined" sx={{ height: '100%' }}>
+                                  {item.image_url ? (
+                                    <Box
+                                      component="img"
+                                      src={assetUrl(item.image_url)}
+                                      alt={item.title || 'post'}
+                                      sx={{
+                                        width: '100%',
+                                        display: 'block',
+                                        aspectRatio: '1 / 1',
+                                        objectFit: 'cover',
+                                      }}
+                                    />
+                                  ) : (
+                                    <Box
+                                      sx={{
+                                        height: 120,
+                                        display: 'grid',
+                                        placeItems: 'center',
+                                        bgcolor: 'action.hover',
+                                        color: 'text.disabled',
+                                      }}
+                                    >
+                                      <ImageIcon />
+                                    </Box>
+                                  )}
+                                  <CardContent sx={{ p: 1.5 }}>
+                                    <Typography variant="body2" fontWeight={700} noWrap>
+                                      {item.title || item.body.slice(0, 40)}
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                      sx={{
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden',
+                                        mb: 1,
+                                        minHeight: 32,
+                                      }}
+                                    >
+                                      {item.body}
+                                    </Typography>
+                                    <Stack
+                                      direction="row"
+                                      justifyContent="space-between"
+                                      alignItems="center"
+                                    >
+                                      <Chip size="small" label={item.status} variant="outlined" />
+                                      <Tooltip
+                                        title={account ? 'Publish now' : 'Connect an account first'}
+                                      >
+                                        <span>
+                                          <Button
+                                            size="small"
+                                            variant="contained"
+                                            startIcon={
+                                              publishing === item.id ? (
+                                                <CircularProgress size={14} color="inherit" />
+                                              ) : (
+                                                <SendIcon />
+                                              )
+                                            }
+                                            disabled={!account || publishing !== null}
+                                            onClick={() => publishItem(item)}
+                                          >
+                                            Publish
+                                          </Button>
+                                        </span>
+                                      </Tooltip>
+                                    </Stack>
+                                  </CardContent>
+                                </Card>
+                              </Grid>
+                            ))}
+                          </Grid>
+                        </Box>
+                      );
+                    })}
+                  </Stack>
+                </CardContent>
+              </Card>
+            ))}
+          </Stack>
+        )}
+      </Box>
 
+      {/* Recent / scheduled */}
       <Card>
         <CardContent sx={{ p: 3 }}>
           <Typography variant="h6" fontWeight={800} gutterBottom>
@@ -274,13 +418,7 @@ export default function PublishingPage() {
           ) : (
             <Stack spacing={1}>
               {schedules.map((s) => (
-                <Stack
-                  key={s.id}
-                  direction="row"
-                  spacing={2}
-                  alignItems="center"
-                  sx={{ py: 0.5 }}
-                >
+                <Stack key={s.id} direction="row" spacing={2} alignItems="center" sx={{ py: 0.5 }}>
                   <Chip
                     size="small"
                     label={s.status}

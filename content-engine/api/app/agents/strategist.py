@@ -7,6 +7,7 @@ always works.
 from __future__ import annotations
 
 import json
+from datetime import date
 from typing import Any
 
 from app.llm.adapters import _extract_json, complete
@@ -34,7 +35,10 @@ STRATEGY_SYSTEM = (
 
 
 def _research_to_prompt(brief: dict[str, Any], objective: str | None) -> str:
+    today = date.today()
     return (
+        f"TODAY'S DATE: {today.isoformat()} ({today.strftime('%A, %d %B %Y')}). "
+        f"Anchor the calendar and timing to this date.\n\n"
         f"Objective: {objective or 'Grow qualified pipeline and authority.'}\n\n"
         f"Research brief (JSON):\n{json.dumps(brief, ensure_ascii=False)[:40000]}"
     )

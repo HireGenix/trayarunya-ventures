@@ -88,7 +88,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <Drawer
         variant="permanent"
         sx={{
@@ -97,19 +97,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           '& .MuiDrawer-paper': {
             width: DRAWER_WIDTH,
             boxSizing: 'border-box',
-            borderRight: '1px solid rgba(14,23,38,0.08)',
+            border: 'none',
+            background: 'rgba(255,255,255,0.62)',
+            backdropFilter: 'blur(22px)',
+            WebkitBackdropFilter: 'blur(22px)',
+            borderRight: '1px solid rgba(255,255,255,0.5)',
+            boxShadow: '4px 0 30px rgba(14,23,38,0.05)',
           },
         }}
       >
         <Box sx={{ p: 2.5 }}>
-          <Typography variant="h6" fontWeight={800}>
+          <Typography
+            variant="h6"
+            fontWeight={800}
+            sx={{
+              background: 'linear-gradient(135deg, #ffaf06, #14bb87)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }}
+          >
             Trayarunya
           </Typography>
-          <Typography variant="caption" sx={{ color: '#d99000', fontWeight: 700 }}>
+          <Typography variant="caption" sx={{ color: '#d99000', fontWeight: 700, letterSpacing: 1 }}>
             CONTENT ENGINE
           </Typography>
         </Box>
-        <Divider />
+        <Divider sx={{ borderColor: 'rgba(14,23,38,0.06)' }} />
         <Box sx={{ p: 2 }}>
           <Typography variant="caption" color="text.secondary" sx={{ pl: 0.5 }}>
             WORKSPACE
@@ -120,6 +133,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               fullWidth
               value={activeWorkspace?.id || ''}
               onChange={(e) => setActiveWorkspace(e.target.value)}
+              sx={{ background: 'rgba(255,255,255,0.6)', borderRadius: 2 }}
             >
               {workspaces.map((w) => (
                 <MenuItem key={w.id} value={w.id}>
@@ -132,8 +146,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </IconButton>
           </Stack>
         </Box>
-        <Divider />
-        <List sx={{ px: 1, flex: 1 }}>
+        <Divider sx={{ borderColor: 'rgba(14,23,38,0.06)' }} />
+        <List sx={{ px: 1.5, flex: 1 }}>
           {NAV.map((item) => {
             const active =
               item.href === '/dashboard'
@@ -145,17 +159,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 component={Link}
                 href={item.href}
                 selected={active}
-                sx={{ borderRadius: 2, mb: 0.5 }}
+                sx={{
+                  borderRadius: 2.5,
+                  mb: 0.5,
+                  transition: 'all 0.2s ease',
+                  '&.Mui-selected': {
+                    background: 'linear-gradient(135deg, rgba(255,175,6,0.18), rgba(20,187,135,0.18))',
+                    boxShadow: 'inset 0 0 0 1px rgba(255,175,6,0.4)',
+                    '&:hover': {
+                      background:
+                        'linear-gradient(135deg, rgba(255,175,6,0.26), rgba(20,187,135,0.26))',
+                    },
+                  },
+                  '&:hover': { background: 'rgba(14,23,38,0.04)' },
+                }}
               >
-                <ListItemIcon sx={{ minWidth: 40, color: active ? 'primary.dark' : undefined }}>
+                <ListItemIcon sx={{ minWidth: 40, color: active ? 'primary.dark' : 'text.secondary' }}>
                   {item.icon}
                 </ListItemIcon>
-                <ListItemText primary={item.label} />
+                <ListItemText
+                  primary={item.label}
+                  primaryTypographyProps={{ fontWeight: active ? 700 : 500 }}
+                />
               </ListItemButton>
             );
           })}
         </List>
-        <Divider />
+        <Divider sx={{ borderColor: 'rgba(14,23,38,0.06)' }} />
         <Box sx={{ p: 2 }}>
           <Typography variant="body2" fontWeight={600} noWrap>
             {me.user.full_name}
@@ -180,7 +210,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           position="sticky"
           color="inherit"
           elevation={0}
-          sx={{ borderBottom: '1px solid rgba(14,23,38,0.08)', bgcolor: 'background.paper' }}
+          sx={{
+            borderBottom: '1px solid rgba(255,255,255,0.5)',
+            background: 'rgba(255,255,255,0.55)',
+            backdropFilter: 'blur(22px)',
+            WebkitBackdropFilter: 'blur(22px)',
+          }}
         >
           <Toolbar>
             <Typography variant="subtitle1" fontWeight={700} sx={{ flexGrow: 1 }}>

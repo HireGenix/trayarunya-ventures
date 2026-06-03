@@ -11,16 +11,24 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Grid,
+  IconButton,
   LinearProgress,
   List,
   ListItem,
   ListItemText,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { useAuth } from '@/lib/auth';
 import {
   Research,
@@ -50,6 +58,8 @@ export default function ResearchPage() {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [genLoading, setGenLoading] = useState(false);
+  const [editJob, setEditJob] = useState<ResearchJob | null>(null);
+  const [editTopic, setEditTopic] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadJobs = useCallback(async () => {
@@ -125,9 +135,38 @@ export default function ResearchPage() {
     }
   };
 
+  const deleteJob = async (job: ResearchJob) => {
+    if (!confirm(`Delete research "${job.topic}"? This cannot be undone.`)) return;
+    try {
+      await Research.remove(job.id);
+      setJobs((prev) => prev.filter((j) => j.id !== job.id));
+      if (selected?.id === job.id) setSelected(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Delete failed');
+    }
+  };
+
+  const openEdit = (job: ResearchJob) => {
+    setEditJob(job);
+    setEditTopic(job.topic);
+  };
+
+  const saveEdit = async () => {
+    if (!editJob || !editTopic.trim()) return;
+    try {
+      const updated = await Research.update(editJob.id, { topic: editTopic.trim() });
+      setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
+      if (selected?.id === updated.id) setSelected(updated);
+      setEditJob(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Update failed');
+    }
+  };
+
   const findings = (selected?.findings || {}) as Record<string, string[]>;
 
   return (
+    <>
     <Grid container spacing={3}>
       {/* Left: create + list */}
       <Grid size={{ xs: 12, md: 5 }}>
@@ -191,6 +230,23 @@ export default function ResearchPage() {
                   <LinearProgress sx={{ mt: 1.5, borderRadius: 1 }} />
                 )}
               </CardActionArea>
+              <Stack
+                direction="row"
+                justifyContent="flex-end"
+                spacing={0.5}
+                sx={{ px: 1, pb: 0.5 }}
+              >
+                <Tooltip title="Rename">
+                  <IconButton size="small" onClick={() => openEdit(job)} aria-label="edit">
+                    <EditOutlinedIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Delete">
+                  <IconButton size="small" onClick={() => deleteJob(job)} aria-label="delete">
+                    <DeleteOutlineIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
             </Card>
           ))}
         </Stack>
@@ -306,5 +362,28 @@ export default function ResearchPage() {
         )}
       </Grid>
     </Grid>
+
+    <Dialog open={!!editJob} onClose={() => setEditJob(null)} fullWidth maxWidth="sm">
+      <DialogTitle>Rename research</DialogTitle>
+      <DialogContent>
+        <TextField
+          label="Topic / market"
+          value={editTopic}
+          onChange={(e) => setEditTopic(e.target.value)}
+          fullWidth
+          autoFocus
+          sx={{ mt: 1 }}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setEditJob(null)} color="inherit">
+          Cancel
+        </Button>
+        <Button onClick={saveEdit} variant="contained" disabled={!editTopic.trim()}>
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 }

@@ -170,6 +170,9 @@ export const Research = {
     api<ResearchJob>('/research', { method: 'POST', body, workspace: true }),
   list: () => api<ResearchJob[]>('/research', { workspace: true }),
   get: (id: string) => api<ResearchJob>(`/research/${id}`, { workspace: true }),
+  update: (id: string, body: { topic?: string; target_url?: string; summary?: string }) =>
+    api<ResearchJob>(`/research/${id}`, { method: 'PATCH', body, workspace: true }),
+  remove: (id: string) => api<void>(`/research/${id}`, { method: 'DELETE', workspace: true }),
   insights: (id: string) => api<Insight[]>(`/research/${id}/insights`, { workspace: true }),
   competitors: (id: string) => api<Competitor[]>(`/research/${id}/competitors`, { workspace: true }),
 };
@@ -179,6 +182,11 @@ export const Strategies = {
     api<Strategy>('/strategies', { method: 'POST', body, workspace: true }),
   list: () => api<Strategy[]>('/strategies', { workspace: true }),
   get: (id: string) => api<Strategy>(`/strategies/${id}`, { workspace: true }),
+  update: (
+    id: string,
+    body: Partial<Pick<Strategy, 'title' | 'objective' | 'positioning'>>,
+  ) => api<Strategy>(`/strategies/${id}`, { method: 'PATCH', body, workspace: true }),
+  remove: (id: string) => api<void>(`/strategies/${id}`, { method: 'DELETE', workspace: true }),
 };
 
 // ---------- M1: Brand Brain + Insights ----------
@@ -238,6 +246,8 @@ export interface ContentItem {
   body: string;
   variants: Record<string, string> | null;
   meta: Record<string, unknown> | null;
+  image_url: string | null;
+  image_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -250,6 +260,8 @@ export const Content = {
     strategy_id?: string;
     count?: number;
     notes?: string;
+    provider?: string;
+    scheduled_date?: string;
   }) =>
     api<ContentItem[]>('/content/generate', { method: 'POST', body, workspace: true }),
   list: () => api<ContentItem[]>('/content', { workspace: true }),
@@ -260,6 +272,146 @@ export const Content = {
   ) => api<ContentItem>(`/content/${id}`, { method: 'PATCH', body, workspace: true }),
   remove: (id: string) =>
     api<void>(`/content/${id}`, { method: 'DELETE', workspace: true }),
+};
+
+// ---------- Content Calendar (date-aware, multi-platform) ----------
+export interface CalendarEntry {
+  id: string;
+  date: string;
+  platform: string;
+  content_type: string;
+  title: string;
+  hook?: string | null;
+  theme?: string | null;
+  funnel_stage?: string | null;
+  notes?: string | null;
+  status: 'planned' | 'generated';
+  content_item_id: string | null;
+  image_url?: string | null;
+  asset_kind?: 'image' | 'text' | null;
+}
+export interface ContentCalendar {
+  id: string;
+  workspace_id: string;
+  strategy_id: string | null;
+  title: string;
+  client_name: string | null;
+  start_date: string;
+  end_date: string;
+  platforms: string[];
+  entries: CalendarEntry[];
+  meta: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export const ALL_PLATFORMS = [
+  'linkedin',
+  'x',
+  'instagram',
+  'facebook',
+  'youtube',
+  'blog',
+  'newsletter',
+  'quora',
+  'reddit',
+  'medium',
+] as const;
+
+export const AI_MODELS = [
+  { id: 'claude', label: 'Claude Opus (recommended)' },
+  { id: 'gpt-5.5', label: 'GPT-5.5' },
+] as const;
+
+export const IMAGE_MODELS = [
+  { id: 'gpt-image', label: 'GPT Image 2.1 (recommended)' },
+  { id: 'mai', label: 'MAI Image 2.5' },
+  { id: 'flux', label: 'FLUX.2 Pro' },
+] as const;
+
+export const IMAGE_STYLES = [
+  { id: 'modern_gradient', label: 'Modern gradient' },
+  { id: 'flat_vector', label: 'Flat vector' },
+  { id: '3d_render', label: '3D render' },
+  { id: 'minimal_editorial', label: 'Minimal editorial' },
+  { id: 'bold_typographic', label: 'Bold typographic' },
+  { id: 'photo_realistic', label: 'Photorealistic' },
+] as const;
+
+export const Calendar = {
+  generate: (body: {
+    client_name?: string;
+    title?: string;
+    goal?: string;
+    strategy_id?: string;
+    platforms?: string[];
+    start_date?: string;
+    end_date?: string;
+    provider?: string;
+  }) => api<ContentCalendar>('/calendar/generate', { method: 'POST', body, workspace: true }),
+  list: () => api<ContentCalendar[]>('/calendar', { workspace: true }),
+  get: (id: string) => api<ContentCalendar>(`/calendar/${id}`, { workspace: true }),
+  remove: (id: string) => api<void>(`/calendar/${id}`, { method: 'DELETE', workspace: true }),
+  generateEntry: (
+    calendarId: string,
+    entryId: string,
+    body: {
+      provider?: string;
+      notes?: string;
+      with_image?: boolean;
+      image_style?: string;
+      image_provider?: string;
+    },
+  ) =>
+    api<ContentCalendar>(`/calendar/${calendarId}/entries/${entryId}/generate`, {
+      method: 'POST',
+      body,
+      workspace: true,
+    }),
+};
+
+// ---------- Image generation (Canva/Gamma-style social graphics) ----------
+export interface ContentImage {
+  id: string;
+  workspace_id: string;
+  content_item_id: string | null;
+  prompt: string | null;
+  provider: string | null;
+  style: string | null;
+  size: string | null;
+  mime: string;
+  url: string;
+  created_at: string;
+}
+
+export function imageUrl(image: ContentImage): string {
+  return `${API_URL}${image.url}`;
+}
+
+/** Build an absolute URL for an image path returned on content/entries (e.g. /api/v1/images/<id>/raw). */
+export function assetUrl(path: string): string {
+  if (!path) return '';
+  return path.startsWith('http') ? path : `${API_URL}${path}`;
+}
+
+export const Images = {
+  generate: (body: {
+    prompt?: string;
+    topic?: string;
+    headline?: string;
+    platform?: string;
+    style?: string;
+    size?: string;
+    provider?: string;
+    content_item_id?: string;
+    use_brand?: boolean;
+    extra?: string;
+  }) => api<ContentImage>('/images/generate', { method: 'POST', body, workspace: true }),
+  list: (contentItemId?: string) =>
+    api<ContentImage[]>(
+      `/images${contentItemId ? `?content_item_id=${contentItemId}` : ''}`,
+      { workspace: true },
+    ),
+  remove: (id: string) => api<void>(`/images/${id}`, { method: 'DELETE', workspace: true }),
 };
 
 // ---------- M3/M4: Social Publishing ----------

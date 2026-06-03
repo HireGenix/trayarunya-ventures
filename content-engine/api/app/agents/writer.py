@@ -7,9 +7,10 @@ ad copy. Returns structured items with title, body and per-platform variants.
 from __future__ import annotations
 
 import json
+from datetime import date
 from typing import Any
 
-from app.llm.adapters import _extract_json, complete
+from app.llm.adapters import Provider, _extract_json, complete
 
 WRITER_SYSTEM = (
     "You are an elite content writer for a B2B/B2C/D2C marketing partner that treats "
@@ -81,8 +82,15 @@ async def generate_content(
     notes: str | None,
     brand: dict[str, Any] | None,
     strategy: dict[str, Any] | None,
+    provider: Provider | None = None,
+    scheduled_date: str | None = None,
 ) -> list[dict[str, Any]]:
+    today = date.today()
+    date_line = f"TODAY'S DATE: {today.isoformat()} ({today.strftime('%A, %d %B %Y')})\n"
+    if scheduled_date:
+        date_line += f"PUBLISH DATE: {scheduled_date}\n"
     prompt = (
+        f"{date_line}"
         f"{_ctx_block(brand, strategy)}\n\n"
         f"CONTENT TYPE: {content_type}\n"
         f"PLATFORM: {platform or 'general'}\n"
@@ -90,7 +98,7 @@ async def generate_content(
         f"NUMBER OF ITEMS: {count}\n"
         f"NOTES: {notes or 'none'}\n"
     )
-    raw = await complete([{"role": "user", "content": prompt}], WRITER_SYSTEM)
+    raw = await complete([{"role": "user", "content": prompt}], WRITER_SYSTEM, provider)
     try:
         data = json.loads(_extract_json(raw))
         items = data.get("items")

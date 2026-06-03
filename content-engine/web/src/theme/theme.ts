@@ -33,8 +33,25 @@ let theme = createTheme({
     subtitle1: { fontSize: '1.05rem', lineHeight: 1.6, fontWeight: 500 },
     button: { fontWeight: 600, fontSize: '0.9rem', textTransform: 'none' },
   },
-  shape: { borderRadius: 12 },
+  shape: { borderRadius: 14 },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        body: {
+          minHeight: '100vh',
+          background:
+            'radial-gradient(1200px 600px at 10% -10%, rgba(255,175,6,0.14), transparent 60%),' +
+            'radial-gradient(1000px 600px at 110% 10%, rgba(20,187,135,0.14), transparent 55%),' +
+            'linear-gradient(180deg, #F4F6FB 0%, #EEF1F8 100%)',
+          backgroundAttachment: 'fixed',
+        },
+        '::-webkit-scrollbar': { width: 10, height: 10 },
+        '::-webkit-scrollbar-thumb': {
+          background: 'rgba(14,23,38,0.18)',
+          borderRadius: 8,
+        },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {
@@ -56,15 +73,42 @@ let theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
+          borderRadius: 20,
+          background: 'rgba(255, 255, 255, 0.72)',
+          backdropFilter: 'blur(18px)',
+          WebkitBackdropFilter: 'blur(18px)',
+          border: '1px solid rgba(255, 255, 255, 0.6)',
+          boxShadow: '0px 10px 30px rgba(14, 23, 38, 0.08)',
+          transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+          '&:hover': {
+            transform: 'translateY(-3px)',
+            boxShadow: '0px 20px 48px rgba(14, 23, 38, 0.14)',
+          },
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: { backgroundImage: 'none' },
+        outlined: {
           borderRadius: 16,
-          boxShadow: '0px 8px 24px rgba(14, 23, 38, 0.06)',
-          transition: 'all 0.3s ease',
-          '&:hover': { boxShadow: '0px 16px 40px rgba(14, 23, 38, 0.10)' },
+          background: 'rgba(255,255,255,0.55)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,255,255,0.55)',
         },
       },
     },
     MuiTextField: {
-      styleOverrides: { root: { '& .MuiOutlinedInput-root': { borderRadius: 10 } } },
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            borderRadius: 12,
+            background: 'rgba(255,255,255,0.6)',
+            backdropFilter: 'blur(8px)',
+          },
+        },
+      },
     },
   },
 });
