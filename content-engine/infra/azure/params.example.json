@@ -1,0 +1,21 @@
+// Example parameters for main.bicep.
+// Copy to params.json, fill in secrets, and deploy with:
+//   az deployment group create -g rg-content-engine -f main.bicep -p @params.json
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "namePrefix": { "value": "trayce" },
+    "location": { "value": "centralindia" },
+    "pgAdminUser": { "value": "ceadmin" },
+    "pgAdminPassword": { "value": "REPLACE_WITH_STRONG_PASSWORD" },
+    "jwtSecret": { "value": "REPLACE_WITH_LONG_RANDOM_STRING" },
+    "azureGpt5Endpoint": { "value": "" },
+    "azureGpt5Key": { "value": "" },
+    "azureAnthropicEndpoint": { "value": "https://hiregenix-resource.services.ai.azure.com/anthropic/v1/messages" },
+    "azureAnthropicKey": { "value": "REPLACE_WITH_ANTHROPIC_KEY" },
+    "apiImage": { "value": "<acr>.azurecr.io/ce-api:latest" },
+    "workerImage": { "value": "<acr>.azurecr.io/ce-api:latest" },
+    "webImage": { "value": "<acr>.azurecr.io/ce-web:latest" }
+  }
+}
