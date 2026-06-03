@@ -28,8 +28,13 @@ from app.schemas import (
     ScheduleOut,
     SocialAccountOut,
 )
+from app.models import ContentStatus
 from app.services import oauth
-from app.services.publisher import PublishError, publish
+from app.services.publish_flow import (
+    PUBLISHABLE_STATES,
+    already_published,
+    execute_publish,
+)
 
 router = APIRouter(prefix="/social", tags=["social"])
 
@@ -186,6 +191,11 @@ async def create_schedule(
     account = await db.get(SocialAccount, data.social_account_id)
     if account is None or account.workspace_id != ctx.workspace.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Social account not found")
+    if item.status not in PUBLISHABLE_STATES:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Approve this post before scheduling it.",
+        )
     sched = Schedule(
         workspace_id=ctx.workspace.id,
         content_item_id=data.content_item_id,
@@ -194,6 +204,8 @@ async def create_schedule(
         status=ScheduleStatus.pending,
     )
     db.add(sched)
+    if item.status == ContentStatus.approved:
+        item.status = ContentStatus.scheduled
     await db.flush()
     await db.commit()
     await db.refresh(sched)
@@ -225,6 +237,17 @@ async def publish_now(
     account = await db.get(SocialAccount, data.social_account_id)
     if account is None or account.workspace_id != ctx.workspace.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Social account not found")
+    if item.status not in PUBLISHABLE_STATES:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Approve this post before publishing it.",
+        )
+
+    # Idempotency: if this exact post already went out to this account, return it
+    # instead of double-posting.
+    existing = await already_published(db, item, account)
+    if existing is not None:
+        return ScheduleOut.model_validate(existing)
 
     sched = Schedule(
         workspace_id=ctx.workspace.id,
@@ -236,27 +259,7 @@ async def publish_now(
     db.add(sched)
     await db.flush()
 
-    # Compose the outgoing post: prefer the crafted caption, then append hashtags.
-    variants = item.variants or {}
-    text = variants.get("caption") or item.body
-    if account.platform == SocialPlatform.x and variants.get("x"):
-        text = variants.get("x")
-    tags = variants.get("hashtags")
-    if isinstance(tags, list) and tags:
-        tag_line = " ".join(t if str(t).startswith("#") else f"#{t}" for t in tags)
-        if tag_line and tag_line not in text:
-            text = f"{text}\n\n{tag_line}"
-    try:
-        external_id = await publish(account, text)
-        from app.models import ContentStatus
-
-        sched.status = ScheduleStatus.published
-        sched.external_post_id = external_id
-        item.status = ContentStatus.published
-    except PublishError as exc:
-        sched.status = ScheduleStatus.failed
-        sched.error = str(exc)[:1000]
-    await db.flush()
+    await execute_publish(db, item, account, sched)
     await db.commit()
     await db.refresh(sched)
     return ScheduleOut.model_validate(sched)

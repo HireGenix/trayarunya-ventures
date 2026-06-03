@@ -23,6 +23,8 @@ import {
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import SendIcon from '@mui/icons-material/Send';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ScheduleIcon from '@mui/icons-material/Schedule';
 import ImageIcon from '@mui/icons-material/Image';
 import { useAuth } from '@/lib/auth';
 import {
@@ -98,6 +100,10 @@ export default function PublishingPage() {
   const [mPlatform, setMPlatform] = useState('linkedin');
   const [mToken, setMToken] = useState('');
   const [mName, setMName] = useState('');
+
+  const [scheduleItem, setScheduleItem] = useState<ContentItem | null>(null);
+  const [scheduleAt, setScheduleAt] = useState('');
+  const [scheduling, setScheduling] = useState(false);
 
   const refresh = () => {
     Promise.all([
@@ -221,6 +227,46 @@ export default function PublishingPage() {
     } catch {
       setContent(prev);
       setError('Could not delete the post. Please try again.');
+    }
+  };
+
+  const openSchedule = (item: ContentItem) => {
+    const d = (item.meta?.scheduled_date as string) || '';
+    const base = d ? new Date(d + 'T09:00:00') : new Date(Date.now() + 60 * 60 * 1000);
+    const tzOffset = base.getTimezoneOffset() * 60000;
+    setScheduleAt(new Date(base.getTime() - tzOffset).toISOString().slice(0, 16));
+    setScheduleItem(item);
+  };
+
+  const confirmSchedule = async () => {
+    if (!scheduleItem) return;
+    const account = accountFor(scheduleItem.platform || '');
+    if (!account || !scheduleAt) return;
+    setScheduling(true);
+    setError('');
+    try {
+      await Social.schedule({
+        content_item_id: scheduleItem.id,
+        social_account_id: account.id,
+        scheduled_at: new Date(scheduleAt).toISOString(),
+      });
+      setScheduleItem(null);
+      setMsg('Post scheduled — it will publish automatically at the chosen time.');
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not schedule the post');
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const approveItem = async (item: ContentItem) => {
+    try {
+      const updated = await Content.approve(item.id);
+      setContent((cur) => cur.map((x) => (x.id === item.id ? { ...x, status: updated.status } : x)));
+      setMsg('Post approved — ready to publish.');
+    } catch {
+      setError('Could not approve the post. Please try again.');
     }
   };
 
@@ -508,27 +554,62 @@ export default function PublishingPage() {
                                             <DeleteOutlineIcon fontSize="small" />
                                           </IconButton>
                                         </Tooltip>
-                                        <Tooltip
-                                          title={account ? 'Publish now' : 'Connect an account first'}
-                                        >
-                                          <span>
-                                            <Button
-                                              size="small"
-                                              variant="contained"
-                                              startIcon={
-                                                publishing === item.id ? (
-                                                  <CircularProgress size={14} color="inherit" />
-                                                ) : (
-                                                  <SendIcon />
-                                                )
+                                        {(() => {
+                                          const approved = ['approved', 'scheduled', 'published'].includes(
+                                            item.status,
+                                          );
+                                          if (!approved) {
+                                            return (
+                                              <Tooltip title="Approve this post before it can be published">
+                                                <Button
+                                                  size="small"
+                                                  variant="outlined"
+                                                  color="success"
+                                                  startIcon={<CheckCircleOutlineIcon />}
+                                                  onClick={() => approveItem(item)}
+                                                >
+                                                  Approve
+                                                </Button>
+                                              </Tooltip>
+                                            );
+                                          }
+                                          return (
+                                            <Tooltip
+                                              title={
+                                                account ? 'Publish now' : 'Connect an account first'
                                               }
-                                              disabled={!account || publishing !== null}
-                                              onClick={() => publishItem(item)}
                                             >
-                                              Publish
-                                            </Button>
-                                          </span>
-                                        </Tooltip>
+                                              <span>
+                                                <Stack direction="row" spacing={0.5}>
+                                                  <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    startIcon={<ScheduleIcon />}
+                                                    disabled={!account}
+                                                    onClick={() => openSchedule(item)}
+                                                  >
+                                                    Schedule
+                                                  </Button>
+                                                  <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    startIcon={
+                                                      publishing === item.id ? (
+                                                        <CircularProgress size={14} color="inherit" />
+                                                      ) : (
+                                                        <SendIcon />
+                                                      )
+                                                    }
+                                                    disabled={!account || publishing !== null}
+                                                    onClick={() => publishItem(item)}
+                                                  >
+                                                    Publish
+                                                  </Button>
+                                                </Stack>
+                                              </span>
+                                            </Tooltip>
+                                          );
+                                        })()}
                                       </Stack>
                                     </Stack>
                                   </CardContent>
@@ -632,6 +713,47 @@ export default function PublishingPage() {
           </Button>
           <Button onClick={connectManual} variant="contained" disabled={!mToken.trim()}>
             Connect
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={scheduleItem !== null}
+        onClose={() => setScheduleItem(null)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Schedule post</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {scheduleItem?.title || scheduleItem?.body?.slice(0, 60)}
+            </Typography>
+            <TextField
+              label="Publish at"
+              type="datetime-local"
+              value={scheduleAt}
+              onChange={(e) => setScheduleAt(e.target.value)}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+            <Alert severity="info">
+              The post will publish automatically at this time to{' '}
+              {PLATFORM_LABEL[scheduleItem?.platform || ''] || scheduleItem?.platform}.
+            </Alert>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setScheduleItem(null)} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmSchedule}
+            variant="contained"
+            disabled={!scheduleAt || scheduling}
+            startIcon={scheduling ? <CircularProgress size={14} color="inherit" /> : <ScheduleIcon />}
+          >
+            Schedule
           </Button>
         </DialogActions>
       </Dialog>

@@ -422,6 +422,10 @@ export const Content = {
   ) => api<ContentItem>(`/content/${id}`, { method: 'PATCH', body, workspace: true }),
   remove: (id: string) =>
     api<void>(`/content/${id}`, { method: 'DELETE', workspace: true }),
+  approve: (id: string) =>
+    api<ContentItem>(`/content/${id}/approve`, { method: 'POST', workspace: true }),
+  unapprove: (id: string) =>
+    api<ContentItem>(`/content/${id}/unapprove`, { method: 'POST', workspace: true }),
 };
 
 // ---------- Content Calendar (date-aware, multi-platform) ----------
@@ -656,21 +660,93 @@ export interface AdAccount {
   external_id: string | null;
   name: string | null;
   is_grant: boolean;
+  connected: boolean;
+  currency: string;
   created_at: string;
 }
 export interface Campaign {
   id: string;
   ad_account_id: string;
+  platform: string | null;
   name: string;
   objective: string | null;
   status: string;
   daily_budget: number | null;
   plan: Record<string, unknown> | null;
   assets: Record<string, unknown> | null;
+  recommendations: CampaignRecommendations | null;
+  metrics_synced_at: string | null;
   created_at: string;
 }
 
+export interface CampaignRecommendations {
+  health?: string;
+  summary?: string;
+  engine?: string;
+  budget_recommendation?: { action: string; change_pct: number; rationale: string };
+  actions?: { priority: string; type: string; action: string; expected_impact?: string }[];
+  tests_to_run?: string[];
+  benchmarks?: Record<string, number>;
+}
+
+export interface AdMetricTotals {
+  impressions: number;
+  clicks: number;
+  engagements: number;
+  conversions: number;
+  spend: number;
+}
+export interface AdKpis {
+  ctr: number;
+  cpc: number;
+  cpm: number;
+  conversion_rate: number;
+  cpa: number;
+}
+export interface AdSeriesPoint extends AdMetricTotals {
+  date: string;
+}
+export interface CampaignRollup {
+  id: string;
+  name: string;
+  status: string;
+  daily_budget: number | null;
+  totals: AdMetricTotals;
+  kpis: AdKpis;
+}
+export interface PlatformOverview {
+  platform: string;
+  days: number;
+  connected: boolean;
+  live: boolean;
+  totals: AdMetricTotals;
+  kpis: AdKpis;
+  series: AdSeriesPoint[];
+  campaigns: CampaignRollup[];
+  campaign_count: number;
+  active_count: number;
+}
+export interface CampaignMetrics {
+  campaign_id: string;
+  days: number;
+  totals: AdMetricTotals;
+  kpis: AdKpis;
+  series: AdSeriesPoint[];
+  simulated: boolean;
+}
+
+export const AD_PLATFORMS = [
+  { id: 'google_ads', label: 'Google Ads', color: '#4285F4' },
+  { id: 'meta_ads', label: 'Meta Ads', color: '#0866FF' },
+  { id: 'linkedin_ads', label: 'LinkedIn Ads', color: '#0A66C2' },
+] as const;
+
 export const Ads = {
+  providers: () =>
+    api<{ providers: Record<string, boolean>; labels: Record<string, string> }>(
+      '/ads/providers',
+      { workspace: true },
+    ),
   accounts: () => api<AdAccount[]>('/ads/accounts', { workspace: true }),
   createAccount: (body: {
     platform?: string;
@@ -678,19 +754,53 @@ export const Ads = {
     external_id?: string;
     is_grant?: boolean;
   }) => api<AdAccount>('/ads/accounts', { method: 'POST', body, workspace: true }),
+  quickConnect: (body: { platform: string; name?: string; is_grant?: boolean }) =>
+    api<AdAccount>('/ads/accounts/quick-connect', { method: 'POST', body, workspace: true }),
+  oauthStart: (platform: string) =>
+    api<{ authorization_url: string; state: string }>(`/ads/${platform}/connect`, {
+      method: 'POST',
+      workspace: true,
+    }),
+  connectAccount: (id: string) =>
+    api<AdAccount>(`/ads/accounts/${id}/connect`, { method: 'POST', workspace: true }),
+  disconnectAccount: (id: string) =>
+    api<AdAccount>(`/ads/accounts/${id}/disconnect`, { method: 'POST', workspace: true }),
   generate: (body: {
     ad_account_id: string;
     objective: string;
     product: string;
     daily_budget?: number;
+    audience?: string;
+    locations?: string[];
     strategy_id?: string;
   }) => api<Campaign>('/ads/campaigns/generate', { method: 'POST', body, workspace: true }),
-  campaigns: () => api<Campaign[]>('/ads/campaigns', { workspace: true }),
+  campaigns: (platform?: string) =>
+    api<Campaign[]>(
+      `/ads/campaigns${platform ? `?platform=${platform}` : ''}`,
+      { workspace: true },
+    ),
   campaign: (id: string) => api<Campaign>(`/ads/campaigns/${id}`, { workspace: true }),
   setStatus: (id: string, statusValue: string) =>
-    api<Campaign>(`/ads/campaigns/${id}/status`, {
+    api<Campaign>(`/ads/campaigns/${id}/status?new_status=${statusValue}`, {
       method: 'PATCH',
-      body: { status: statusValue },
+      workspace: true,
+    }),
+  deleteCampaign: (id: string) =>
+    api<void>(`/ads/campaigns/${id}`, { method: 'DELETE', workspace: true }),
+  overview: (platform: string, days = 30) =>
+    api<PlatformOverview>(`/ads/overview?platform=${platform}&days=${days}`, {
+      workspace: true,
+    }),
+  sync: (id: string, days = 30) =>
+    api<CampaignMetrics>(`/ads/campaigns/${id}/sync?days=${days}`, {
+      method: 'POST',
+      workspace: true,
+    }),
+  metrics: (id: string, days = 30) =>
+    api<CampaignMetrics>(`/ads/campaigns/${id}/metrics?days=${days}`, { workspace: true }),
+  optimize: (id: string, days = 30) =>
+    api<Campaign>(`/ads/campaigns/${id}/optimize?days=${days}`, {
+      method: 'POST',
       workspace: true,
     }),
 };

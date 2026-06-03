@@ -320,6 +320,38 @@ async def update_content(
     return ContentOut.model_validate(item)
 
 
+@router.post("/{item_id}/approve", response_model=ContentOut)
+async def approve_content(
+    item_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> ContentOut:
+    """Mark a post approved so it becomes eligible to publish/schedule."""
+    item = await _get_item(db, ctx, item_id)
+    if item.status not in (ContentStatus.published, ContentStatus.scheduled):
+        item.status = ContentStatus.approved
+    await db.flush()
+    await db.commit()
+    await db.refresh(item)
+    return ContentOut.model_validate(item)
+
+
+@router.post("/{item_id}/unapprove", response_model=ContentOut)
+async def unapprove_content(
+    item_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> ContentOut:
+    """Send an approved post back to draft (e.g. needs another revision)."""
+    item = await _get_item(db, ctx, item_id)
+    if item.status in (ContentStatus.approved, ContentStatus.in_review):
+        item.status = ContentStatus.draft
+    await db.flush()
+    await db.commit()
+    await db.refresh(item)
+    return ContentOut.model_validate(item)
+
+
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_content(
     item_id: uuid.UUID,

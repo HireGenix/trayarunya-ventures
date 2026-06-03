@@ -30,6 +30,8 @@ logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
+
     # In production, schema is managed by Alembic migrations. For local/dev we
     # create tables on startup so the app is runnable without a migration step.
     if settings.environment == "development":
@@ -50,11 +52,29 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE research_jobs ADD COLUMN IF NOT EXISTS confidence DOUBLE PRECISION",
                 "ALTER TABLE competitors ADD COLUMN IF NOT EXISTS country VARCHAR(80)",
                 "ALTER TABLE competitors ADD COLUMN IF NOT EXISTS social_handles JSONB",
+                "ALTER TABLE ad_accounts ADD COLUMN IF NOT EXISTS connected BOOLEAN NOT NULL DEFAULT FALSE",
+                "ALTER TABLE ad_accounts ADD COLUMN IF NOT EXISTS currency VARCHAR(8) NOT NULL DEFAULT 'USD'",
+                "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS recommendations JSONB",
+                "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS metrics_synced_at TIMESTAMPTZ",
             ):
                 await conn.execute(text(ddl))
         async with AsyncSessionLocal() as db:
             await seed_plans(db)
-    yield
+
+    # Start the publishing scheduler: fires due, approved/scheduled posts.
+    from app.services.scheduler import scheduler_loop
+
+    stop = asyncio.Event()
+    scheduler_task = asyncio.create_task(scheduler_loop(stop))
+    try:
+        yield
+    finally:
+        stop.set()
+        scheduler_task.cancel()
+        try:
+            await scheduler_task
+        except (asyncio.CancelledError, Exception):  # noqa: BLE001
+            pass
 
 
 def create_app() -> FastAPI:
