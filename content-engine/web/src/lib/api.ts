@@ -868,3 +868,60 @@ export const Billing = {
   plans: () => api<Plan[]>('/billing/plans', { workspace: true }),
   summary: () => api<BillingSummary>('/billing/summary', { workspace: true }),
 };
+
+// ---------- Client Reports ----------
+export interface ReportOut {
+  id: string;
+  token: string;
+  title: string;
+  client_name: string | null;
+  date_from: string | null;
+  date_to: string | null;
+  views: number;
+  created_at: string;
+}
+
+export interface PublicReport {
+  title: string;
+  client_name: string | null;
+  date_from: string | null;
+  date_to: string | null;
+  workspace_name: string;
+  views: number;
+  created_at: string;
+  data: {
+    totals: Record<string, number>;
+    ctr: number;
+    by_source: Record<string, Record<string, number>>;
+    series: { date: string; impressions: number; clicks: number; engagements: number; conversions: number; spend: number }[];
+    content_count: number;
+    published_count: number;
+    posts: {
+      schedule_id: string;
+      title: string | null;
+      platform: string;
+      published_at: string | null;
+      impressions: number;
+      clicks: number;
+      engagements: number;
+      likes: number;
+      comments: number;
+      shares: number;
+      simulated: boolean;
+    }[];
+  };
+}
+
+export const Reports = {
+  list: () => api<ReportOut[]>('/reports', { workspace: true }),
+  create: (body: { title: string; client_name?: string; days?: number }) =>
+    api<ReportOut>('/reports', { method: 'POST', body, workspace: true }),
+  delete: (token: string) =>
+    api<void>(`/reports/${token}`, { method: 'DELETE', workspace: true }),
+  /** Public — no auth header needed, fetched directly */
+  getPublic: (token: string) =>
+    fetch(`${API_URL}/api/v1/reports/public/${token}`).then(async (r) => {
+      if (!r.ok) throw new ApiError(r.status, await r.text());
+      return r.json() as Promise<PublicReport>;
+    }),
+};

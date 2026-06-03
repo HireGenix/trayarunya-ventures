@@ -33,10 +33,11 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import SendIcon from '@mui/icons-material/SendOutlined';
 import CampaignIcon from '@mui/icons-material/CampaignOutlined';
 import BarChartIcon from '@mui/icons-material/BarChartOutlined';
+import AssessmentIcon from '@mui/icons-material/AssessmentOutlined';
 import CreditCardIcon from '@mui/icons-material/CreditCardOutlined';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonthOutlined';
 import { useAuth } from '@/lib/auth';
-import { Workspaces } from '@/lib/api';
+import { Workspaces, Calendar } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
 import { ConfirmProvider } from '@/components/ConfirmDialog';
 
@@ -68,6 +69,7 @@ const NAV: NavGroup[] = [
       { href: '/dashboard/brand', label: 'Brand Brain', icon: <PaletteIcon fontSize="small" />, color: BRAND.pink },
       { href: '/dashboard/ads', label: 'Ads', icon: <CampaignIcon fontSize="small" />, color: BRAND.amber },
       { href: '/dashboard/analytics', label: 'Analytics', icon: <BarChartIcon fontSize="small" />, color: BRAND.teal },
+      { href: '/dashboard/reports', label: 'Reports', icon: <AssessmentIcon fontSize="small" />, color: '#7C3AED' },
     ],
   },
   {
@@ -93,10 +95,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [wsName, setWsName] = useState('');
   const [wsSite, setWsSite] = useState('');
   const [userMenuEl, setUserMenuEl] = useState<null | HTMLElement>(null);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     if (!loading && !me) router.replace('/login');
   }, [loading, me, router]);
+
+  useEffect(() => {
+    if (!activeWorkspace) return;
+    let cancelled = false;
+    Calendar.list()
+      .then((cals) => {
+        if (cancelled) return;
+        const pending = cals.reduce(
+          (acc, c) => acc + c.entries.filter((e) => e.status !== 'generated').length,
+          0,
+        );
+        setPendingCount(pending);
+      })
+      .catch(() => setPendingCount(0));
+    return () => { cancelled = true; };
+  }, [activeWorkspace, pathname]);
 
   if (loading || !me) {
     return (
@@ -129,7 +148,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <ConfirmProvider>
       <Box
         sx={{
-          minHeight: '100vh',
+          height: '100vh',
+          overflow: 'hidden',
           background: 'linear-gradient(180deg,#EAF0EC 0%,#E6ECE8 100%)',
           p: { xs: 1, md: 2 },
         }}
@@ -138,7 +158,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Box
           sx={{
             display: 'flex',
-            minHeight: { xs: 'calc(100vh - 16px)', md: 'calc(100vh - 32px)' },
+            height: { xs: 'calc(100vh - 16px)', md: 'calc(100vh - 32px)' },
+            overflow: 'hidden',
             bgcolor: '#fff',
             borderRadius: { xs: '24px', md: '32px' },
             border: '1px solid rgba(14,17,22,0.06)',
@@ -151,10 +172,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         sx={{
           width: 84,
           flexShrink: 0,
-          position: 'sticky',
-          top: { xs: 8, md: 16 },
-          alignSelf: 'flex-start',
-          height: { xs: 'calc(100vh - 16px)', md: 'calc(100vh - 32px)' },
+          alignSelf: 'stretch',
+          height: '100%',
           display: { xs: 'none', md: 'flex' },
           flexDirection: 'column',
           p: 1.5,
@@ -235,8 +254,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
                 {group.items.map((item) => {
                   const active = isActive(item.href, pathname);
+                  const badge = item.href === '/dashboard/studio' && pendingCount > 0 ? pendingCount : 0;
                   return (
-                    <Tooltip key={item.href} title={item.label} placement="right" arrow>
+                    <Tooltip
+                      key={item.href}
+                      title={badge ? `${item.label} · ${badge} planned to generate` : item.label}
+                      placement="right"
+                      arrow
+                    >
                       <Box
                         component={Link}
                         href={item.href}
@@ -260,6 +285,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         }}
                       >
                         {item.icon}
+                        {badge > 0 && (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              top: 3,
+                              right: 3,
+                              minWidth: 17,
+                              height: 17,
+                              px: 0.4,
+                              borderRadius: '999px',
+                              bgcolor: BRAND.pink,
+                              color: '#fff',
+                              fontSize: 10.5,
+                              fontWeight: 800,
+                              lineHeight: '17px',
+                              textAlign: 'center',
+                              border: '2px solid',
+                              borderColor: INK,
+                              boxShadow: '0 2px 6px rgba(217,44,74,0.5)',
+                            }}
+                          >
+                            {badge > 9 ? '9+' : badge}
+                          </Box>
+                        )}
                       </Box>
                     </Tooltip>
                   );
@@ -341,11 +390,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </Menu>
 
       {/* Main */}
-      <Box sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ flexGrow: 1, minWidth: 0, minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
         {/* Topbar */}
         <Box
           sx={{
             height: 60,
+            flexShrink: 0,
             px: { xs: 2, md: 4 },
             display: 'flex',
             alignItems: 'center',
@@ -411,7 +461,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Stack>
         </Box>
 
-        <Box sx={{ px: { xs: 2, md: 4 }, py: { xs: 2.5, md: 3.5 }, flexGrow: 1, width: '100%' }}>
+        <Box sx={{ px: { xs: 2, md: 4 }, py: { xs: 2.5, md: 3.5 }, flexGrow: 1, minHeight: 0, width: '100%', overflowY: 'auto' }}>
           {children}
         </Box>
       </Box>

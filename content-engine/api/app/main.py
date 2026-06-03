@@ -19,6 +19,7 @@ from app.routers import (
     health,
     images,
     insights,
+    reports,
     research,
     social,
     strategy,
@@ -56,6 +57,8 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE ad_accounts ADD COLUMN IF NOT EXISTS currency VARCHAR(8) NOT NULL DEFAULT 'USD'",
                 "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS recommendations JSONB",
                 "ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS metrics_synced_at TIMESTAMPTZ",
+                # reports table additions (create_all handles the table; these handle future columns)
+                "ALTER TABLE reports ADD COLUMN IF NOT EXISTS views INTEGER NOT NULL DEFAULT 0",
             ):
                 await conn.execute(text(ddl))
         async with AsyncSessionLocal() as db:
@@ -110,6 +113,7 @@ def create_app() -> FastAPI:
     app.include_router(social.router, prefix=p)
     app.include_router(ads.router, prefix=p)
     app.include_router(analytics.router, prefix=p)
+    app.include_router(reports.router, prefix=p)
     app.include_router(billing.router, prefix=p)
 
     @app.get("/")
