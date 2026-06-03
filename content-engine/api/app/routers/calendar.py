@@ -7,7 +7,6 @@ entry — which creates a real ContentItem and links it back to the entry.
 from __future__ import annotations
 
 import asyncio
-import base64
 import calendar as _calmod
 import copy
 import uuid
@@ -19,66 +18,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.agents.calendar_agent import DEFAULT_PLATFORMS, generate_calendar
-from app.agents.image_agent import create_slide_deck, create_social_image
-from app.agents.writer import generate_content
 from app.db import get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
-from app.models import (
-    BrandBrain,
-    ContentCalendar,
-    ContentImage,
-    ContentItem,
-    ContentStatus,
-    ContentType,
-    Strategy,
-)
+from app.models import BrandBrain, ContentCalendar, Strategy
 from app.schemas import (
     CalendarDayGenerateRequest,
     CalendarEntryGenerateRequest,
     CalendarGenerateRequest,
     CalendarOut,
 )
-from app.tools.trending import caption_and_tags
+from app.services.content_studio import (
+    load_brand_logo_b64,
+    persist_content,
+    produce_content,
+    provider_for,
+)
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
-# Platforms whose entries should ship with a ready-to-post branded graphic.
-VISUAL_PLATFORMS = {
-    "linkedin",
-    "instagram",
-    "facebook",
-    "x",
-    "twitter",
-    "threads",
-    "pinterest",
-    "youtube",
-}
-
-# Post format -> how many slides / which asset to build.
-FORMAT_SLIDES = {"static": 1, "carousel": 3, "pdf": 3}
-TEXT_ONLY_FORMATS = {"text", "video_script"}
-
-PROVIDER_MAP = {
-    "gpt-5.5": "gpt-5.5",
-    "gpt5": "gpt-5.5",
-    "gpt": "gpt-5.5",
-    "claude": "claude-opus",
-    "claude-opus": "claude-opus",
-    "opus": "claude-opus",
-}
-
-
-def _provider(value: str | None):
-    if not value:
-        return None
-    return PROVIDER_MAP.get(value.lower())
-
-
-def _coerce_type(value: str) -> ContentType:
-    try:
-        return ContentType(value)
-    except ValueError:
-        return ContentType.social_post
+_provider = provider_for
 
 
 def _end_of_month(d: date) -> date:
@@ -92,6 +50,7 @@ async def _load_brand(db: AsyncSession, workspace_id: uuid.UUID) -> dict | None:
     ).scalar_one_or_none()
     if not row:
         return None
+    profile = row.profile if isinstance(row.profile, dict) else {}
     return {
         "mission": row.mission,
         "value_prop": row.value_prop,
@@ -101,6 +60,10 @@ async def _load_brand(db: AsyncSession, workspace_id: uuid.UUID) -> dict | None:
         "keywords": row.keywords,
         "primary_color": row.primary_color,
         "accent_color": row.accent_color,
+        "name": profile.get("name"),
+        "website": row.website,
+        "logo_url": row.logo_url,
+        "logo_b64": await load_brand_logo_b64(db, row.logo_url),
     }
 
 
@@ -248,6 +211,7 @@ async def generate_entry(
         "image_style": data.image_style,
         "image_provider": data.image_provider,
         "notes": data.notes,
+        "email_format": data.email_format,
     }
     try:
         payload = await _produce_entry(target, brand, strategy, opts)
@@ -298,6 +262,7 @@ async def generate_day(
         "image_style": data.image_style,
         "image_provider": data.image_provider,
         "notes": None,
+        "email_format": data.email_format,
     }
 
     sem = asyncio.Semaphore(2)
@@ -337,13 +302,9 @@ async def _produce_entry(
     strategy: dict | None,
     opts: dict,
 ) -> dict:
-    """Phase 1 (no DB): produce text, branded asset(s) and caption/hashtags.
-
-    Runs the asset deck and the trending-caption work concurrently so graphics
-    and captions are ready at roughly the same time. Returns a payload dict that
-    ``_persist_entry`` writes to the database.
+    """Phase 1 (no DB): produce complete copy + branded asset(s) via the shared
+    Content Studio service so calendar entries and Quick Create behave identically.
     """
-    platform = (target.get("platform") or "").lower()
     fmt = (target.get("format") or "static").lower()
     topic = target.get("title") or target.get("theme") or "Content"
     notes_parts = [
@@ -355,86 +316,21 @@ async def _produce_entry(
     ]
     notes = " | ".join(p for p in notes_parts if p)
 
-    items = await generate_content(
+    return await produce_content(
         content_type=target.get("content_type", "social_post"),
         topic=topic,
         platform=target.get("platform"),
-        count=1,
+        fmt=fmt,
         notes=notes,
         brand=brand,
         strategy=strategy,
-        provider=_provider(opts.get("provider")),
+        provider=opts.get("provider"),
+        image_style=opts.get("image_style"),
+        image_provider=opts.get("image_provider"),
+        with_image=bool(opts.get("with_image")),
         scheduled_date=target.get("date"),
+        email_format=opts.get("email_format"),
     )
-    it = items[0] if items else {"title": topic, "body": "", "variants": {}}
-    body = it.get("body", "")
-
-    want_image = (
-        opts.get("with_image")
-        and platform in VISUAL_PLATFORMS
-        and fmt not in TEXT_ONLY_FORMATS
-    )
-    style = opts.get("image_style") or "modern_gradient"
-    img_provider = opts.get("image_provider")
-
-    async def _assets() -> list[tuple[bytes, str, str]]:
-        if not want_image:
-            return []
-        try:
-            if fmt in ("carousel", "pdf"):
-                return await create_slide_deck(
-                    topic=topic,
-                    headline=it.get("title") or topic,
-                    platform=platform,
-                    fmt=fmt,
-                    slides=FORMAT_SLIDES.get(fmt, 3),
-                    style=style,
-                    brand=brand,
-                    extra=target.get("hook"),
-                    provider=img_provider,
-                )
-            png, used, prompt = await create_social_image(
-                topic=topic,
-                headline=it.get("title") or topic,
-                platform=platform,
-                style=style,
-                brand=brand,
-                extra=target.get("hook"),
-                provider=img_provider,
-            )
-            return [(png, used, prompt)]
-        except Exception:  # noqa: BLE001 — assets are best-effort.
-            return []
-
-    async def _caption() -> dict:
-        try:
-            return await caption_and_tags(
-                topic=topic,
-                platform=target.get("platform"),
-                brand=brand,
-                body=body,
-                provider=_provider(opts.get("provider")),
-            )
-        except Exception:  # noqa: BLE001
-            return {}
-
-    assets, caption = await asyncio.gather(_assets(), _caption())
-
-    asset_kind = "text"
-    if assets:
-        asset_kind = {"carousel": "carousel", "pdf": "pdf"}.get(fmt, "image")
-
-    return {
-        "item": it,
-        "topic": topic,
-        "body": body,
-        "assets": assets,
-        "asset_kind": asset_kind,
-        "style": style,
-        "caption": caption.get("caption"),
-        "hashtags": caption.get("hashtags") or [],
-        "trending": caption.get("trending") or [],
-    }
 
 
 async def _persist_entry(
@@ -445,70 +341,34 @@ async def _persist_entry(
     payload: dict,
     provider: str | None,
 ) -> None:
-    """Phase 2 (DB): write the ContentItem, any images, and update the entry."""
+    """Phase 2 (DB): write the ContentItem + images and update the calendar entry."""
     entry_id = target.get("id")
-    it = payload["item"]
-    topic = payload["topic"]
-
-    variants = dict(
-        it.get("variants")
-        or {k: it.get(k) for k in ("hook", "hashtags", "cta") if it.get(k)}
-    )
-    if payload.get("caption"):
-        variants["caption"] = payload["caption"]
-    if payload.get("hashtags"):
-        variants["hashtags"] = payload["hashtags"]
-
-    item = ContentItem(
+    item = await persist_content(
+        db,
         workspace_id=ctx.workspace.id,
-        strategy_id=cal.strategy_id,
         created_by=ctx.user.id,
-        content_type=_coerce_type(target.get("content_type", "social_post")),
-        status=ContentStatus.draft,
+        strategy_id=cal.strategy_id,
+        content_type=target.get("content_type", "social_post"),
         platform=target.get("platform"),
-        title=it.get("title") or topic,
-        body=payload["body"],
-        variants=variants,
-        meta={
+        payload=payload,
+        meta_extra={
             "calendar_id": str(cal.id),
             "calendar_entry_id": entry_id,
             "scheduled_date": target.get("date"),
             "format": target.get("format"),
             "provider": provider,
+            "topic": payload.get("topic") or target.get("title"),
         },
     )
-    db.add(item)
-    await db.flush()  # need item.id to link images
 
-    asset_urls: list[str] = []
-    for png, used, prompt in payload.get("assets") or []:
-        img = ContentImage(
-            workspace_id=ctx.workspace.id,
-            content_item_id=item.id,
-            created_by=ctx.user.id,
-            prompt=prompt,
-            provider=used,
-            style=payload.get("style"),
-            size=None,
-            mime="image/png",
-            data_b64=base64.b64encode(png).decode("ascii"),
-            meta={"calendar_entry_id": entry_id},
-        )
-        db.add(img)
-        await db.flush()
-        asset_urls.append(f"/api/v1/images/{img.id}/raw")
-
-    if asset_urls:
-        item.meta = {
-            **(item.meta or {}),
-            "image_url": asset_urls[0],
-            "asset_urls": asset_urls,
-        }
-        flag_modified(item, "meta")
-
+    asset_urls = (item.meta or {}).get("asset_urls") or []
     target["status"] = "generated"
     target["content_item_id"] = str(item.id)
     target["asset_kind"] = payload.get("asset_kind", "text")
+    # Reflect the auto-detected deliverable on the entry (e.g. a lead-magnet
+    # planned as "static" is surfaced as the "pdf" playbook it became).
+    if payload.get("format"):
+        target["format"] = payload["format"]
     if asset_urls:
         target["image_url"] = asset_urls[0]
         target["asset_urls"] = asset_urls

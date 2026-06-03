@@ -16,7 +16,7 @@ from app.agents.image_agent import create_social_image
 from app.db import get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
 from app.models import BrandBrain, ContentImage, ContentItem
-from app.schemas import ImageGenerateRequest, ImageOut
+from app.schemas import ImageGenerateRequest, ImageOut, ImageRegenerateRequest
 
 router = APIRouter(prefix="/images", tags=["images"])
 
@@ -42,12 +42,16 @@ async def _load_brand(db: AsyncSession, workspace_id: uuid.UUID) -> dict | None:
     ).scalar_one_or_none()
     if not row:
         return None
+    from app.services.content_studio import load_brand_logo_b64
+
     return {
         "primary_color": row.primary_color,
         "accent_color": row.accent_color,
         "voice": row.voice,
         "value_prop": row.value_prop,
         "mission": row.mission,
+        "logo_url": getattr(row, "logo_url", None),
+        "logo_b64": await load_brand_logo_b64(db, getattr(row, "logo_url", None)),
     }
 
 
@@ -94,6 +98,10 @@ async def generate(
             )
             size = size_for_platform(platform, data.size)
             png, used = await generate_image(final_prompt, size=size, provider=data.provider)
+            if brand and brand.get("logo_b64"):
+                from app.agents.logo_overlay import composite_logo
+
+                png = composite_logo(png, logo_b64=brand["logo_b64"], corner="bottom-right")
         else:
             png, used, final_prompt = await create_social_image(
                 topic=topic or "brand social post",
@@ -123,6 +131,95 @@ async def generate(
     )
     db.add(img)
     await db.flush()
+    await db.commit()
+    await db.refresh(img)
+    return _to_out(img)
+
+
+@router.post("/{image_id}/regenerate", response_model=ImageOut, status_code=status.HTTP_201_CREATED)
+async def regenerate(
+    image_id: uuid.UUID,
+    data: ImageRegenerateRequest,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> ImageOut:
+    """Re-render an existing image from its original prompt + a change instruction.
+
+    The providers are text-to-image only, so rather than pixel-editing the source
+    we re-generate guided by the source prompt with the requested change appended,
+    preserving the brand palette, style and size. If ``replace`` is set and the
+    source image belongs to a content item's deck, the new image takes its slot.
+    """
+    source = await db.get(ContentImage, image_id)
+    if source is None or source.workspace_id != ctx.workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Image not found")
+
+    from app.llm.image_adapters import generate_image
+
+    base_prompt = source.prompt or "a professional, brand-aligned social media graphic"
+    final_prompt = (
+        f"{base_prompt}\n\nIMPORTANT — APPLY THIS CHANGE while keeping the same overall "
+        f"composition, brand colours and style: {data.instruction.strip()}. "
+        f"Keep all on-image text perfectly spelled."
+    )
+    size = source.size or "1024x1024"
+    provider = data.provider or source.meta and source.meta.get("requested_provider")
+
+    try:
+        png, used = await generate_image(final_prompt, size=size, provider=provider)
+        brand = await _load_brand(db, ctx.workspace.id)
+        if brand and brand.get("logo_b64"):
+            from app.agents.logo_overlay import composite_logo
+
+            png = composite_logo(png, logo_b64=brand["logo_b64"], corner="bottom-right")
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Image regeneration failed: {exc}")
+
+    new_meta = dict(source.meta or {})
+    new_meta["regenerated_from"] = str(source.id)
+    new_meta["change_instruction"] = data.instruction.strip()
+
+    img = ContentImage(
+        workspace_id=ctx.workspace.id,
+        content_item_id=source.content_item_id,
+        created_by=ctx.user.id,
+        prompt=final_prompt,
+        provider=used,
+        style=source.style,
+        size=size,
+        mime="image/png",
+        data_b64=base64.b64encode(png).decode("ascii"),
+        meta=new_meta,
+    )
+    db.add(img)
+    await db.flush()
+
+    # Optionally swap this image's slot in the parent content item's asset deck.
+    if data.replace and source.content_item_id is not None:
+        item = await db.get(ContentItem, source.content_item_id)
+        if item is not None and item.workspace_id == ctx.workspace.id:
+            from sqlalchemy.orm.attributes import flag_modified
+
+            meta = dict(item.meta or {})
+            urls = list(meta.get("asset_urls") or [])
+            old_url = f"/api/v1/images/{source.id}/raw"
+            new_url = f"/api/v1/images/{img.id}/raw"
+            replaced = False
+            for i, u in enumerate(urls):
+                if u == old_url:
+                    urls[i] = new_url
+                    replaced = True
+                    break
+            idx = (source.meta or {}).get("slide_index")
+            if not replaced and isinstance(idx, int) and 0 <= idx < len(urls):
+                urls[idx] = new_url
+                replaced = True
+            if replaced:
+                meta["asset_urls"] = urls
+                meta["image_url"] = urls[0] if urls else None
+                item.meta = meta
+                flag_modified(item, "meta")
+
     await db.commit()
     await db.refresh(img)
     return _to_out(img)

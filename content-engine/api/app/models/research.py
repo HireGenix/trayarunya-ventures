@@ -39,6 +39,11 @@ class ResearchJob(Base, UUIDMixin, TimestampMixin):
     findings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     sources: Mapped[list | None] = mapped_column(JSONB, nullable=True)
 
+    # Targeting (Deep Research v2)
+    countries: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    platforms: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    self_handle: Mapped[str | None] = mapped_column(String(300), nullable=True)
+
 
 class Competitor(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "competitors"
@@ -55,6 +60,34 @@ class Competitor(Base, UUIDMixin, TimestampMixin):
     strengths: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     weaknesses: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     content_themes: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    # Deep Research v2: where they operate + their social handles per platform
+    country: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    social_handles: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+
+class AuditSnapshot(Base, UUIDMixin, TimestampMixin):
+    """A point-in-time public audit of one profile on one platform.
+
+    Captured automatically after a research job (client + each discovered
+    competitor) so we can render benchmark tables and track growth over time.
+    """
+
+    __tablename__ = "audit_snapshots"
+
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    research_job_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("research_jobs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    competitor_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("competitors.id", ondelete="CASCADE"), nullable=True
+    )
+    platform: Mapped[str] = mapped_column(String(40), default="instagram", nullable=False)
+    handle: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    is_primary: Mapped[bool] = mapped_column(default=False, nullable=False)
+    country: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    profile: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
 
 class Insight(Base, UUIDMixin, TimestampMixin):

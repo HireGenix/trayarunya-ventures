@@ -31,13 +31,42 @@ WRITER_SYSTEM = (
     "    }\n"
     "  ]\n"
     "}\n"
-    "Rules by type:\n"
+    "Rules by type — ALWAYS return the COMPLETE, ready-to-publish piece, never an "
+    "outline or placeholder:\n"
     "- social_post: 120-220 words, 1 idea, strong hook, line breaks for skimming.\n"
     "- thread: 'body' is the full thread; 'variants.x' splits into numbered tweets.\n"
-    "- blog: 700-1200 words with markdown headings and a clear takeaway.\n"
-    "- newsletter: subject line in title, scannable sections in body.\n"
-    "- lead_magnet: an outline + the actual content for a checklist/guide/template.\n"
+    "- blog: a FULL 800-1300 word article in markdown with a '# H1' title, 4-6 "
+    "'## H2' sections, intro, body and a clear takeaway/CTA. No '[TODO]' or '...'.\n"
+    "- newsletter: 'title' is the subject line; 'body' is the full issue in markdown "
+    "with a greeting, 3-5 clearly-headed sections, and a sign-off CTA.\n"
+    "- lead_magnet: the COMPLETE guide/checklist/template content (not just an outline) "
+    "in markdown, organized into titled sections ready to drop into a PDF.\n"
     "- ad_copy: 3-5 headline/description pairs inside body, plus variants per platform.\n"
+)
+
+
+CAROUSEL_SYSTEM = (
+    "You are an elite social carousel/document designer and copywriter. Given brand "
+    "context, a topic and a target platform, write the COMPLETE copy for every slide "
+    "of a cohesive multi-slide carousel (or PDF document). Each slide must carry real, "
+    "specific, publish-ready copy — never placeholders.\n\n"
+    "Structure: slide 1 is a scroll-stopping COVER (big title + one-line promise); the "
+    "middle slides each deliver ONE concrete idea (a short punchy heading + 1-3 tight "
+    "supporting lines); the final slide is a clear CALL-TO-ACTION.\n\n"
+    "Return STRICT JSON:\n"
+    "{\n"
+    '  "title": "internal title for the deck",\n'
+    '  "caption": "the post caption to accompany the carousel",\n'
+    '  "hashtags": ["..."],\n'
+    '  "slides": [\n'
+    "    {\n"
+    '      "heading": "the on-slide headline (<= 8 words)",\n'
+    '      "body": "1-3 short supporting lines for the slide",\n'
+    '      "kind": "cover | point | cta"\n'
+    "    }\n"
+    "  ]\n"
+    "}\n"
+    "Produce exactly the requested number of slides."
 )
 
 
@@ -108,3 +137,77 @@ async def generate_content(
         pass
     # Fallback: wrap the raw text as a single item so the call always yields content.
     return [{"title": topic[:80], "body": raw, "variants": {}}]
+
+
+def _fallback_slides(topic: str, body: str, count: int) -> list[dict[str, Any]]:
+    """Best-effort slide split when the model doesn't return clean JSON."""
+    blocks = [b.strip() for b in (body or "").split("\n\n") if b.strip()]
+    slides: list[dict[str, Any]] = [
+        {"heading": topic[:60], "body": (body or topic)[:160], "kind": "cover"}
+    ]
+    for block in blocks[: max(1, count - 2)]:
+        lines = block.split("\n")
+        heading = lines[0].lstrip("#-• ").strip()[:60]
+        rest = "\n".join(lines[1:]).strip() or heading
+        slides.append({"heading": heading, "body": rest[:200], "kind": "point"})
+    slides.append(
+        {"heading": "Want this for your brand?", "body": "Let's talk.", "kind": "cta"}
+    )
+    return slides[:count]
+
+
+async def generate_carousel_slides(
+    *,
+    topic: str,
+    platform: str | None,
+    slides: int,
+    notes: str | None,
+    brand: dict[str, Any] | None,
+    strategy: dict[str, Any] | None,
+    provider: Provider | None = None,
+    fmt: str = "carousel",
+) -> dict[str, Any]:
+    """Generate complete per-slide copy for a carousel / PDF document.
+
+    Returns ``{"title", "caption", "hashtags", "slides": [{heading, body, kind}]}``.
+    Always returns at least one usable slide (falls back to a heuristic split).
+    """
+    slides = max(2, min(slides, 10))
+    doc_word = "PDF document" if fmt == "pdf" else "carousel"
+    prompt = (
+        f"{_ctx_block(brand, strategy)}\n\n"
+        f"FORMAT: {doc_word}\n"
+        f"PLATFORM: {platform or 'general'}\n"
+        f"TOPIC: {topic}\n"
+        f"NUMBER OF SLIDES: {slides}\n"
+        f"NOTES: {notes or 'none'}\n"
+    )
+    raw = await complete([{"role": "user", "content": prompt}], CAROUSEL_SYSTEM, provider)
+    try:
+        data = json.loads(_extract_json(raw))
+        out_slides = data.get("slides")
+        if isinstance(out_slides, list) and out_slides:
+            clean = [
+                {
+                    "heading": str(s.get("heading", "")).strip(),
+                    "body": str(s.get("body", "")).strip(),
+                    "kind": s.get("kind") or ("cover" if i == 0 else "point"),
+                }
+                for i, s in enumerate(out_slides)
+                if isinstance(s, dict)
+            ][:slides]
+            if clean:
+                return {
+                    "title": data.get("title") or topic[:80],
+                    "caption": data.get("caption"),
+                    "hashtags": data.get("hashtags") or [],
+                    "slides": clean,
+                }
+    except json.JSONDecodeError:
+        pass
+    return {
+        "title": topic[:80],
+        "caption": None,
+        "hashtags": [],
+        "slides": _fallback_slides(topic, raw, slides),
+    }

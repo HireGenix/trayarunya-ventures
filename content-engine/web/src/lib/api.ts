@@ -108,6 +108,8 @@ export interface ResearchJob {
   summary: string | null;
   findings: Record<string, unknown> | null;
   sources: { title: string; url: string }[] | null;
+  countries: string[] | null;
+  platforms: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -126,6 +128,70 @@ export interface Competitor {
   strengths: string[] | null;
   weaknesses: string[] | null;
   content_themes: string[] | null;
+  country: string | null;
+  social_handles: Record<string, string | null> | null;
+}
+export interface SocialPost {
+  thumbnail: string | null;
+  likes: number | null;
+  comments: number | null;
+  is_video: boolean;
+  media_type: string | null;
+  taken_at: number | null;
+  caption: string | null;
+  permalink: string | null;
+}
+export interface FormatMix {
+  format: string;
+  label: string;
+  count: number;
+}
+export interface ContentInsights {
+  format_mix: FormatMix[];
+  posts_per_week: number | null;
+  last_post_days: number | null;
+  avg_likes: number | null;
+  avg_comments: number | null;
+  top_post_index: number | null;
+  best_format: string | null;
+  best_format_label: string | null;
+  sample_size: number | null;
+}
+export interface SocialProfile {
+  platform: string;
+  found: boolean;
+  username: string | null;
+  full_name: string | null;
+  biography: string | null;
+  is_verified: boolean;
+  is_business: boolean;
+  private: boolean;
+  limited: boolean;
+  category: string | null;
+  profile_pic_url: string | null;
+  external_url: string | null;
+  followers: number | null;
+  following: number | null;
+  posts: number | null;
+  engagement_rate: number | null;
+  recent_posts: SocialPost[];
+  content_insights: ContentInsights | null;
+  query: string | null;
+  is_primary: boolean;
+  source: string | null;
+  note: string | null;
+  error: string | null;
+}
+export interface AuditSnapshot {
+  id: string;
+  research_job_id: string | null;
+  competitor_id: string | null;
+  platform: string;
+  handle: string | null;
+  is_primary: boolean;
+  country: string | null;
+  profile: SocialProfile | null;
+  created_at: string;
 }
 export interface Strategy {
   id: string;
@@ -166,8 +232,13 @@ export const Workspaces = {
 };
 
 export const Research = {
-  create: (body: { topic: string; target_url?: string }) =>
-    api<ResearchJob>('/research', { method: 'POST', body, workspace: true }),
+  create: (body: {
+    topic: string;
+    target_url?: string;
+    countries?: string[];
+    platforms?: string[];
+    self_handle?: string;
+  }) => api<ResearchJob>('/research', { method: 'POST', body, workspace: true }),
   list: () => api<ResearchJob[]>('/research', { workspace: true }),
   get: (id: string) => api<ResearchJob>(`/research/${id}`, { workspace: true }),
   update: (id: string, body: { topic?: string; target_url?: string; summary?: string }) =>
@@ -175,6 +246,12 @@ export const Research = {
   remove: (id: string) => api<void>(`/research/${id}`, { method: 'DELETE', workspace: true }),
   insights: (id: string) => api<Insight[]>(`/research/${id}/insights`, { workspace: true }),
   competitors: (id: string) => api<Competitor[]>(`/research/${id}/competitors`, { workspace: true }),
+  auditSnapshots: (id: string) =>
+    api<AuditSnapshot[]>(`/research/${id}/audit-snapshots`, { workspace: true }),
+  socialAudit: (url: string) =>
+    api<SocialProfile>('/research/social-audit', { method: 'POST', body: { url }, workspace: true }),
+  socialBenchmark: (urls: string[]) =>
+    api<SocialProfile[]>('/research/social-benchmark', { method: 'POST', body: { urls }, workspace: true }),
 };
 
 export const Strategies = {
@@ -264,6 +341,7 @@ export const Insights = {
     const s = qs.toString();
     return api<ExplorerInsight[]>(`/insights${s ? `?${s}` : ''}`, { workspace: true });
   },
+  remove: (id: string) => api<void>(`/insights/${id}`, { method: 'DELETE', workspace: true }),
 };
 
 // ---------- M2: Content Studio ----------
@@ -280,6 +358,10 @@ export interface ContentItem {
   meta: Record<string, unknown> | null;
   image_url: string | null;
   image_id: string | null;
+  asset_urls: string[] | null;
+  asset_kind: string | null;
+  email_html?: string | null;
+  email_format?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -294,10 +376,28 @@ export const Content = {
     notes?: string;
     provider?: string;
     scheduled_date?: string;
+    format?: string;
+    slides?: number;
+    with_image?: boolean;
+    image_style?: string;
+    image_provider?: string;
+    email_format?: string;
   }) =>
     api<ContentItem[]>('/content/generate', { method: 'POST', body, workspace: true }),
   list: () => api<ContentItem[]>('/content', { workspace: true }),
   get: (id: string) => api<ContentItem>(`/content/${id}`, { workspace: true }),
+  generateAssets: (
+    id: string,
+    body: {
+      format: string;
+      slides?: number;
+      image_style?: string;
+      image_provider?: string;
+      provider?: string;
+      email_format?: string;
+    },
+  ) =>
+    api<ContentItem>(`/content/${id}/assets`, { method: 'POST', body, workspace: true }),
   update: (
     id: string,
     body: Partial<Pick<ContentItem, 'title' | 'body' | 'status' | 'platform' | 'variants' | 'meta'>>,
@@ -394,6 +494,7 @@ export const Calendar = {
       with_image?: boolean;
       image_style?: string;
       image_provider?: string;
+      email_format?: string;
     },
   ) =>
     api<ContentCalendar>(`/calendar/${calendarId}/entries/${entryId}/generate`, {
@@ -409,6 +510,7 @@ export const Calendar = {
       with_image?: boolean;
       image_style?: string;
       image_provider?: string;
+      email_format?: string;
     },
   ) =>
     api<ContentCalendar>(`/calendar/${calendarId}/generate-day`, {
@@ -455,6 +557,10 @@ export const Images = {
     use_brand?: boolean;
     extra?: string;
   }) => api<ContentImage>('/images/generate', { method: 'POST', body, workspace: true }),
+  regenerate: (
+    id: string,
+    body: { instruction: string; provider?: string; replace?: boolean },
+  ) => api<ContentImage>(`/images/${id}/regenerate`, { method: 'POST', body, workspace: true }),
   list: (contentItemId?: string) =>
     api<ContentImage[]>(
       `/images${contentItemId ? `?content_item_id=${contentItemId}` : ''}`,
@@ -462,6 +568,21 @@ export const Images = {
     ),
   remove: (id: string) => api<void>(`/images/${id}`, { method: 'DELETE', workspace: true }),
 };
+
+/** Download an image (by absolute or API-relative URL) to the user's device. */
+export async function downloadImage(url: string, filename: string): Promise<void> {
+  const abs = url.startsWith('http') ? url : `${API_URL}${url}`;
+  const res = await fetch(abs);
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objectUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(objectUrl);
+}
 
 // ---------- M3/M4: Social Publishing ----------
 export interface SocialAccount {

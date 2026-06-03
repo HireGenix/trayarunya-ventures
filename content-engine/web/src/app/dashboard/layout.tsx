@@ -33,9 +33,11 @@ import SendIcon from '@mui/icons-material/SendOutlined';
 import CampaignIcon from '@mui/icons-material/CampaignOutlined';
 import BarChartIcon from '@mui/icons-material/BarChartOutlined';
 import CreditCardIcon from '@mui/icons-material/CreditCardOutlined';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonthOutlined';
 import { useAuth } from '@/lib/auth';
 import { Workspaces } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
+import { ConfirmProvider } from '@/components/ConfirmDialog';
 
 const DRAWER_WIDTH = 264;
 
@@ -54,6 +56,7 @@ const NAV: NavGroup[] = [
       { href: '/dashboard/research', label: 'Research', icon: <ScienceIcon fontSize="small" />, color: BRAND.teal },
       { href: '/dashboard/insights', label: 'Insights', icon: <TravelExploreIcon fontSize="small" />, color: '#2563EB' },
       { href: '/dashboard/strategy', label: 'Strategy', icon: <InsightsIcon fontSize="small" />, color: BRAND.amber },
+      { href: '/dashboard/calendar', label: 'Content Calendar', icon: <CalendarMonthIcon fontSize="small" />, color: '#2563EB' },
       { href: '/dashboard/studio', label: 'Content Studio', icon: <AutoAwesomeIcon fontSize="small" />, color: BRAND.pink },
       { href: '/dashboard/publishing', label: 'Publishing', icon: <SendIcon fontSize="small" />, color: BRAND.teal },
     ],
@@ -129,7 +132,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .toUpperCase();
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+    <ConfirmProvider>
+      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       {/* Sidebar */}
       <Box
         component="aside"
@@ -390,6 +394,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+      </Box>
+    </ConfirmProvider>
   );
 }

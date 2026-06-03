@@ -26,6 +26,9 @@ httpx==0.28.1
 beautifulsoup4==4.12.3
 lxml==5.3.0
 
+# --- Imaging (logo compositing, banner crops) ---
+Pillow==12.2.0
+
 # --- Deep research crawler ---
 crawl4ai==0.4.247
 

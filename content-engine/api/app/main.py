@@ -33,12 +33,23 @@ async def lifespan(app: FastAPI):
     # In production, schema is managed by Alembic migrations. For local/dev we
     # create tables on startup so the app is runnable without a migration step.
     if settings.environment == "development":
+        from sqlalchemy import text
+
         from app.db import AsyncSessionLocal, engine
         from app.models import Base
         from app.services.billing import seed_plans
 
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # create_all won't ALTER existing tables — add new columns idempotently.
+            for ddl in (
+                "ALTER TABLE research_jobs ADD COLUMN IF NOT EXISTS countries JSONB",
+                "ALTER TABLE research_jobs ADD COLUMN IF NOT EXISTS platforms JSONB",
+                "ALTER TABLE research_jobs ADD COLUMN IF NOT EXISTS self_handle VARCHAR(300)",
+                "ALTER TABLE competitors ADD COLUMN IF NOT EXISTS country VARCHAR(80)",
+                "ALTER TABLE competitors ADD COLUMN IF NOT EXISTS social_handles JSONB",
+            ):
+                await conn.execute(text(ddl))
         async with AsyncSessionLocal() as db:
             await seed_plans(db)
     yield

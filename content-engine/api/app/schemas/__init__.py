@@ -79,6 +79,9 @@ class ResearchCreate(BaseModel):
     topic: str = Field(min_length=2, max_length=500)
     target_url: str | None = None
     competitors: list[str] = Field(default_factory=list)
+    countries: list[str] = Field(default_factory=list)
+    platforms: list[str] = Field(default_factory=list)
+    self_handle: str | None = Field(default=None, max_length=300)
 
 
 class ResearchUpdate(BaseModel):
@@ -98,8 +101,73 @@ class ResearchOut(BaseModel):
     summary: str | None = None
     findings: dict[str, Any] | None = None
     sources: list[Any] | None = None
+    countries: list[str] | None = None
+    platforms: list[str] | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class SocialAuditRequest(BaseModel):
+    url: str = Field(min_length=2, max_length=500)
+
+
+class SocialBenchmarkRequest(BaseModel):
+    urls: list[str] = Field(min_length=1, max_length=6)
+
+
+class SocialPostOut(BaseModel):
+    thumbnail: str | None = None
+    likes: int | None = None
+    comments: int | None = None
+    is_video: bool = False
+    media_type: str | None = None
+    taken_at: int | None = None
+    caption: str | None = None
+    permalink: str | None = None
+
+
+class FormatMixOut(BaseModel):
+    format: str
+    label: str
+    count: int
+
+
+class ContentInsightsOut(BaseModel):
+    format_mix: list[FormatMixOut] = Field(default_factory=list)
+    posts_per_week: float | None = None
+    last_post_days: int | None = None
+    avg_likes: int | None = None
+    avg_comments: int | None = None
+    top_post_index: int | None = None
+    best_format: str | None = None
+    best_format_label: str | None = None
+    sample_size: int | None = None
+
+
+class SocialAuditOut(BaseModel):
+    platform: str
+    found: bool
+    username: str | None = None
+    full_name: str | None = None
+    biography: str | None = None
+    is_verified: bool = False
+    is_business: bool = False
+    private: bool = False
+    limited: bool = False
+    category: str | None = None
+    profile_pic_url: str | None = None
+    external_url: str | None = None
+    followers: int | None = None
+    following: int | None = None
+    posts: int | None = None
+    engagement_rate: float | None = None
+    recent_posts: list[SocialPostOut] = Field(default_factory=list)
+    content_insights: ContentInsightsOut | None = None
+    query: str | None = None
+    is_primary: bool = False
+    source: str | None = None
+    note: str | None = None
+    error: str | None = None
 
 
 class InsightOut(BaseModel):
@@ -110,7 +178,6 @@ class InsightOut(BaseModel):
     intent: str | None
     score: float
 
-
 class CompetitorOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -120,6 +187,21 @@ class CompetitorOut(BaseModel):
     strengths: list[Any] | None
     weaknesses: list[Any] | None
     content_themes: list[Any] | None
+    country: str | None = None
+    social_handles: dict[str, Any] | None = None
+
+
+class AuditSnapshotOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    research_job_id: uuid.UUID | None
+    competitor_id: uuid.UUID | None
+    platform: str
+    handle: str | None
+    is_primary: bool
+    country: str | None
+    profile: dict[str, Any] | None
+    created_at: datetime
 
 
 # ---------- Strategy ----------
@@ -211,6 +293,27 @@ class ContentGenerateRequest(BaseModel):
     notes: str | None = None
     provider: str | None = None
     scheduled_date: str | None = None
+    # Deliverable format + assets. When ``format`` is an asset format (single,
+    # carousel, pdf, article, newsletter) the server also builds the graphics so
+    # one call yields complete, ready-to-publish content.
+    format: str | None = None
+    slides: int | None = Field(default=None, ge=2, le=10)
+    with_image: bool = False
+    image_style: str | None = None
+    image_provider: str | None = None
+    # Newsletter/email delivery format: "normal" (markdown) or "html" (branded email).
+    email_format: str | None = None
+
+
+class ContentAssetsRequest(BaseModel):
+    """(Re)build the branded asset set for an existing content item."""
+
+    format: str = Field(default="single")
+    slides: int | None = Field(default=None, ge=2, le=10)
+    image_style: str | None = None
+    image_provider: str | None = None
+    provider: str | None = None
+    email_format: str | None = None
 
 
 class ContentUpdate(BaseModel):
@@ -236,6 +339,10 @@ class ContentOut(BaseModel):
     meta: dict[str, Any] | None
     image_url: str | None = None
     image_id: uuid.UUID | None = None
+    asset_urls: list[str] | None = None
+    asset_kind: str | None = None
+    email_html: str | None = None
+    email_format: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -389,6 +496,7 @@ class CalendarEntryGenerateRequest(BaseModel):
     with_image: bool = True
     image_style: str | None = None
     image_provider: str | None = None
+    email_format: str | None = None
 
 
 class CalendarDayGenerateRequest(BaseModel):
@@ -397,6 +505,7 @@ class CalendarDayGenerateRequest(BaseModel):
     with_image: bool = True
     image_style: str | None = None
     image_provider: str | None = None
+    email_format: str | None = None
 
 
 class CalendarOut(BaseModel):
@@ -427,6 +536,19 @@ class ImageGenerateRequest(BaseModel):
     content_item_id: uuid.UUID | None = None
     use_brand: bool = True
     extra: str | None = None
+
+
+class ImageRegenerateRequest(BaseModel):
+    """Re-render an existing image guided by its original prompt + a change.
+
+    The image providers are text-to-image only, so this re-generates a fresh
+    image from the source image's prompt with the requested change applied,
+    keeping the same brand colours, style and size.
+    """
+
+    instruction: str = Field(min_length=2, max_length=600)
+    provider: str | None = None
+    replace: bool = False  # if true, swap this slide in its content item's deck
 
 
 class ImageOut(BaseModel):

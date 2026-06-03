@@ -35,6 +35,7 @@ import {
   type ContentItem,
   type ContentCalendar,
 } from '@/lib/api';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 const PLATFORM_LABEL: Record<string, string> = {
   linkedin: 'LinkedIn',
@@ -82,6 +83,7 @@ function buildGroups(
 
 export default function PublishingPage() {
   const { activeWorkspace } = useAuth();
+  const confirm = useConfirm();
   const [providers, setProviders] = useState<Record<string, boolean>>({});
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -164,9 +166,41 @@ export default function PublishingPage() {
     }
   };
 
-  const removeAccount = async (id: string) => {
-    await Social.removeAccount(id);
+  const removeAccount = async (acc: SocialAccount) => {
+    const ok = await confirm({
+      title: 'Disconnect account?',
+      message: (
+        <>
+          Disconnect <b>{PLATFORM_LABEL[acc.platform] || acc.platform}</b>
+          {acc.display_name ? (
+            <>
+              {' '}
+              (<b>{acc.display_name}</b>)
+            </>
+          ) : null}
+          ? Scheduled posts to this account will stop publishing.
+        </>
+      ),
+      confirmText: 'Disconnect',
+    });
+    if (!ok) return;
+    await Social.removeAccount(acc.id);
     refresh();
+  };
+
+  const removeSchedule = async (s: Schedule) => {
+    const ok = await confirm({
+      title: 'Delete post?',
+      message: 'Remove this scheduled / published post entry from the queue? This cannot be undone.',
+    });
+    if (!ok) return;
+    const prev = schedules;
+    setSchedules((cur) => cur.filter((x) => x.id !== s.id));
+    try {
+      await Social.removeSchedule(s.id);
+    } catch {
+      setSchedules(prev);
+    }
   };
 
   const publishItem = async (item: ContentItem) => {
@@ -248,9 +282,11 @@ export default function PublishingPage() {
                     color={a.is_active ? 'success' : 'default'}
                     sx={{ mr: 1 }}
                   />
-                  <IconButton onClick={() => removeAccount(a.id)} aria-label="remove" size="small">
-                    <DeleteOutlineIcon fontSize="small" />
-                  </IconButton>
+                  <Tooltip title="Disconnect">
+                    <IconButton onClick={() => removeAccount(a)} aria-label="remove" size="small">
+                      <DeleteOutlineIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </Stack>
               </Card>
             ))}
@@ -508,6 +544,16 @@ export default function PublishingPage() {
                   <Typography variant="caption" color="text.secondary">
                     {new Date(s.scheduled_at).toLocaleString()}
                   </Typography>
+                  <Tooltip title="Delete post">
+                    <IconButton
+                      size="small"
+                      onClick={() => removeSchedule(s)}
+                      aria-label="delete post"
+                      sx={{ color: 'text.disabled' }}
+                    >
+                      <DeleteOutlineIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </Stack>
               ))}
             </Stack>

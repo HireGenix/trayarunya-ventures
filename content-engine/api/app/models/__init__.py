@@ -2,7 +2,7 @@
 from app.models.base import Base
 from app.models.tenant import User, Organization, Workspace, Membership, OrgType, Role
 from app.models.brand import BrandBrain
-from app.models.research import ResearchJob, Competitor, Insight, JobStatus
+from app.models.research import ResearchJob, Competitor, Insight, JobStatus, AuditSnapshot
 from app.models.strategy import Strategy
 from app.models.content import (
     ContentItem,
@@ -34,6 +34,7 @@ __all__ = [
     "Competitor",
     "Insight",
     "JobStatus",
+    "AuditSnapshot",
     "Strategy",
     "ContentItem",
     "Asset",

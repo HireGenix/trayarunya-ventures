@@ -35,6 +35,7 @@ import {
   type Strategy,
   type ContentCalendar,
 } from '@/lib/api';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -329,6 +330,7 @@ function StrategyInner() {
   const { activeWorkspace } = useAuth();
   const params = useSearchParams();
   const focus = params.get('focus');
+  const confirm = useConfirm();
   const [list, setList] = useState<Strategy[]>([]);
   const [selected, setSelected] = useState<Strategy | null>(null);
   const [error, setError] = useState('');
@@ -348,7 +350,16 @@ function StrategyInner() {
   }, [activeWorkspace, focus]);
 
   const deleteStrategy = async (s: Strategy) => {
-    if (!confirm(`Delete strategy "${s.title}"?`)) return;
+    const ok = await confirm({
+      title: 'Delete strategy?',
+      message: (
+        <>
+          Delete strategy <b>“{s.title}”</b>? Calendars built from it will remain but lose their
+          link.
+        </>
+      ),
+    });
+    if (!ok) return;
     try {
       await Strategies.remove(s.id);
       setList((prev) => prev.filter((x) => x.id !== s.id));

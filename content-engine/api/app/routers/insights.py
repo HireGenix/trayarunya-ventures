@@ -2,7 +2,9 @@
 jobs in a workspace, with kind/intent filtering and text search."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,3 +35,16 @@ async def list_insights(
     stmt = stmt.order_by(Insight.score.desc()).limit(limit)
     res = await db.execute(stmt)
     return [InsightExplorerOut.model_validate(i) for i in res.scalars().all()]
+
+
+@router.delete("/{insight_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_insight(
+    insight_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    insight = await db.get(Insight, insight_id)
+    if not insight or insight.workspace_id != ctx.workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Insight not found")
+    await db.delete(insight)
+    await db.commit()

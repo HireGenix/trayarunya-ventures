@@ -67,18 +67,27 @@ async def _fetch_url(url: str) -> bytes:
         return r.content
 
 
-async def _gpt_image(prompt: str, size: str) -> bytes:
+async def _gpt_image(prompt: str, size: str, quality: str = "high") -> bytes:
     base = (settings.azure_image_endpoint or "").rstrip("/")
     url = (
         f"{base}/openai/deployments/{settings.azure_image_deployment}"
         f"/images/generations?api-version={settings.azure_image_api_version}"
     )
+    payload = {"prompt": prompt, "n": 1, "size": size, "quality": quality}
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         r = await client.post(
             url,
             headers={"api-key": settings.azure_image_key or "", "Content-Type": "application/json"},
-            json={"prompt": prompt, "n": 1, "size": size},
+            json=payload,
         )
+        if r.status_code == 400:
+            # Some deployments reject the quality field — retry without it.
+            payload.pop("quality", None)
+            r = await client.post(
+                url,
+                headers={"api-key": settings.azure_image_key or "", "Content-Type": "application/json"},
+                json=payload,
+            )
         r.raise_for_status()
         try:
             return _b64_from_openai_payload(r.json())
@@ -154,11 +163,13 @@ async def generate_image(
     prompt: str,
     size: str = "1024x1024",
     provider: str | None = None,
+    quality: str = "high",
 ) -> tuple[bytes, str]:
     """Generate a PNG image. Returns (png_bytes, provider_used).
 
     Falls back to gpt-image when the requested provider errors so the feature
     stays resilient to a single provider/deployment being unavailable.
+    ``quality`` (low|medium|high) is honoured by gpt-image; other providers ignore it.
     """
     chosen = normalize_provider(provider)
 
@@ -173,7 +184,7 @@ async def generate_image(
             if prov == "gpt-image":
                 if not settings.image_configured:
                     continue
-                return await _gpt_image(prompt, size), "gpt-image"
+                return await _gpt_image(prompt, size, quality), "gpt-image"
             if prov == "mai":
                 if not (settings.azure_mai_image_endpoint and settings.azure_mai_image_key):
                     continue

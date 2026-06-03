@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Card,
@@ -23,20 +24,33 @@ import {
   ListItem,
   ListItemText,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded';
+import PersonSearchRoundedIcon from '@mui/icons-material/PersonSearchRounded';
+import CompareArrowsRoundedIcon from '@mui/icons-material/CompareArrowsRounded';
+import TravelExploreRoundedIcon from '@mui/icons-material/TravelExploreRounded';
 import { useAuth } from '@/lib/auth';
 import {
   Research,
   Strategies,
+  type AuditSnapshot,
   type Competitor,
   type Insight,
   type ResearchJob,
+  type SocialProfile,
 } from '@/lib/api';
+import { useConfirm } from '@/components/ConfirmDialog';
+import ProfileAudit from '@/components/ProfileAudit';
+import ProfileBenchmark from '@/components/ProfileBenchmark';
+import CountryPlatformPicker from '@/components/CountryPlatformPicker';
+import { BRAND } from '@/theme/theme';
 
 const STATUS_COLOR: Record<ResearchJob['status'], 'default' | 'info' | 'success' | 'error'> = {
   queued: 'default',
@@ -45,22 +59,142 @@ const STATUS_COLOR: Record<ResearchJob['status'], 'default' | 'info' | 'success'
   failed: 'error',
 };
 
+function bnum(n: number | null | undefined): string {
+  if (n === null || n === undefined) return '—';
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(n % 1_000_000_000 ? 1 : 0)}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 ? 1 : 0)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n % 1_000 ? 1 : 0)}K`;
+  return n.toLocaleString();
+}
+
+function erColor(er: number | null | undefined): string {
+  if (er === null || er === undefined) return '#9AA4B2';
+  if (er >= 3) return BRAND.tealDeep;
+  if (er >= 1) return BRAND.teal;
+  if (er >= 0.5) return BRAND.amberDeep;
+  return BRAND.pink;
+}
+
+function BenchmarkTable({ snapshots }: { snapshots: AuditSnapshot[] }) {
+  const rows = snapshots
+    .map((s) => ({ s, p: s.profile }))
+    .filter((r) => r.p && r.p.found);
+  if (rows.length === 0) return null;
+  const maxFollowers = Math.max(1, ...rows.map((r) => r.p!.followers || 0));
+  const totalFollowers = rows.reduce((sum, r) => sum + (r.p!.followers || 0), 0) || 1;
+  const erLeader = [...rows].sort(
+    (a, b) => (b.p!.engagement_rate || 0) - (a.p!.engagement_rate || 0),
+  )[0];
+
+  return (
+    <Box
+      sx={{
+        mb: 3,
+        borderRadius: 3,
+        overflow: 'hidden',
+        background: 'linear-gradient(135deg, #11151B 0%, #1B2330 60%, #0E1A18 100%)',
+        p: 2.2,
+      }}
+    >
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+        <CompareArrowsRoundedIcon sx={{ color: BRAND.teal, fontSize: 18 }} />
+        <Typography sx={{ fontWeight: 800, color: '#fff', fontSize: 14 }}>
+          Instagram benchmark — you vs competitors
+        </Typography>
+      </Stack>
+      {erLeader?.p && (
+        <Typography sx={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', mb: 1.5 }}>
+          <b style={{ color: '#fff' }}>@{erLeader.p.username}</b> leads on engagement
+          {erLeader.p.engagement_rate != null ? ` (${erLeader.p.engagement_rate}%)` : ''}.
+        </Typography>
+      )}
+      <Stack spacing={1}>
+        {rows.map(({ s, p }) => {
+          const sov = Math.round(((p!.followers || 0) / totalFollowers) * 100);
+          return (
+            <Box
+              key={s.id}
+              sx={{
+                p: 1.2,
+                borderRadius: 2,
+                background: s.is_primary ? 'rgba(20,187,135,0.12)' : 'rgba(255,255,255,0.05)',
+                border: s.is_primary ? `1px solid ${BRAND.teal}55` : '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <Stack direction="row" spacing={1.2} alignItems="center">
+                <Avatar src={p!.profile_pic_url || undefined} sx={{ width: 34, height: 34 }} />
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#fff' }} noWrap>
+                      {p!.full_name || `@${p!.username}`}
+                    </Typography>
+                    {s.is_primary && (
+                      <Chip label="YOU" size="small" sx={{ height: 15, fontSize: 8, fontWeight: 800, bgcolor: BRAND.teal, color: '#062019' }} />
+                    )}
+                    {s.country && (
+                      <Chip label={s.country} size="small" sx={{ height: 15, fontSize: 8.5, bgcolor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)' }} />
+                    )}
+                  </Stack>
+                  <Box sx={{ mt: 0.5, height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                    <Box sx={{ width: `${((p!.followers || 0) / maxFollowers) * 100}%`, height: '100%', background: BRAND.gradient }} />
+                  </Box>
+                </Box>
+                <Box sx={{ textAlign: 'center', width: 56 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 800, color: '#fff', lineHeight: 1 }}>{bnum(p!.followers)}</Typography>
+                  <Typography sx={{ fontSize: 8, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>followers</Typography>
+                </Box>
+                <Box sx={{ textAlign: 'center', width: 46 }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 800, color: erColor(p!.engagement_rate), lineHeight: 1 }}>
+                    {p!.engagement_rate != null ? `${p!.engagement_rate}%` : '—'}
+                  </Typography>
+                  <Typography sx={{ fontSize: 8, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>eng.</Typography>
+                </Box>
+                <Box sx={{ textAlign: 'center', width: 40 }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{sov}%</Typography>
+                  <Typography sx={{ fontSize: 8, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>SoV</Typography>
+                </Box>
+              </Stack>
+            </Box>
+          );
+        })}
+      </Stack>
+    </Box>
+  );
+}
+
 export default function ResearchPage() {
   const { activeWorkspace } = useAuth();
   const router = useRouter();
+  const confirm = useConfirm();
   const [jobs, setJobs] = useState<ResearchJob[]>([]);
   const [topic, setTopic] = useState('');
   const [url, setUrl] = useState('');
+  const [selfHandle, setSelfHandle] = useState('');
+  const [countries, setCountries] = useState<string[]>([]);
+  const [platforms, setPlatforms] = useState<string[]>(['instagram']);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<ResearchJob | null>(null);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
+  const [snapshots, setSnapshots] = useState<AuditSnapshot[]>([]);
   const [genLoading, setGenLoading] = useState(false);
   const [editJob, setEditJob] = useState<ResearchJob | null>(null);
   const [editTopic, setEditTopic] = useState('');
+  const [tab, setTab] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const handleBuildStrategy = (p: SocialProfile) => {
+    const name = p.full_name || (p.username ? `@${p.username}` : 'this profile');
+    const niche = p.category ? ` (${p.category})` : '';
+    setTopic(`${name}${niche} — Instagram growth, content pillars & engagement strategy`);
+    if (p.username) {
+      setUrl(`https://www.instagram.com/${p.username}/`);
+      setSelfHandle(`@${p.username}`);
+    }
+    setTab(2);
+  };
 
   const loadJobs = useCallback(async () => {
     try {
@@ -97,9 +231,16 @@ export default function ResearchPage() {
     setCreating(true);
     setError(null);
     try {
-      const job = await Research.create({ topic, target_url: url || undefined });
+      const job = await Research.create({
+        topic,
+        target_url: url || undefined,
+        countries: countries.length ? countries : undefined,
+        platforms: platforms.length ? platforms : undefined,
+        self_handle: selfHandle.trim() || undefined,
+      });
       setTopic('');
       setUrl('');
+      setSelfHandle('');
       setJobs((prev) => [job, ...prev]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start research');
@@ -112,13 +253,16 @@ export default function ResearchPage() {
     setSelected(job);
     setInsights([]);
     setCompetitors([]);
+    setSnapshots([]);
     if (job.status === 'succeeded') {
-      const [ins, comps] = await Promise.all([
+      const [ins, comps, snaps] = await Promise.all([
         Research.insights(job.id).catch(() => []),
         Research.competitors(job.id).catch(() => []),
+        Research.auditSnapshots(job.id).catch(() => []),
       ]);
       setInsights(ins);
       setCompetitors(comps);
+      setSnapshots(snaps);
     }
   };
 
@@ -136,7 +280,16 @@ export default function ResearchPage() {
   };
 
   const deleteJob = async (job: ResearchJob) => {
-    if (!confirm(`Delete research "${job.topic}"? This cannot be undone.`)) return;
+    const ok = await confirm({
+      title: 'Delete research?',
+      message: (
+        <>
+          Delete research <b>“{job.topic}”</b> and all its insights &amp; competitors? This cannot be
+          undone.
+        </>
+      ),
+    });
+    if (!ok) return;
     try {
       await Research.remove(job.id);
       setJobs((prev) => prev.filter((j) => j.id !== job.id));
@@ -167,6 +320,64 @@ export default function ResearchPage() {
 
   return (
     <>
+    {/* hero header */}
+    <Box
+      sx={{
+        position: 'relative',
+        overflow: 'hidden',
+        borderRadius: 4,
+        p: { xs: 2.5, md: 3.5 },
+        mb: 3,
+        color: '#fff',
+        background: 'linear-gradient(135deg, #11151B 0%, #1B2330 55%, #0E1A18 100%)',
+        boxShadow: '0 16px 40px rgba(14,17,22,0.25)',
+      }}
+    >
+      <Box sx={{ position: 'absolute', top: -80, right: -40, width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,187,135,0.30), transparent 65%)' }} />
+      <Box sx={{ position: 'absolute', bottom: -90, left: '30%', width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,175,6,0.22), transparent 65%)' }} />
+      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ position: 'relative' }}>
+        <Box sx={{ width: 44, height: 44, borderRadius: 2.5, display: 'grid', placeItems: 'center', background: BRAND.gradient, color: '#062019' }}>
+          <TravelExploreRoundedIcon />
+        </Box>
+        <Box>
+          <Typography sx={{ fontSize: { xs: 22, md: 27 }, fontWeight: 900, lineHeight: 1.1, background: BRAND.gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            Research Intelligence
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: 'rgba(255,255,255,0.65)' }}>
+            Audit any profile, benchmark the competition, and turn signal into strategy.
+          </Typography>
+        </Box>
+      </Stack>
+    </Box>
+
+    <Tabs
+      value={tab}
+      onChange={(_, v) => setTab(v)}
+      sx={{
+        mb: 3,
+        minHeight: 0,
+        '& .MuiTab-root': { minHeight: 0, py: 1.2, textTransform: 'none', fontWeight: 700, fontSize: 14 },
+        '& .MuiTabs-indicator': { height: 3, borderRadius: 3, background: BRAND.gradient },
+      }}
+    >
+      <Tab icon={<PersonSearchRoundedIcon fontSize="small" />} iconPosition="start" label="Profile Audit" />
+      <Tab icon={<CompareArrowsRoundedIcon fontSize="small" />} iconPosition="start" label="Competitor Benchmark" />
+      <Tab icon={<InsightsRoundedIcon fontSize="small" />} iconPosition="start" label="Deep Research" />
+    </Tabs>
+
+    {tab === 0 && (
+      <Box sx={{ maxWidth: 560 }}>
+        <ProfileAudit onBuildStrategy={handleBuildStrategy} />
+      </Box>
+    )}
+
+    {tab === 1 && (
+      <Box sx={{ maxWidth: 640 }}>
+        <ProfileBenchmark onBuildStrategy={handleBuildStrategy} />
+      </Box>
+    )}
+
+    {tab === 2 && (
     <Grid container spacing={3}>
       {/* Left: create + list */}
       <Grid size={{ xs: 12, md: 5 }}>
@@ -196,6 +407,20 @@ export default function ResearchPage() {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   fullWidth
+                />
+                <TextField
+                  label="Your Instagram handle (optional)"
+                  placeholder="@yourbrand — we'll auto-audit you vs competitors"
+                  value={selfHandle}
+                  onChange={(e) => setSelfHandle(e.target.value)}
+                  fullWidth
+                />
+                <Divider sx={{ my: 0.5 }} />
+                <CountryPlatformPicker
+                  countries={countries}
+                  platforms={platforms}
+                  onCountries={setCountries}
+                  onPlatforms={setPlatforms}
                 />
                 <Button type="submit" variant="contained" color="primary" disabled={creating}>
                   {creating ? 'Starting…' : 'Run research'}
@@ -293,6 +518,8 @@ export default function ResearchPage() {
                     </Typography>
                   )}
 
+                  {snapshots.length > 0 && <BenchmarkTable snapshots={snapshots} />}
+
                   {Object.entries(findings).map(([key, values]) =>
                     Array.isArray(values) && values.length ? (
                       <Box key={key} sx={{ mb: 2.5 }}>
@@ -316,11 +543,28 @@ export default function ResearchPage() {
                       </Typography>
                       {competitors.map((c) => (
                         <Box key={c.id} sx={{ mb: 2 }}>
-                          <Typography fontWeight={700}>{c.name}</Typography>
+                          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.3 }}>
+                            <Typography fontWeight={700}>{c.name}</Typography>
+                            {c.country && (
+                              <Chip label={c.country} size="small" variant="outlined" sx={{ height: 18, fontSize: 10 }} />
+                            )}
+                          </Stack>
                           {c.positioning && (
                             <Typography variant="body2" color="text.secondary">
                               {c.positioning}
                             </Typography>
+                          )}
+                          {c.social_handles && Object.keys(c.social_handles).length > 0 && (
+                            <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                              {Object.entries(c.social_handles).map(([platform, handle]) => (
+                                <Chip
+                                  key={platform}
+                                  label={`${platform}: ${handle}`}
+                                  size="small"
+                                  sx={{ height: 18, fontSize: 10, bgcolor: 'rgba(20,187,135,0.1)' }}
+                                />
+                              ))}
+                            </Stack>
                           )}
                         </Box>
                       ))}
@@ -362,6 +606,7 @@ export default function ResearchPage() {
         )}
       </Grid>
     </Grid>
+    )}
 
     <Dialog open={!!editJob} onClose={() => setEditJob(null)} fullWidth maxWidth="sm">
       <DialogTitle>Rename research</DialogTitle>

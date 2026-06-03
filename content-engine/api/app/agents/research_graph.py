@@ -28,6 +28,8 @@ class ResearchState(TypedDict, total=False):
     topic: str
     target_url: str | None
     competitor_urls: list[str]
+    countries: list[str]
+    platforms: list[str]
     queries: list[str]
     search_results: list[dict[str, Any]]
     pages: list[dict[str, Any]]
@@ -61,6 +63,10 @@ SYNTH_SYSTEM = (
     "  },\n"
     '  "competitors": [\n'
     '    {"name": "...", "website": "...", "positioning": "...",\n'
+    '     "country": "the country this brand primarily competes in (or null)",\n'
+    '     "social_handles": {"instagram": "@handle or null", "youtube": "@handle or null",\n'
+    '        "linkedin": "company-slug or null", "x": "@handle or null", "tiktok": "@handle or null",\n'
+    '        "facebook": "page or null"},\n'
     '     "strengths": ["..."], "weaknesses": ["..."], "content_themes": ["..."]}\n'
     "  ],\n"
     '  "insights": [\n'
@@ -74,12 +80,26 @@ SYNTH_SYSTEM = (
 
 
 async def _plan(state: ResearchState) -> ResearchState:
-    user = f"Topic: {state['topic']}\nBrand website: {state.get('target_url') or 'n/a'}"
+    countries = [c for c in (state.get("countries") or []) if c]
+    geo = ""
+    if countries and not any(c.lower() in {"global", "worldwide"} for c in countries):
+        geo = f"\nTarget countries: {', '.join(countries)} — bias queries to find the top brands/competitors in EACH of these markets."
+    platforms = [p for p in (state.get("platforms") or []) if p]
+    plat = f"\nFocus social platforms: {', '.join(platforms)}." if platforms else ""
+    user = (
+        f"Topic: {state['topic']}\nBrand website: {state.get('target_url') or 'n/a'}"
+        f"{geo}{plat}"
+    )
     data = await complete_json([{"role": "user", "content": user}], PLAN_SYSTEM)
     queries = data.get("queries") if isinstance(data, dict) else None
     if not queries:
         queries = [state["topic"], f"{state['topic']} best practices", f"{state['topic']} competitors"]
-    state["queries"] = queries[:7]
+    queries = list(queries)[:7]
+    # Ensure each target country gets an explicit competitor-discovery query.
+    if countries and not any(c.lower() in {"global", "worldwide"} for c in countries):
+        for c in countries[:4]:
+            queries.append(f"top {state['topic']} brands competitors in {c}")
+    state["queries"] = queries[:11]
     return state
 
 
@@ -127,8 +147,16 @@ def _evidence_block(state: ResearchState) -> str:
 
 
 async def _synthesize(state: ResearchState) -> ResearchState:
+    countries = [c for c in (state.get("countries") or []) if c]
+    geo = ""
+    if countries:
+        geo = (
+            f"\nTarget markets: {', '.join(countries)}. Prioritise competitors operating in "
+            "these markets and set each competitor's \"country\". Extract real social handles "
+            "you can find in the evidence (do not invent them; use null when unknown).\n"
+        )
     user = (
-        f"Topic: {state['topic']}\nBrand website: {state.get('target_url') or 'n/a'}\n\n"
+        f"Topic: {state['topic']}\nBrand website: {state.get('target_url') or 'n/a'}\n{geo}\n"
         f"Evidence:\n{_evidence_block(state)}"
     )
     data = await complete_json([{"role": "user", "content": user}], SYNTH_SYSTEM)
@@ -170,11 +198,15 @@ async def run_research(
     topic: str,
     target_url: str | None = None,
     competitor_urls: list[str] | None = None,
+    countries: list[str] | None = None,
+    platforms: list[str] | None = None,
 ) -> ResearchState:
     app = build_research_graph()
     initial: ResearchState = {
         "topic": topic,
         "target_url": target_url,
         "competitor_urls": competitor_urls or [],
+        "countries": countries or [],
+        "platforms": platforms or [],
     }
     return await app.ainvoke(initial)
