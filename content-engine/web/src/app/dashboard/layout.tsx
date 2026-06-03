@@ -14,6 +14,7 @@ import {
   DialogTitle,
   Divider,
   IconButton,
+  Menu,
   MenuItem,
   Select,
   Stack,
@@ -39,7 +40,7 @@ import { Workspaces } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
 import { ConfirmProvider } from '@/components/ConfirmDialog';
 
-const DRAWER_WIDTH = 264;
+const INK = BRAND.ink;
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; color: string };
 type NavGroup = { heading?: string; items: NavItem[] };
@@ -77,14 +78,6 @@ const NAV: NavGroup[] = [
   },
 ];
 
-function hexToRgba(hex: string, a: number) {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r},${g},${b},${a})`;
-}
-
 const ALL_ITEMS = NAV.flatMap((g) => g.items);
 
 function isActive(href: string, pathname: string) {
@@ -99,6 +92,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [newWsOpen, setNewWsOpen] = useState(false);
   const [wsName, setWsName] = useState('');
   const [wsSite, setWsSite] = useState('');
+  const [userMenuEl, setUserMenuEl] = useState<null | HTMLElement>(null);
 
   useEffect(() => {
     if (!loading && !me) router.replace('/login');
@@ -133,65 +127,265 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <ConfirmProvider>
-      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      {/* Sidebar */}
+      <Box
+        sx={{
+          minHeight: '100vh',
+          background: 'linear-gradient(180deg,#EAF0EC 0%,#E6ECE8 100%)',
+          p: { xs: 1, md: 2 },
+        }}
+      >
+        {/* One unified app card */}
+        <Box
+          sx={{
+            display: 'flex',
+            minHeight: { xs: 'calc(100vh - 16px)', md: 'calc(100vh - 32px)' },
+            bgcolor: '#fff',
+            borderRadius: { xs: '24px', md: '32px' },
+            border: '1px solid rgba(14,17,22,0.06)',
+            boxShadow: '0 30px 60px rgba(14,17,22,0.10)',
+          }}
+        >
+      {/* Sidebar — dark icon rail (inside card) */}
       <Box
         component="aside"
         sx={{
-          width: DRAWER_WIDTH,
+          width: 84,
           flexShrink: 0,
           position: 'sticky',
-          top: 0,
-          height: '100vh',
+          top: { xs: 8, md: 16 },
+          alignSelf: 'flex-start',
+          height: { xs: 'calc(100vh - 16px)', md: 'calc(100vh - 32px)' },
           display: { xs: 'none', md: 'flex' },
           flexDirection: 'column',
-          bgcolor: 'rgba(255,255,255,0.72)',
-          backdropFilter: 'blur(16px) saturate(160%)',
-          borderRight: '1px solid',
-          borderColor: 'divider',
+          p: 1.5,
         }}
       >
-        {/* Brand */}
-        <Box sx={{ px: 2.5, pt: 2.5, pb: 2 }}>
-          <Stack direction="row" alignItems="center" spacing={1.4}>
+        <Box
+          sx={{
+            flex: 1,
+            width: '100%',
+            bgcolor: INK,
+            borderRadius: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            py: 2,
+            boxShadow: '0 12px 30px rgba(14,17,22,0.22)',
+          }}
+        >
+          {/* Logo */}
+          <Tooltip title="Trayarunya — Overview" placement="right" arrow>
             <Box
+              component={Link}
+              href="/dashboard"
               sx={{
-                width: 36,
-                height: 36,
-                borderRadius: 2.5,
+                width: 52,
+                height: 52,
+                borderRadius: '17px',
                 display: 'grid',
                 placeItems: 'center',
-                background: BRAND.gradient,
-                color: '#fff',
-                fontWeight: 800,
-                fontSize: 17,
-                boxShadow: '0 6px 16px rgba(20,187,135,0.28)',
+                bgcolor: 'rgba(255,255,255,0.07)',
+                textDecoration: 'none',
+                mb: 2,
               }}
             >
-              T
-            </Box>
-            <Box sx={{ lineHeight: 1 }}>
-              <Typography sx={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.02em' }}>
-                Trayarunya
-              </Typography>
-              <Typography
-                sx={{ fontSize: 9.5, fontWeight: 700, color: 'text.disabled', letterSpacing: '0.1em' }}
+              <Box
+                sx={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: '11px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  background: BRAND.gradient,
+                  color: '#fff',
+                  boxShadow: '0 6px 16px rgba(20,187,135,0.4)',
+                }}
               >
-                CONTENT ENGINE
-              </Typography>
+                <AutoAwesomeIcon sx={{ fontSize: 19 }} />
+              </Box>
             </Box>
-          </Stack>
-        </Box>
+          </Tooltip>
 
-        {/* Workspace switcher */}
-        <Box sx={{ px: 2, pb: 1.5 }}>
+          {/* Nav icons */}
+          <Box
+            sx={{
+              flex: 1,
+              width: '100%',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 0.75,
+              '&::-webkit-scrollbar': { display: 'none' },
+            }}
+          >
+            {NAV.map((group, gi) => (
+              <Box
+                key={gi}
+                sx={{
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 0.75,
+                }}
+              >
+                {gi > 0 && (
+                  <Box sx={{ width: 26, height: '1px', bgcolor: 'rgba(255,255,255,0.10)', my: 0.75 }} />
+                )}
+                {group.items.map((item) => {
+                  const active = isActive(item.href, pathname);
+                  return (
+                    <Tooltip key={item.href} title={item.label} placement="right" arrow>
+                      <Box
+                        component={Link}
+                        href={item.href}
+                        aria-label={item.label}
+                        sx={{
+                          width: 46,
+                          height: 46,
+                          borderRadius: '15px',
+                          display: 'grid',
+                          placeItems: 'center',
+                          textDecoration: 'none',
+                          position: 'relative',
+                          color: active ? INK : 'rgba(255,255,255,0.55)',
+                          bgcolor: active ? '#fff' : 'transparent',
+                          boxShadow: active ? '0 6px 16px rgba(0,0,0,0.30)' : 'none',
+                          transition: 'all .15s ease',
+                          '&:hover': {
+                            bgcolor: active ? '#fff' : 'rgba(255,255,255,0.09)',
+                            color: active ? INK : '#fff',
+                          },
+                        }}
+                      >
+                        {item.icon}
+                      </Box>
+                    </Tooltip>
+                  );
+                })}
+              </Box>
+            ))}
+          </Box>
+
+          {/* User avatar + menu */}
+          <Box sx={{ mt: 1.5, width: '100%', px: 1 }}>
+            <Tooltip title="Account" placement="right" arrow>
+              <IconButton
+                onClick={(e) => setUserMenuEl(e.currentTarget)}
+                sx={{
+                  p: 0.75,
+                  width: '100%',
+                  borderRadius: '18px',
+                  bgcolor: '#fff',
+                  '&:hover': { bgcolor: '#fff' },
+                  boxShadow: '0 6px 16px rgba(0,0,0,0.28)',
+                }}
+              >
+                <Avatar
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '13px',
+                    background: BRAND.gradient,
+                    fontSize: 15,
+                    fontWeight: 800,
+                  }}
+                >
+                  {initials}
+                </Avatar>
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Account menu */}
+      <Menu
+        anchorEl={userMenuEl}
+        open={!!userMenuEl}
+        onClose={() => setUserMenuEl(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { borderRadius: 2.5, minWidth: 220, mt: -1 } } }}
+      >
+        <Box sx={{ px: 2, py: 1.25 }}>
+          <Typography sx={{ fontSize: 13.5, fontWeight: 700 }} noWrap>
+            {me.user.full_name || 'Member'}
+          </Typography>
+          <Typography sx={{ fontSize: 12, color: 'text.disabled' }} noWrap>
+            {me.user.email}
+          </Typography>
+        </Box>
+        <Divider />
+        <MenuItem
+          onClick={() => {
+            setUserMenuEl(null);
+            setNewWsOpen(true);
+          }}
+          sx={{ fontSize: 13.5 }}
+        >
+          <AddIcon fontSize="small" sx={{ mr: 1.25, color: 'text.disabled' }} />
+          New workspace
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setUserMenuEl(null);
+            logout();
+          }}
+          sx={{ fontSize: 13.5 }}
+        >
+          <LogoutIcon fontSize="small" sx={{ mr: 1.25, color: 'text.disabled' }} />
+          Log out
+        </MenuItem>
+      </Menu>
+
+      {/* Main */}
+      <Box sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        {/* Topbar */}
+        <Box
+          sx={{
+            height: 60,
+            px: { xs: 2, md: 4 },
+            display: 'flex',
+            alignItems: 'center',
+            borderBottom: '1px solid',
+            borderColor: 'rgba(14,17,22,0.06)',
+          }}
+        >
+          <Typography sx={{ fontWeight: 600, fontSize: 15 }}>{currentLabel}</Typography>
+          <Box sx={{ flexGrow: 1 }} />
+          {activeWorkspace?.website && (
+            <Typography
+              variant="body2"
+              sx={{
+                display: { xs: 'none', sm: 'block' },
+                color: 'text.secondary',
+                bgcolor: '#F6F6F7',
+                border: '1px solid',
+                borderColor: 'divider',
+                px: 1.25,
+                py: 0.4,
+                borderRadius: 2,
+                fontSize: 12.5,
+                mr: 1.5,
+              }}
+            >
+              {activeWorkspace.website.replace(/^https?:\/\//, '')}
+            </Typography>
+          )}
           <Stack direction="row" spacing={1} alignItems="center">
             <Select
               size="small"
-              fullWidth
               value={activeWorkspace?.id || ''}
               onChange={(e) => setActiveWorkspace(e.target.value)}
-              sx={{ fontSize: 13.5, fontWeight: 600, '& .MuiSelect-select': { py: 0.85 } }}
+              sx={{
+                fontSize: 13.5,
+                fontWeight: 600,
+                minWidth: 160,
+                borderRadius: 2,
+                '& .MuiSelect-select': { py: 0.7 },
+              }}
             >
               {workspaces.map((w) => (
                 <MenuItem key={w.id} value={w.id} sx={{ fontSize: 13.5 }}>
@@ -217,152 +411,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Stack>
         </Box>
 
-        {/* Nav */}
-        <Box sx={{ flex: 1, overflowY: 'auto', px: 1.5, py: 1 }}>
-          {NAV.map((group, gi) => (
-            <Box key={gi} sx={{ mb: 1.5 }}>
-              {group.heading && (
-                <Typography
-                  variant="overline"
-                  sx={{ display: 'block', px: 1.25, pt: 1, pb: 0.5, color: 'text.disabled' }}
-                >
-                  {group.heading}
-                </Typography>
-              )}
-              <Stack spacing={0.4}>
-                {group.items.map((item) => {
-                  const active = isActive(item.href, pathname);
-                  return (
-                    <Box
-                      key={item.href}
-                      component={Link}
-                      href={item.href}
-                      sx={{
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1.25,
-                        px: 1.25,
-                        py: 0.95,
-                        borderRadius: 2.5,
-                        textDecoration: 'none',
-                        color: active ? 'text.primary' : 'text.secondary',
-                        bgcolor: active ? hexToRgba(item.color, 0.12) : 'transparent',
-                        fontWeight: active ? 700 : 500,
-                        fontSize: 13.5,
-                        transition: 'background-color 0.14s ease, color 0.14s ease',
-                        '&::before': active
-                          ? {
-                              content: '""',
-                              position: 'absolute',
-                              left: -6,
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              width: 3.5,
-                              height: 20,
-                              borderRadius: '0 4px 4px 0',
-                              background: item.color,
-                            }
-                          : undefined,
-                        '&:hover': {
-                          bgcolor: active ? hexToRgba(item.color, 0.16) : '#F3F4F6',
-                          color: 'text.primary',
-                        },
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 2,
-                          display: 'grid',
-                          placeItems: 'center',
-                          flexShrink: 0,
-                          color: active ? '#fff' : 'text.disabled',
-                          background: active ? item.color : 'transparent',
-                          boxShadow: active ? `0 4px 10px ${hexToRgba(item.color, 0.35)}` : 'none',
-                          transition: 'all 0.14s ease',
-                          '.MuiBox-root:hover > &': { color: active ? '#fff' : item.color },
-                        }}
-                      >
-                        {item.icon}
-                      </Box>
-                      <span>{item.label}</span>
-                    </Box>
-                  );
-                })}
-              </Stack>
-            </Box>
-          ))}
-        </Box>
-
-        {/* User */}
-        <Divider />
-        <Box sx={{ p: 1.5 }}>
-          <Stack direction="row" alignItems="center" spacing={1.25}>
-            <Avatar sx={{ width: 34, height: 34, background: BRAND.gradient, fontSize: 13, fontWeight: 800 }}>
-              {initials}
-            </Avatar>
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography sx={{ fontSize: 13, fontWeight: 600 }} noWrap>
-                {me.user.full_name || 'Member'}
-              </Typography>
-              <Typography sx={{ fontSize: 11.5, color: 'text.disabled' }} noWrap>
-                {me.user.email}
-              </Typography>
-            </Box>
-            <Tooltip title="Log out">
-              <IconButton size="small" onClick={logout} sx={{ color: 'text.disabled' }}>
-                <LogoutIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Stack>
-        </Box>
-      </Box>
-
-      {/* Main */}
-      <Box sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        {/* Topbar */}
-        <Box
-          sx={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 10,
-            height: 56,
-            px: { xs: 2, md: 3.5 },
-            display: 'flex',
-            alignItems: 'center',
-            bgcolor: 'rgba(255,255,255,0.85)',
-            backdropFilter: 'blur(8px)',
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-          }}
-        >
-          <Typography sx={{ fontWeight: 600, fontSize: 15 }}>{currentLabel}</Typography>
-          <Box sx={{ flexGrow: 1 }} />
-          {activeWorkspace?.website && (
-            <Typography
-              variant="body2"
-              sx={{
-                color: 'text.secondary',
-                bgcolor: '#F6F6F7',
-                border: '1px solid',
-                borderColor: 'divider',
-                px: 1.25,
-                py: 0.4,
-                borderRadius: 2,
-                fontSize: 12.5,
-              }}
-            >
-              {activeWorkspace.website.replace(/^https?:\/\//, '')}
-            </Typography>
-          )}
-        </Box>
-
-        <Box sx={{ px: { xs: 2, md: 4 }, py: { xs: 2.5, md: 4 }, flexGrow: 1, maxWidth: 1400, width: '100%', mx: 'auto' }}>
+        <Box sx={{ px: { xs: 2, md: 4 }, py: { xs: 2.5, md: 3.5 }, flexGrow: 1, width: '100%' }}>
           {children}
         </Box>
       </Box>
+        </Box>
 
       {/* New workspace dialog */}
       <Dialog open={newWsOpen} onClose={() => setNewWsOpen(false)} fullWidth maxWidth="sm">

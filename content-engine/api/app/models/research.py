@@ -38,6 +38,9 @@ class ResearchJob(Base, UUIDMixin, TimestampMixin):
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     findings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     sources: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    # Live agent reasoning trace + overall grounding confidence (Deep Research v3)
+    reasoning: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Targeting (Deep Research v2)
     countries: Mapped[list | None] = mapped_column(JSONB, nullable=True)

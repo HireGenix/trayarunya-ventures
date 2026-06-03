@@ -36,6 +36,13 @@ import InsightsRoundedIcon from '@mui/icons-material/InsightsRounded';
 import PersonSearchRoundedIcon from '@mui/icons-material/PersonSearchRounded';
 import CompareArrowsRoundedIcon from '@mui/icons-material/CompareArrowsRounded';
 import TravelExploreRoundedIcon from '@mui/icons-material/TravelExploreRounded';
+import LightbulbRoundedIcon from '@mui/icons-material/LightbulbRounded';
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
+import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
+import PsychologyRoundedIcon from '@mui/icons-material/PsychologyRounded';
+import VerifiedRoundedIcon from '@mui/icons-material/VerifiedRounded';
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
 import { useAuth } from '@/lib/auth';
 import {
   Research,
@@ -43,6 +50,7 @@ import {
   type AuditSnapshot,
   type Competitor,
   type Insight,
+  type ReasoningStep,
   type ResearchJob,
   type SocialProfile,
 } from '@/lib/api';
@@ -73,6 +81,144 @@ function erColor(er: number | null | undefined): string {
   if (er >= 1) return BRAND.teal;
   if (er >= 0.5) return BRAND.amberDeep;
   return BRAND.pink;
+}
+
+const PHASE_META: Record<
+  string,
+  { icon: typeof SearchRoundedIcon; color: string; title: string }
+> = {
+  plan: { icon: LightbulbRoundedIcon, color: BRAND.amber, title: 'Plan' },
+  search: { icon: SearchRoundedIcon, color: BRAND.teal, title: 'Search' },
+  crawl: { icon: MenuBookRoundedIcon, color: '#5B8DEF', title: 'Read' },
+  synthesize: { icon: AutoAwesomeRoundedIcon, color: BRAND.amberDeep, title: 'Synthesise' },
+  reflect: { icon: PsychologyRoundedIcon, color: '#A855F7', title: 'Reflect' },
+  verify: { icon: VerifiedRoundedIcon, color: BRAND.tealDeep, title: 'Verify' },
+};
+
+function ReasoningTimeline({
+  steps,
+  live,
+}: {
+  steps: ReasoningStep[];
+  live: boolean;
+}) {
+  if (!steps.length) return null;
+  return (
+    <Box
+      sx={{
+        borderRadius: 3,
+        p: 2.2,
+        mb: 3,
+        background: 'linear-gradient(135deg, #0E141B 0%, #161E2B 55%, #0D1A17 100%)',
+        border: '1px solid rgba(255,255,255,0.08)',
+      }}
+    >
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+        <PsychologyRoundedIcon sx={{ color: BRAND.amber, fontSize: 18 }} />
+        <Typography sx={{ fontWeight: 800, color: '#fff', fontSize: 13.5 }}>
+          Agent reasoning
+        </Typography>
+        {live && (
+          <Chip
+            label="LIVE"
+            size="small"
+            sx={{
+              height: 16,
+              fontSize: 8.5,
+              fontWeight: 800,
+              bgcolor: BRAND.pink,
+              color: '#fff',
+              animation: 'pulse 1.4s ease-in-out infinite',
+              '@keyframes pulse': { '50%': { opacity: 0.45 } },
+            }}
+          />
+        )}
+      </Stack>
+      <Stack spacing={0}>
+        {steps.map((s, i) => {
+          const meta = PHASE_META[s.phase] || PHASE_META.search;
+          const Icon = meta.icon;
+          const isLast = i === steps.length - 1;
+          const activeNow = live && isLast;
+          return (
+            <Stack key={i} direction="row" spacing={1.3} sx={{ position: 'relative' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <Box
+                  sx={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: '50%',
+                    display: 'grid',
+                    placeItems: 'center',
+                    background: `${meta.color}22`,
+                    border: `1.5px solid ${meta.color}`,
+                    flexShrink: 0,
+                    ...(activeNow && {
+                      animation: 'glow 1.2s ease-in-out infinite',
+                      '@keyframes glow': {
+                        '50%': { boxShadow: `0 0 0 4px ${meta.color}33` },
+                      },
+                    }),
+                  }}
+                >
+                  <Icon sx={{ fontSize: 14, color: meta.color }} />
+                </Box>
+                {!isLast && (
+                  <Box sx={{ width: 2, flex: 1, minHeight: 14, background: 'rgba(255,255,255,0.12)', my: 0.3 }} />
+                )}
+              </Box>
+              <Box sx={{ pb: isLast ? 0 : 1.3, minWidth: 0 }}>
+                <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#fff', lineHeight: 1.3 }}>
+                  {s.label}
+                  {typeof s.sources === 'number' && s.sources > 0 && (
+                    <Box
+                      component="span"
+                      sx={{ ml: 0.8, fontSize: 9.5, color: meta.color, fontWeight: 700 }}
+                    >
+                      · {s.sources} src
+                    </Box>
+                  )}
+                </Typography>
+                {s.detail && (
+                  <Typography sx={{ fontSize: 10.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.35 }}>
+                    {s.detail}
+                  </Typography>
+                )}
+              </Box>
+            </Stack>
+          );
+        })}
+      </Stack>
+    </Box>
+  );
+}
+
+function ConfidenceBadge({ value }: { value: number }) {
+  const pct = Math.round(value * 100);
+  const color = pct >= 75 ? BRAND.tealDeep : pct >= 50 ? BRAND.amberDeep : BRAND.pink;
+  return (
+    <Chip
+      icon={<VerifiedRoundedIcon sx={{ fontSize: 15, color: `${color} !important` }} />}
+      label={`${pct}% confidence`}
+      size="small"
+      sx={{ bgcolor: `${color}1a`, color, fontWeight: 800, fontSize: 11.5, height: 24 }}
+    />
+  );
+}
+
+type FindingItem = { text: string; citations?: string[]; grounded?: boolean };
+
+function normalizeFinding(v: unknown): FindingItem {
+  if (typeof v === 'string') return { text: v };
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    return {
+      text: String(o.text ?? ''),
+      citations: Array.isArray(o.citations) ? (o.citations as string[]) : undefined,
+      grounded: Boolean(o.grounded),
+    };
+  }
+  return { text: String(v ?? '') };
 }
 
 function BenchmarkTable({ snapshots }: { snapshots: AuditSnapshot[] }) {
@@ -225,6 +371,29 @@ export default function ResearchPage() {
     };
   }, [jobs, loadJobs]);
 
+  // Keep the open detail panel in sync with polled jobs so the live reasoning
+  // trace streams in real time; load results the moment a job succeeds.
+  useEffect(() => {
+    if (!selected) return;
+    const fresh = jobs.find((j) => j.id === selected.id);
+    if (!fresh) return;
+    if (fresh.updated_at !== selected.updated_at || fresh.status !== selected.status) {
+      setSelected(fresh);
+      if (fresh.status === 'succeeded' && selected.status !== 'succeeded') {
+        Promise.all([
+          Research.insights(fresh.id).catch(() => []),
+          Research.competitors(fresh.id).catch(() => []),
+          Research.auditSnapshots(fresh.id).catch(() => []),
+        ]).then(([ins, comps, snaps]) => {
+          setInsights(ins);
+          setCompetitors(comps);
+          setSnapshots(snaps);
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs]);
+
   const onCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!topic.trim()) return;
@@ -316,7 +485,7 @@ export default function ResearchPage() {
     }
   };
 
-  const findings = (selected?.findings || {}) as Record<string, string[]>;
+  const findings = (selected?.findings || {}) as Record<string, unknown[]>;
 
   return (
     <>
@@ -502,20 +671,59 @@ export default function ResearchPage() {
               )}
 
               {(selected.status === 'queued' || selected.status === 'running') && (
-                <Box sx={{ mt: 3, textAlign: 'center' }}>
-                  <CircularProgress sx={{ mb: 1 }} />
-                  <Typography color="text.secondary">
-                    Agents are searching the web and crawling pages…
-                  </Typography>
+                <Box sx={{ mt: 3 }}>
+                  {selected.reasoning && selected.reasoning.length > 0 ? (
+                    <ReasoningTimeline steps={selected.reasoning} live />
+                  ) : (
+                    <Box sx={{ textAlign: 'center', py: 2 }}>
+                      <CircularProgress sx={{ mb: 1 }} />
+                      <Typography color="text.secondary">
+                        Spinning up the research agents…
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
               )}
 
               {selected.status === 'succeeded' && (
                 <Box sx={{ mt: 2 }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                    sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}
+                  >
+                    {typeof selected.confidence === 'number' && (
+                      <ConfidenceBadge value={selected.confidence} />
+                    )}
+                    {selected.sources && (
+                      <Chip
+                        icon={<TravelExploreRoundedIcon sx={{ fontSize: 15 }} />}
+                        label={`${selected.sources.length} sources`}
+                        size="small"
+                        variant="outlined"
+                        sx={{ fontSize: 11.5, height: 24 }}
+                      />
+                    )}
+                    {selected.reasoning && (
+                      <Chip
+                        icon={<PsychologyRoundedIcon sx={{ fontSize: 15 }} />}
+                        label={`${selected.reasoning.length} reasoning steps`}
+                        size="small"
+                        variant="outlined"
+                        sx={{ fontSize: 11.5, height: 24 }}
+                      />
+                    )}
+                  </Stack>
+
                   {selected.summary && (
                     <Typography sx={{ mb: 3 }} color="text.secondary">
                       {selected.summary}
                     </Typography>
+                  )}
+
+                  {selected.reasoning && selected.reasoning.length > 0 && (
+                    <ReasoningTimeline steps={selected.reasoning} live={false} />
                   )}
 
                   {snapshots.length > 0 && <BenchmarkTable snapshots={snapshots} />}
@@ -523,13 +731,57 @@ export default function ResearchPage() {
                   {Object.entries(findings).map(([key, values]) =>
                     Array.isArray(values) && values.length ? (
                       <Box key={key} sx={{ mb: 2.5 }}>
-                        <Typography variant="subtitle2" sx={{ textTransform: 'capitalize', mb: 0.5 }}>
+                        <Typography variant="subtitle2" sx={{ textTransform: 'capitalize', mb: 0.75 }}>
                           {key.replace(/_/g, ' ')}
                         </Typography>
-                        <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-                          {values.map((v, i) => (
-                            <Chip key={i} label={v} size="small" variant="outlined" />
-                          ))}
+                        <Stack spacing={0.75}>
+                          {values.map((raw, i) => {
+                            const f = normalizeFinding(raw);
+                            if (!f.text) return null;
+                            return (
+                              <Box
+                                key={i}
+                                sx={{
+                                  p: 1,
+                                  borderRadius: 1.5,
+                                  bgcolor: 'rgba(20,187,135,0.04)',
+                                  border: '1px solid rgba(0,0,0,0.06)',
+                                }}
+                              >
+                                <Stack direction="row" spacing={0.75} alignItems="flex-start">
+                                  <Typography sx={{ fontSize: 13, flex: 1 }}>{f.text}</Typography>
+                                  {f.grounded && (
+                                    <VerifiedRoundedIcon
+                                      sx={{ fontSize: 15, color: BRAND.tealDeep, mt: 0.2 }}
+                                    />
+                                  )}
+                                </Stack>
+                                {f.citations && f.citations.length > 0 && (
+                                  <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                                    {f.citations.slice(0, 4).map((c, ci) => (
+                                      <Chip
+                                        key={ci}
+                                        component="a"
+                                        href={c}
+                                        target="_blank"
+                                        clickable
+                                        icon={<OpenInNewRoundedIcon sx={{ fontSize: 11 }} />}
+                                        label={(() => {
+                                          try {
+                                            return new URL(c).hostname.replace('www.', '');
+                                          } catch {
+                                            return 'source';
+                                          }
+                                        })()}
+                                        size="small"
+                                        sx={{ height: 18, fontSize: 9.5 }}
+                                      />
+                                    ))}
+                                  </Stack>
+                                )}
+                              </Box>
+                            );
+                          })}
                         </Stack>
                       </Box>
                     ) : null

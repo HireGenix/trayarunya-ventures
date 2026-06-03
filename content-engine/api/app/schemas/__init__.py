@@ -101,6 +101,8 @@ class ResearchOut(BaseModel):
     summary: str | None = None
     findings: dict[str, Any] | None = None
     sources: list[Any] | None = None
+    reasoning: list[Any] | None = None
+    confidence: float | None = None
     countries: list[str] | None = None
     platforms: list[str] | None = None
     created_at: datetime
@@ -177,6 +179,7 @@ class InsightOut(BaseModel):
     text: str
     intent: str | None
     score: float
+    meta: dict[str, Any] | None = None
 
 class CompetitorOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

@@ -91,3 +91,105 @@ async def web_search(query: str, limit: int = 8) -> list[SearchResult]:
             return _parse(html, limit)
         except Exception:
             return []
+
+
+def _parse_news(payload: dict, limit: int) -> list[SearchResult]:
+    out: list[SearchResult] = []
+    for r in (payload.get("results") or [])[:limit]:
+        url = r.get("url") or ""
+        if not url.startswith("http"):
+            continue
+        src = r.get("source") or ""
+        title = r.get("title") or ""
+        out.append(
+            SearchResult(
+                title=f"{title} — {src}" if src else title,
+                url=url,
+                snippet=r.get("excerpt") or r.get("body") or "",
+            )
+        )
+    return out
+
+
+async def _ddg_vqd(client: httpx.AsyncClient, query: str) -> str | None:
+    """DuckDuckGo's JSON endpoints need a one-time ``vqd`` token."""
+    res = await client.get(
+        "https://duckduckgo.com/",
+        params={"q": query},
+        headers={"User-Agent": UA},
+    )
+    import re
+
+    m = re.search(r"vqd=\"([\d-]+)\"", res.text) or re.search(r"vqd=([\d-]+)&", res.text)
+    return m.group(1) if m else None
+
+
+async def news_search(query: str, limit: int = 6) -> list[SearchResult]:
+    """Fresh news results via DuckDuckGo's news JSON endpoint (no API key)."""
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+        try:
+            vqd = await _ddg_vqd(client, query)
+            if not vqd:
+                return []
+            res = await client.get(
+                "https://duckduckgo.com/news.js",
+                params={"l": "us-en", "o": "json", "q": query, "vqd": vqd, "noamp": "1"},
+                headers={"User-Agent": UA, "Accept": "application/json"},
+            )
+            res.raise_for_status()
+            return _parse_news(res.json(), limit)
+        except Exception:
+            return []
+
+
+# Public sites we can productively search via a site:-scoped web query when a
+# platform is requested. Keeps us within DDG (no per-network API keys).
+PLATFORM_SITES: dict[str, str] = {
+    "youtube": "youtube.com",
+    "reddit": "reddit.com",
+    "linkedin": "linkedin.com/company",
+    "x": "x.com",
+    "tiktok": "tiktok.com",
+    "pinterest": "pinterest.com",
+    "facebook": "facebook.com",
+    "instagram": "instagram.com",
+    "news": "",  # handled by news_search
+}
+
+
+async def multi_search(
+    query: str,
+    *,
+    limit: int = 6,
+    include_news: bool = True,
+    platforms: list[str] | None = None,
+) -> list[dict]:
+    """Fan out a single query across web, news and platform-scoped searches.
+
+    Returns dicts tagged with ``source_type`` (``web`` | ``news`` | ``platform``)
+    and ``platform`` so the agent can reason about where evidence came from.
+    """
+    out: list[dict] = []
+    seen: set[str] = set()
+
+    def _add(items: list[SearchResult], source_type: str, platform: str | None = None) -> None:
+        for r in items:
+            if r.url in seen:
+                continue
+            seen.add(r.url)
+            d = r.to_dict()
+            d["source_type"] = source_type
+            if platform:
+                d["platform"] = platform
+            out.append(d)
+
+    _add(await web_search(query, limit=limit), "web")
+    if include_news:
+        _add(await news_search(query, limit=4), "news")
+    for p in (platforms or []):
+        site = PLATFORM_SITES.get(p.lower())
+        if not site:
+            continue
+        _add(await web_search(f"{query} site:{site}", limit=3), "platform", p.lower())
+    return out
+

@@ -46,6 +46,8 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE research_jobs ADD COLUMN IF NOT EXISTS countries JSONB",
                 "ALTER TABLE research_jobs ADD COLUMN IF NOT EXISTS platforms JSONB",
                 "ALTER TABLE research_jobs ADD COLUMN IF NOT EXISTS self_handle VARCHAR(300)",
+                "ALTER TABLE research_jobs ADD COLUMN IF NOT EXISTS reasoning JSONB",
+                "ALTER TABLE research_jobs ADD COLUMN IF NOT EXISTS confidence DOUBLE PRECISION",
                 "ALTER TABLE competitors ADD COLUMN IF NOT EXISTS country VARCHAR(80)",
                 "ALTER TABLE competitors ADD COLUMN IF NOT EXISTS social_handles JSONB",
             ):

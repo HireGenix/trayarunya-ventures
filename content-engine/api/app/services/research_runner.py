@@ -29,6 +29,16 @@ async def run_research_job(job_id: uuid.UUID, db: AsyncSession | None = None) ->
         if own_session:
             await session.commit()
 
+        async def _on_step(steps: list[dict]) -> None:
+            """Persist the live reasoning trace mid-run so the polling UI streams it."""
+            try:
+                job.reasoning = list(steps)
+                await session.flush()
+                if own_session:
+                    await session.commit()
+            except Exception:  # noqa: BLE001
+                pass
+
         try:
             result = await run_research(
                 topic=job.topic,
@@ -36,6 +46,7 @@ async def run_research_job(job_id: uuid.UUID, db: AsyncSession | None = None) ->
                 competitor_urls=[],
                 countries=job.countries or [],
                 platforms=job.platforms or [],
+                on_step=_on_step,
             )
         except Exception as exc:  # noqa: BLE001
             job.status = JobStatus.failed
@@ -48,6 +59,8 @@ async def run_research_job(job_id: uuid.UUID, db: AsyncSession | None = None) ->
         job.summary = result.get("summary")
         job.findings = result.get("findings")
         job.sources = result.get("sources")
+        job.reasoning = result.get("steps")
+        job.confidence = result.get("confidence")
         job.status = JobStatus.succeeded
 
         saved_competitors: list[Competitor] = []
@@ -83,6 +96,10 @@ async def run_research_job(job_id: uuid.UUID, db: AsyncSession | None = None) ->
                     text=ins.get("text", ""),
                     intent=ins.get("intent"),
                     score=score,
+                    meta={
+                        "citations": [c for c in (ins.get("citations") or []) if isinstance(c, str)],
+                        "grounded": bool(ins.get("grounded")),
+                    },
                 )
             )
 

@@ -98,6 +98,21 @@ export interface Me {
   organizations: Organization[];
   workspaces: Workspace[];
 }
+export interface ReasoningStep {
+  phase: 'plan' | 'search' | 'crawl' | 'synthesize' | 'reflect' | 'verify';
+  label: string;
+  detail?: string;
+  sources?: number | null;
+  status?: string;
+  iteration?: number;
+  ts?: number;
+}
+export interface ResearchSource {
+  title: string;
+  url: string;
+  source_type?: string;
+  platform?: string | null;
+}
 export interface ResearchJob {
   id: string;
   workspace_id: string;
@@ -107,7 +122,9 @@ export interface ResearchJob {
   error: string | null;
   summary: string | null;
   findings: Record<string, unknown> | null;
-  sources: { title: string; url: string }[] | null;
+  sources: ResearchSource[] | null;
+  reasoning: ReasoningStep[] | null;
+  confidence: number | null;
   countries: string[] | null;
   platforms: string[] | null;
   created_at: string;
@@ -119,6 +136,7 @@ export interface Insight {
   text: string;
   intent: string | null;
   score: number;
+  meta: { citations?: string[]; grounded?: boolean } | null;
 }
 export interface Competitor {
   id: string;
