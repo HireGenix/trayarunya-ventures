@@ -123,3 +123,66 @@ async def create_social_image(
     final_size = size_for_platform(platform, size)
     png, used = await generate_image(prompt, size=final_size, provider=provider)
     return png, used, prompt
+
+
+# --- Multi-slide assets (carousel / PDF document) -------------------------------
+
+# Document/PDF slides read best in portrait; carousels are square.
+def slide_size(fmt: str, platform: str | None) -> str:
+    if fmt == "pdf":
+        return "1024x1536"
+    return "1024x1024"
+
+
+def _slide_roles(count: int) -> list[str]:
+    if count <= 1:
+        return ["the single hero slide"]
+    roles = ["the COVER slide: big bold title + subtle subtitle"]
+    for i in range(1, count - 1):
+        roles.append(f"key point #{i}: one idea, a short headline and a tight supporting line")
+    roles.append("the final CTA slide: a clear call-to-action and the brand mark")
+    return roles[:count]
+
+
+async def create_slide_deck(
+    *,
+    topic: str,
+    headline: str | None = None,
+    platform: str | None = None,
+    fmt: str = "carousel",
+    slides: int = 3,
+    style: str = "modern_gradient",
+    brand: dict | None = None,
+    extra: str | None = None,
+    provider: str | None = None,
+) -> list[tuple[bytes, str, str]]:
+    """Generate a cohesive multi-slide deck. Returns a list of (png, provider, prompt).
+
+    Best-effort per slide: a failed slide is skipped so the deck still ships.
+    """
+    slides = max(1, min(slides, 5))
+    size = slide_size(fmt, platform)
+    roles = _slide_roles(slides)
+    series = (
+        f"This is part of a cohesive {slides}-slide "
+        f"{'document' if fmt == 'pdf' else 'carousel'} series — keep a consistent layout, "
+        f"color system and typography across all slides."
+    )
+    out: list[tuple[bytes, str, str]] = []
+    for idx, role in enumerate(roles, start=1):
+        slide_headline = headline if idx == 1 else None
+        prompt = build_image_prompt(
+            topic=topic,
+            headline=slide_headline,
+            platform=platform,
+            style=style,
+            brand=brand,
+            extra=f"{series} This is slide {idx} of {slides}: {role}. "
+            + (extra or ""),
+        )
+        try:
+            png, used = await generate_image(prompt, size=size, provider=provider)
+            out.append((png, used, prompt))
+        except Exception:  # noqa: BLE001 — skip failed slide, keep the rest.
+            continue
+    return out

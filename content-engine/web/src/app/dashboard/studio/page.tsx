@@ -438,6 +438,7 @@ function CalendarView({
   const [active, setActive] = useState<ContentCalendar | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyEntry, setBusyEntry] = useState<string | null>(null);
+  const [busyDay, setBusyDay] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [withImage, setWithImage] = useState(true);
   const [imageStyle, setImageStyle] = useState<string>(IMAGE_STYLES[0].id);
@@ -481,6 +482,27 @@ function CalendarView({
       setError(e instanceof Error ? e.message : 'Generation failed');
     } finally {
       setBusyEntry(null);
+    }
+  };
+
+  const generateDay = async (date: string) => {
+    if (!active) return;
+    setBusyDay(date);
+    setError('');
+    try {
+      const updated = await Calendar.generateDay(active.id, {
+        date,
+        provider,
+        with_image: withImage,
+        image_style: imageStyle,
+        image_provider: imageModel,
+      });
+      setActive(updated);
+      setCalendars((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Day generation failed');
+    } finally {
+      setBusyDay(null);
     }
   };
 
@@ -599,15 +621,44 @@ function CalendarView({
       </Card>
 
       <Stack spacing={2}>
-        {grouped.map(([date, entries]) => (
+        {grouped.map(([date, entries]) => {
+          const pending = entries.filter((e) => e.status !== 'generated');
+          return (
           <Box key={date}>
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
-              {new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-              })}
-            </Typography>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ mb: 1 }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                {new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </Typography>
+              {pending.length > 0 && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="secondary"
+                  startIcon={
+                    busyDay === date ? (
+                      <CircularProgress size={14} color="inherit" />
+                    ) : (
+                      <AutoAwesomeIcon />
+                    )
+                  }
+                  disabled={busyDay !== null || busyEntry !== null}
+                  onClick={() => generateDay(date)}
+                >
+                  {busyDay === date
+                    ? 'Generating all…'
+                    : `Generate all (${pending.length})`}
+                </Button>
+              )}
+            </Stack>
             <Stack spacing={1}>
               {entries.map((e) => (
                 <Card key={e.id} variant="outlined">
@@ -615,6 +666,14 @@ function CalendarView({
                     <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap">
                       <Chip size="small" label={e.platform} color="primary" variant="outlined" />
                       <Chip size="small" label={e.content_type} variant="outlined" />
+                      {e.format && (
+                        <Chip
+                          size="small"
+                          label={e.format}
+                          color="secondary"
+                          variant="outlined"
+                        />
+                      )}
                       <Box sx={{ flex: 1, minWidth: 180 }}>
                         <Typography fontWeight={600}>{e.title}</Typography>
                         {e.hook && (
@@ -625,11 +684,18 @@ function CalendarView({
                       </Box>
                       {e.status === 'generated' ? (
                         <Stack direction="row" spacing={1} alignItems="center">
-                          {(e.asset_kind === 'image' || e.image_url) && (
+                          {(e.asset_kind === 'image' ||
+                            e.asset_kind === 'carousel' ||
+                            e.asset_kind === 'pdf' ||
+                            e.image_url) && (
                             <Chip
                               size="small"
                               icon={<ImageIcon />}
-                              label="graphic"
+                              label={
+                                e.asset_urls && e.asset_urls.length > 1
+                                  ? `${e.asset_urls.length} slides`
+                                  : 'graphic'
+                              }
                               color="secondary"
                               variant="outlined"
                             />
@@ -649,7 +715,7 @@ function CalendarView({
                               <AutoAwesomeIcon />
                             )
                           }
-                          disabled={busyEntry !== null}
+                          disabled={busyEntry !== null || busyDay !== null}
                           onClick={() => generateEntry(e)}
                         >
                           Generate
@@ -661,7 +727,8 @@ function CalendarView({
               ))}
             </Stack>
           </Box>
-        ))}
+          );
+        })}
       </Stack>
     </Stack>
   );

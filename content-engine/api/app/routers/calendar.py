@@ -6,6 +6,7 @@ entry — which creates a real ContentItem and links it back to the entry.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import calendar as _calmod
 import copy
@@ -18,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.agents.calendar_agent import DEFAULT_PLATFORMS, generate_calendar
-from app.agents.image_agent import create_social_image
+from app.agents.image_agent import create_slide_deck, create_social_image
 from app.agents.writer import generate_content
 from app.db import get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
@@ -32,10 +33,12 @@ from app.models import (
     Strategy,
 )
 from app.schemas import (
+    CalendarDayGenerateRequest,
     CalendarEntryGenerateRequest,
     CalendarGenerateRequest,
     CalendarOut,
 )
+from app.tools.trending import caption_and_tags
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
@@ -50,6 +53,10 @@ VISUAL_PLATFORMS = {
     "pinterest",
     "youtube",
 }
+
+# Post format -> how many slides / which asset to build.
+FORMAT_SLIDES = {"static": 1, "carousel": 3, "pdf": 3}
+TEXT_ONLY_FORMATS = {"text", "video_script"}
 
 PROVIDER_MAP = {
     "gpt-5.5": "gpt-5.5",
@@ -235,32 +242,223 @@ async def generate_entry(
     brand = await _load_brand(db, ctx.workspace.id)
     strategy, _ = await _load_strategy(db, ctx.workspace.id, cal.strategy_id)
 
+    opts = {
+        "provider": data.provider,
+        "with_image": data.with_image,
+        "image_style": data.image_style,
+        "image_provider": data.image_provider,
+        "notes": data.notes,
+    }
+    try:
+        payload = await _produce_entry(target, brand, strategy, opts)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Generation failed: {exc}")
+
+    await _persist_entry(db, ctx, cal, target, payload, data.provider)
+    cal.entries = entries
+    flag_modified(cal, "entries")
+
+    await db.commit()
+    await db.refresh(cal)
+    return CalendarOut.model_validate(cal)
+
+
+@router.post("/{calendar_id}/generate-day", response_model=CalendarOut)
+async def generate_day(
+    calendar_id: uuid.UUID,
+    data: CalendarDayGenerateRequest,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> CalendarOut:
+    """One click → generate EVERY not-yet-generated entry for a given date.
+
+    The expensive LLM/image work runs concurrently (bounded), then results are
+    persisted to the DB sequentially (the async session is single-threaded).
+    """
+    cal = await db.get(ContentCalendar, calendar_id)
+    if cal is None or cal.workspace_id != ctx.workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Calendar not found")
+
+    target_date = data.date.isoformat() if isinstance(data.date, date) else str(data.date)
+    entries = copy.deepcopy(list(cal.entries or []))
+    todo = [
+        e
+        for e in entries
+        if e.get("date") == target_date and e.get("status") != "generated"
+    ]
+    if not todo:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No pending entries for that date")
+
+    brand = await _load_brand(db, ctx.workspace.id)
+    strategy, _ = await _load_strategy(db, ctx.workspace.id, cal.strategy_id)
+
+    opts = {
+        "provider": data.provider,
+        "with_image": data.with_image,
+        "image_style": data.image_style,
+        "image_provider": data.image_provider,
+        "notes": None,
+    }
+
+    sem = asyncio.Semaphore(2)
+
+    async def _run(entry: dict):
+        async with sem:
+            try:
+                return entry, await _produce_entry(entry, brand, strategy, opts)
+            except Exception:  # noqa: BLE001 — one failure shouldn't sink the day.
+                return entry, None
+
+    results = await asyncio.gather(*[_run(e) for e in todo])
+
+    persisted = 0
+    for entry, payload in results:
+        if payload is None:
+            continue
+        await _persist_entry(db, ctx, cal, entry, payload, data.provider)
+        persisted += 1
+
+    if persisted == 0:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "All entries failed to generate")
+
+    cal.entries = entries
+    flag_modified(cal, "entries")
+    await db.commit()
+    await db.refresh(cal)
+    return CalendarOut.model_validate(cal)
+
+
+# --- internal generation helpers ------------------------------------------------
+
+
+async def _produce_entry(
+    target: dict,
+    brand: dict | None,
+    strategy: dict | None,
+    opts: dict,
+) -> dict:
+    """Phase 1 (no DB): produce text, branded asset(s) and caption/hashtags.
+
+    Runs the asset deck and the trending-caption work concurrently so graphics
+    and captions are ready at roughly the same time. Returns a payload dict that
+    ``_persist_entry`` writes to the database.
+    """
+    platform = (target.get("platform") or "").lower()
+    fmt = (target.get("format") or "static").lower()
     topic = target.get("title") or target.get("theme") or "Content"
     notes_parts = [
         target.get("hook") and f"Hook/angle: {target['hook']}",
         target.get("theme") and f"Theme: {target['theme']}",
         target.get("funnel_stage") and f"Funnel stage: {target['funnel_stage']}",
         target.get("notes"),
-        data.notes,
+        opts.get("notes"),
     ]
     notes = " | ".join(p for p in notes_parts if p)
 
-    try:
-        items = await generate_content(
-            content_type=target.get("content_type", "social_post"),
-            topic=topic,
-            platform=target.get("platform"),
-            count=1,
-            notes=notes,
-            brand=brand,
-            strategy=strategy,
-            provider=_provider(data.provider),
-            scheduled_date=target.get("date"),
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Generation failed: {exc}")
-
+    items = await generate_content(
+        content_type=target.get("content_type", "social_post"),
+        topic=topic,
+        platform=target.get("platform"),
+        count=1,
+        notes=notes,
+        brand=brand,
+        strategy=strategy,
+        provider=_provider(opts.get("provider")),
+        scheduled_date=target.get("date"),
+    )
     it = items[0] if items else {"title": topic, "body": "", "variants": {}}
+    body = it.get("body", "")
+
+    want_image = (
+        opts.get("with_image")
+        and platform in VISUAL_PLATFORMS
+        and fmt not in TEXT_ONLY_FORMATS
+    )
+    style = opts.get("image_style") or "modern_gradient"
+    img_provider = opts.get("image_provider")
+
+    async def _assets() -> list[tuple[bytes, str, str]]:
+        if not want_image:
+            return []
+        try:
+            if fmt in ("carousel", "pdf"):
+                return await create_slide_deck(
+                    topic=topic,
+                    headline=it.get("title") or topic,
+                    platform=platform,
+                    fmt=fmt,
+                    slides=FORMAT_SLIDES.get(fmt, 3),
+                    style=style,
+                    brand=brand,
+                    extra=target.get("hook"),
+                    provider=img_provider,
+                )
+            png, used, prompt = await create_social_image(
+                topic=topic,
+                headline=it.get("title") or topic,
+                platform=platform,
+                style=style,
+                brand=brand,
+                extra=target.get("hook"),
+                provider=img_provider,
+            )
+            return [(png, used, prompt)]
+        except Exception:  # noqa: BLE001 — assets are best-effort.
+            return []
+
+    async def _caption() -> dict:
+        try:
+            return await caption_and_tags(
+                topic=topic,
+                platform=target.get("platform"),
+                brand=brand,
+                body=body,
+                provider=_provider(opts.get("provider")),
+            )
+        except Exception:  # noqa: BLE001
+            return {}
+
+    assets, caption = await asyncio.gather(_assets(), _caption())
+
+    asset_kind = "text"
+    if assets:
+        asset_kind = {"carousel": "carousel", "pdf": "pdf"}.get(fmt, "image")
+
+    return {
+        "item": it,
+        "topic": topic,
+        "body": body,
+        "assets": assets,
+        "asset_kind": asset_kind,
+        "style": style,
+        "caption": caption.get("caption"),
+        "hashtags": caption.get("hashtags") or [],
+        "trending": caption.get("trending") or [],
+    }
+
+
+async def _persist_entry(
+    db: AsyncSession,
+    ctx: WorkspaceContext,
+    cal: ContentCalendar,
+    target: dict,
+    payload: dict,
+    provider: str | None,
+) -> None:
+    """Phase 2 (DB): write the ContentItem, any images, and update the entry."""
+    entry_id = target.get("id")
+    it = payload["item"]
+    topic = payload["topic"]
+
+    variants = dict(
+        it.get("variants")
+        or {k: it.get(k) for k in ("hook", "hashtags", "cta") if it.get(k)}
+    )
+    if payload.get("caption"):
+        variants["caption"] = payload["caption"]
+    if payload.get("hashtags"):
+        variants["hashtags"] = payload["hashtags"]
+
     item = ContentItem(
         workspace_id=ctx.workspace.id,
         strategy_id=cal.strategy_id,
@@ -269,63 +467,48 @@ async def generate_entry(
         status=ContentStatus.draft,
         platform=target.get("platform"),
         title=it.get("title") or topic,
-        body=it.get("body", ""),
-        variants=it.get("variants")
-        or {k: it.get(k) for k in ("hook", "hashtags", "cta") if it.get(k)},
+        body=payload["body"],
+        variants=variants,
         meta={
             "calendar_id": str(cal.id),
             "calendar_entry_id": entry_id,
             "scheduled_date": target.get("date"),
-            "provider": data.provider,
+            "format": target.get("format"),
+            "provider": provider,
         },
     )
     db.add(item)
-    await db.flush()
+    await db.flush()  # need item.id to link images
 
-    # Build the COMPLETE post: for visual platforms, attach a branded graphic so
-    # the entry is ready to publish (not just text).
-    image_url: str | None = None
-    platform = (target.get("platform") or "").lower()
-    if data.with_image and platform in VISUAL_PLATFORMS:
-        try:
-            png, used, prompt = await create_social_image(
-                topic=topic,
-                headline=item.title,
-                platform=platform,
-                style=data.image_style or "modern_gradient",
-                brand=brand,
-                extra=target.get("hook"),
-                provider=data.image_provider,
-            )
-            img = ContentImage(
-                workspace_id=ctx.workspace.id,
-                content_item_id=item.id,
-                created_by=ctx.user.id,
-                prompt=prompt,
-                provider=used,
-                style=data.image_style or "modern_gradient",
-                size=None,
-                mime="image/png",
-                data_b64=base64.b64encode(png).decode("ascii"),
-                meta={"calendar_entry_id": entry_id},
-            )
-            db.add(img)
-            await db.flush()
-            image_url = f"/api/v1/images/{img.id}/raw"
-            item.meta = {**(item.meta or {}), "image_url": image_url, "image_id": str(img.id)}
-            flag_modified(item, "meta")
-        except Exception:  # noqa: BLE001 — image is best-effort; text still ships.
-            image_url = None
+    asset_urls: list[str] = []
+    for png, used, prompt in payload.get("assets") or []:
+        img = ContentImage(
+            workspace_id=ctx.workspace.id,
+            content_item_id=item.id,
+            created_by=ctx.user.id,
+            prompt=prompt,
+            provider=used,
+            style=payload.get("style"),
+            size=None,
+            mime="image/png",
+            data_b64=base64.b64encode(png).decode("ascii"),
+            meta={"calendar_entry_id": entry_id},
+        )
+        db.add(img)
+        await db.flush()
+        asset_urls.append(f"/api/v1/images/{img.id}/raw")
+
+    if asset_urls:
+        item.meta = {
+            **(item.meta or {}),
+            "image_url": asset_urls[0],
+            "asset_urls": asset_urls,
+        }
+        flag_modified(item, "meta")
 
     target["status"] = "generated"
     target["content_item_id"] = str(item.id)
-    if image_url:
-        target["image_url"] = image_url
-    target["asset_kind"] = "image" if image_url else "text"
-    # Reassign + flag so SQLAlchemy reliably detects the JSONB change.
-    cal.entries = entries
-    flag_modified(cal, "entries")
-
-    await db.commit()
-    await db.refresh(cal)
-    return CalendarOut.model_validate(cal)
+    target["asset_kind"] = payload.get("asset_kind", "text")
+    if asset_urls:
+        target["image_url"] = asset_urls[0]
+        target["asset_urls"] = asset_urls

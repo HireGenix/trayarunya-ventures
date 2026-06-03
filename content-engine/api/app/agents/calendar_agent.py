@@ -45,6 +45,33 @@ PLATFORM_DEFAULT_TYPE = {
     "tiktok": "social_post",
 }
 
+# Post FORMAT per platform — drives which asset we build (image/carousel/pdf/none).
+VALID_FORMATS = {"static", "carousel", "pdf", "text", "video_script"}
+PLATFORM_DEFAULT_FORMAT = {
+    "linkedin": "pdf",
+    "x": "text",
+    "instagram": "carousel",
+    "facebook": "static",
+    "youtube": "video_script",
+    "blog": "text",
+    "website": "text",
+    "newsletter": "text",
+    "quora": "text",
+    "reddit": "text",
+    "medium": "text",
+    "tiktok": "video_script",
+    "pinterest": "static",
+    "threads": "static",
+}
+
+
+def default_format(platform: str, content_type: str) -> str:
+    if content_type == "thread":
+        return "text"
+    if content_type in ("blog", "newsletter"):
+        return "text"
+    return PLATFORM_DEFAULT_FORMAT.get(platform, "static")
+
 CALENDAR_SYSTEM = (
     "You are the Head of Content Planning at an elite B2B/B2C/D2C marketing partner "
     "that treats the client's growth as its own. You build precise, execution-ready "
@@ -63,6 +90,7 @@ CALENDAR_SYSTEM = (
     '      "date": "YYYY-MM-DD",            // within the window\n'
     '      "platform": "linkedin",          // one of the requested platforms\n'
     '      "content_type": "social_post",   // social_post|thread|blog|newsletter|lead_magnet|ad_copy\n'
+    '      "format": "static",              // static|carousel|pdf|text|video_script (the asset to design)\n'
     '      "title": "short working title",\n'
     '      "hook": "the scroll-stopping angle",\n'
     '      "theme": "the pillar/theme this serves",\n'
@@ -72,7 +100,11 @@ CALENDAR_SYSTEM = (
     "  ]\n"
     "}\n"
     "Aim for a realistic, sustainable cadence (not every platform every day). "
-    "Prioritise weekdays for B2B. Cover the FULL window."
+    "Prioritise weekdays for B2B.\n"
+    "Pick a sensible FORMAT per entry: 'carousel' for Instagram/visual storytelling, "
+    "'pdf' for LinkedIn document/slide posts, 'static' for single-image posts, "
+    "'video_script' for YouTube/TikTok, and 'text' for X threads, blogs, newsletters and "
+    "community answers. Cover the FULL window."
 )
 
 
@@ -151,6 +183,9 @@ async def generate_calendar(
             # keep it but normalise unknowns to the closest requested platform
             plat = plat if plat else chosen[0]
         ctype = e.get("content_type") or PLATFORM_DEFAULT_TYPE.get(plat, "social_post")
+        fmt = str(e.get("format") or "").lower().strip()
+        if fmt not in VALID_FORMATS:
+            fmt = default_format(plat, ctype)
         d = str(e.get("date") or "").strip()
         if not (start_date.isoformat() <= d <= end_date.isoformat()):
             # Drop out-of-window dates rather than mis-scheduling.
@@ -161,6 +196,7 @@ async def generate_calendar(
                 "date": d,
                 "platform": plat,
                 "content_type": ctype,
+                "format": fmt,
                 "title": e.get("title") or "Untitled",
                 "hook": e.get("hook") or "",
                 "theme": e.get("theme") or "",

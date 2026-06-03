@@ -162,6 +162,14 @@ class BrandBuildRequest(BaseModel):
     website: str = Field(min_length=3, max_length=500)
 
 
+class BrandUpdate(BaseModel):
+    primary_color: str | None = None
+    accent_color: str | None = None
+    logo_url: str | None = None
+    mission: str | None = None
+    value_prop: str | None = None
+
+
 class BrandOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -378,6 +386,14 @@ class CalendarGenerateRequest(BaseModel):
 class CalendarEntryGenerateRequest(BaseModel):
     provider: str | None = None
     notes: str | None = None
+    with_image: bool = True
+    image_style: str | None = None
+    image_provider: str | None = None
+
+
+class CalendarDayGenerateRequest(BaseModel):
+    date: date
+    provider: str | None = None
     with_image: bool = True
     image_style: str | None = None
     image_provider: str | None = None

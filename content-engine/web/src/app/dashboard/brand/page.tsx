@@ -15,7 +15,12 @@ import {
   Typography,
 } from '@mui/material';
 import { useAuth } from '@/lib/auth';
-import { Brand, type Brand as BrandT } from '@/lib/api';
+import { Brand, API_URL, type Brand as BrandT } from '@/lib/api';
+
+function normHex(c: string): string {
+  if (!c) return '#000000';
+  return c.startsWith('#') ? c : `#${c}`;
+}
 
 function Swatch({ color, label }: { color: string | null; label: string }) {
   if (!color) return null;
@@ -48,6 +53,11 @@ export default function BrandPage() {
   const [loading, setLoading] = useState(true);
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState('');
+  const [primary, setPrimary] = useState('#ffaf06');
+  const [accent, setAccent] = useState('#14bb87');
+  const [savingColors, setSavingColors] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [msg, setMsg] = useState('');
 
   useEffect(() => {
     if (!activeWorkspace) return;
@@ -57,6 +67,8 @@ export default function BrandPage() {
         setBrand(b);
         if (b?.website) setWebsite(b.website);
         else if (activeWorkspace.website) setWebsite(activeWorkspace.website);
+        if (b?.primary_color) setPrimary(normHex(b.primary_color));
+        if (b?.accent_color) setAccent(normHex(b.accent_color));
       })
       .catch(() => setBrand(null))
       .finally(() => setLoading(false));
@@ -69,10 +81,45 @@ export default function BrandPage() {
     try {
       const b = await Brand.build({ website: website.trim() });
       setBrand(b);
+      if (b?.primary_color) setPrimary(normHex(b.primary_color));
+      if (b?.accent_color) setAccent(normHex(b.accent_color));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to build brand');
     } finally {
       setBuilding(false);
+    }
+  };
+
+  const saveColors = async () => {
+    setSavingColors(true);
+    setError('');
+    setMsg('');
+    try {
+      const b = await Brand.update({ primary_color: primary, accent_color: accent });
+      setBrand(b);
+      setMsg('Brand colors saved.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save colors');
+    } finally {
+      setSavingColors(false);
+    }
+  };
+
+  const onLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    setError('');
+    setMsg('');
+    try {
+      const b = await Brand.uploadLogo(file);
+      setBrand(b);
+      setMsg('Logo uploaded.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Logo upload failed');
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
     }
   };
 
@@ -118,6 +165,112 @@ export default function BrandPage() {
             <Alert severity="error" sx={{ mt: 2 }}>
               {error}
             </Alert>
+          )}
+          {msg && (
+            <Alert severity="success" sx={{ mt: 2 }} onClose={() => setMsg('')}>
+              {msg}
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Manual edit: colors + logo */}
+      <Card>
+        <CardContent sx={{ p: 3 }}>
+          <Typography variant="subtitle1" fontWeight={800} gutterBottom>
+            Edit identity
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            Override the auto-detected brand colors and upload your own logo. These are used on every
+            generated graphic, PDF and carousel.
+          </Typography>
+          <Grid container spacing={3} alignItems="flex-end">
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                PRIMARY
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <input
+                  type="color"
+                  value={primary}
+                  onChange={(e) => setPrimary(e.target.value)}
+                  style={{
+                    width: 48,
+                    height: 40,
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                  }}
+                  aria-label="Primary color"
+                />
+                <TextField
+                  size="small"
+                  value={primary}
+                  onChange={(e) => setPrimary(e.target.value)}
+                  sx={{ width: 110 }}
+                />
+              </Stack>
+            </Grid>
+            <Grid size={{ xs: 6, sm: 3 }}>
+              <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                ACCENT
+              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <input
+                  type="color"
+                  value={accent}
+                  onChange={(e) => setAccent(e.target.value)}
+                  style={{
+                    width: 48,
+                    height: 40,
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                  }}
+                  aria-label="Accent color"
+                />
+                <TextField
+                  size="small"
+                  value={accent}
+                  onChange={(e) => setAccent(e.target.value)}
+                  sx={{ width: 110 }}
+                />
+              </Stack>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 3 }}>
+              <Button
+                variant="contained"
+                onClick={saveColors}
+                disabled={savingColors}
+                fullWidth
+              >
+                {savingColors ? <CircularProgress size={22} /> : 'Save colors'}
+              </Button>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 3 }}>
+              <Button
+                variant="outlined"
+                component="label"
+                disabled={uploadingLogo}
+                fullWidth
+              >
+                {uploadingLogo ? <CircularProgress size={22} /> : 'Upload logo'}
+                <input hidden type="file" accept="image/*" onChange={onLogo} />
+              </Button>
+            </Grid>
+          </Grid>
+          {brand?.logo_url && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="caption" color="text.secondary" display="block">
+                CURRENT LOGO
+              </Typography>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={brand.logo_url.startsWith('http') ? brand.logo_url : `${API_URL}${brand.logo_url}`}
+                alt="logo"
+                style={{ maxHeight: 48, maxWidth: 200, marginTop: 6 }}
+              />
+            </Box>
           )}
         </CardContent>
       </Card>

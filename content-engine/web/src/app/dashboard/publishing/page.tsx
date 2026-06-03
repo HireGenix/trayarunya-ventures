@@ -346,23 +346,71 @@ export default function PublishingPage() {
                                     </Box>
                                   )}
                                   <CardContent sx={{ p: 1.5 }}>
-                                    <Typography variant="body2" fontWeight={700} noWrap>
-                                      {item.title || item.body.slice(0, 40)}
-                                    </Typography>
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
-                                      sx={{
-                                        display: '-webkit-box',
-                                        WebkitLineClamp: 2,
-                                        WebkitBoxOrient: 'vertical',
-                                        overflow: 'hidden',
-                                        mb: 1,
-                                        minHeight: 32,
-                                      }}
+                                    <Stack
+                                      direction="row"
+                                      justifyContent="space-between"
+                                      alignItems="center"
+                                      sx={{ mb: 0.5 }}
                                     >
-                                      {item.body}
-                                    </Typography>
+                                      <Typography variant="body2" fontWeight={700} noWrap>
+                                        {item.title || item.body.slice(0, 40)}
+                                      </Typography>
+                                      {(() => {
+                                        const d = (item.meta?.scheduled_date as string) || '';
+                                        return d ? (
+                                          <Chip
+                                            size="small"
+                                            label={new Date(d + 'T00:00:00').toLocaleDateString(
+                                              undefined,
+                                              { month: 'short', day: 'numeric' },
+                                            )}
+                                            variant="outlined"
+                                          />
+                                        ) : null;
+                                      })()}
+                                    </Stack>
+                                    {(() => {
+                                      const v = (item.variants ||
+                                        {}) as Record<string, unknown>;
+                                      const caption =
+                                        (v.caption as string) || item.body || '';
+                                      const tags = Array.isArray(v.hashtags)
+                                        ? (v.hashtags as string[])
+                                        : [];
+                                      return (
+                                        <>
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{
+                                              display: '-webkit-box',
+                                              WebkitLineClamp: 2,
+                                              WebkitBoxOrient: 'vertical',
+                                              overflow: 'hidden',
+                                              mb: 0.5,
+                                              minHeight: 32,
+                                            }}
+                                          >
+                                            {caption}
+                                          </Typography>
+                                          {tags.length > 0 && (
+                                            <Stack
+                                              direction="row"
+                                              sx={{ flexWrap: 'wrap', gap: 0.5, mb: 1 }}
+                                            >
+                                              {tags.slice(0, 4).map((t) => (
+                                                <Chip
+                                                  key={t}
+                                                  size="small"
+                                                  label={t}
+                                                  sx={{ height: 20, fontSize: 11 }}
+                                                />
+                                              ))}
+                                            </Stack>
+                                          )}
+                                        </>
+                                      );
+                                    })()}
                                     <Stack
                                       direction="row"
                                       justifyContent="space-between"

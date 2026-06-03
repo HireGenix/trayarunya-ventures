@@ -221,6 +221,38 @@ export const Brand = {
   get: () => api<Brand | null>('/brand', { workspace: true }),
   build: (body: { website: string }) =>
     api<Brand>('/brand', { method: 'POST', body, workspace: true }),
+  update: (body: {
+    primary_color?: string;
+    accent_color?: string;
+    logo_url?: string;
+    mission?: string;
+    value_prop?: string;
+  }) => api<Brand>('/brand', { method: 'PATCH', body, workspace: true }),
+  uploadLogo: async (file: File): Promise<Brand> => {
+    const headers: Record<string, string> = {};
+    const token = getToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const ws = getWorkspaceId();
+    if (ws) headers['X-Workspace-Id'] = ws;
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${API_URL}/api/v1/brand/logo`, {
+      method: 'POST',
+      headers,
+      body: form,
+    });
+    if (!res.ok) {
+      let detail = `Upload failed (${res.status})`;
+      try {
+        const data = await res.json();
+        detail = data.detail || detail;
+      } catch {
+        /* ignore */
+      }
+      throw new ApiError(res.status, detail);
+    }
+    return (await res.json()) as Brand;
+  },
 };
 
 export const Insights = {
@@ -280,6 +312,7 @@ export interface CalendarEntry {
   date: string;
   platform: string;
   content_type: string;
+  format?: string | null;
   title: string;
   hook?: string | null;
   theme?: string | null;
@@ -288,7 +321,8 @@ export interface CalendarEntry {
   status: 'planned' | 'generated';
   content_item_id: string | null;
   image_url?: string | null;
-  asset_kind?: 'image' | 'text' | null;
+  asset_urls?: string[] | null;
+  asset_kind?: 'image' | 'carousel' | 'pdf' | 'text' | 'video' | null;
 }
 export interface ContentCalendar {
   id: string;
@@ -363,6 +397,21 @@ export const Calendar = {
     },
   ) =>
     api<ContentCalendar>(`/calendar/${calendarId}/entries/${entryId}/generate`, {
+      method: 'POST',
+      body,
+      workspace: true,
+    }),
+  generateDay: (
+    calendarId: string,
+    body: {
+      date: string;
+      provider?: string;
+      with_image?: boolean;
+      image_style?: string;
+      image_provider?: string;
+    },
+  ) =>
+    api<ContentCalendar>(`/calendar/${calendarId}/generate-day`, {
       method: 'POST',
       body,
       workspace: true,

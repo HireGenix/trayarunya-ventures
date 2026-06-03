@@ -236,9 +236,16 @@ async def publish_now(
     db.add(sched)
     await db.flush()
 
-    text = item.body
-    if account.platform == SocialPlatform.x and item.variants:
-        text = item.variants.get("x") or text
+    # Compose the outgoing post: prefer the crafted caption, then append hashtags.
+    variants = item.variants or {}
+    text = variants.get("caption") or item.body
+    if account.platform == SocialPlatform.x and variants.get("x"):
+        text = variants.get("x")
+    tags = variants.get("hashtags")
+    if isinstance(tags, list) and tags:
+        tag_line = " ".join(t if str(t).startswith("#") else f"#{t}" for t in tags)
+        if tag_line and tag_line not in text:
+            text = f"{text}\n\n{tag_line}"
     try:
         external_id = await publish(account, text)
         from app.models import ContentStatus
