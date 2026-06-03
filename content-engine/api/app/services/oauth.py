@@ -14,15 +14,26 @@ from __future__ import annotations
 import base64
 import hashlib
 import secrets
+import time
 from dataclasses import dataclass
 
 import httpx
 
 from app.config import settings
 
-# In-memory store for OAuth state -> {workspace_id, code_verifier}. Fine for a
-# single API instance / local dev. In production back this with Redis.
+# In-memory store for OAuth state -> {workspace_id, code_verifier, _created_at}.
+# Entries expire after 10 minutes so stale states are never usable and the dict
+# never grows unbounded. In multi-instance production back this with Redis.
 _STATE: dict[str, dict] = {}
+_STATE_TTL = 600  # seconds
+
+
+def _prune_state() -> None:
+    """Remove expired state entries (called on every write + read)."""
+    now = time.time()
+    expired = [k for k, v in _STATE.items() if now - v.get("_created_at", 0) > _STATE_TTL]
+    for k in expired:
+        _STATE.pop(k, None)
 
 
 @dataclass
@@ -81,7 +92,40 @@ def _providers() -> dict[str, ProviderConfig]:
             client_id=settings.google_client_id,
             client_secret=settings.google_client_secret,
         ),
+        # ----- Ads platforms (OAuth-based account connection) -----
+        "google_ads": ProviderConfig(
+            name="google_ads",
+            auth_url="https://accounts.google.com/o/oauth2/v2/auth",
+            token_url="https://oauth2.googleapis.com/token",
+            scopes=["https://www.googleapis.com/auth/adwords"],
+            client_id=settings.google_client_id,
+            client_secret=settings.google_client_secret,
+        ),
+        "meta_ads": ProviderConfig(
+            name="meta_ads",
+            auth_url="https://www.facebook.com/v19.0/dialog/oauth",
+            token_url="https://graph.facebook.com/v19.0/oauth/access_token",
+            scopes=["ads_management", "ads_read", "business_management"],
+            client_id=settings.meta_app_id,
+            client_secret=settings.meta_app_secret,
+        ),
+        "linkedin_ads": ProviderConfig(
+            name="linkedin_ads",
+            auth_url="https://www.linkedin.com/oauth/v2/authorization",
+            token_url="https://www.linkedin.com/oauth/v2/accessToken",
+            scopes=["r_ads", "r_ads_reporting", "rw_ads"],
+            client_id=settings.linkedin_client_id,
+            client_secret=settings.linkedin_client_secret,
+        ),
     }
+
+
+# Which OAuth service path a platform's callback lives under.
+_ADS_PLATFORMS = {"google_ads", "meta_ads", "linkedin_ads"}
+
+
+def _service_for(platform: str) -> str:
+    return "ads" if platform in _ADS_PLATFORMS else "social"
 
 
 def provider_configured(platform: str) -> bool:
@@ -91,7 +135,7 @@ def provider_configured(platform: str) -> bool:
 
 def redirect_uri(platform: str) -> str:
     base = settings.oauth_redirect_base.rstrip("/")
-    return f"{base}/api/v1/social/{platform}/callback"
+    return f"{base}/api/v1/{_service_for(platform)}/{platform}/callback"
 
 
 def _pkce_pair() -> tuple[str, str]:
@@ -120,24 +164,31 @@ def build_authorization_url(platform: str, workspace_id: str) -> tuple[str, str]
         "scope": " ".join(p.scopes),
         "state": state,
     }
-    store: dict = {"workspace_id": workspace_id, "platform": platform}
+    store: dict = {"workspace_id": workspace_id, "platform": platform, "_created_at": time.time()}
     if p.use_pkce:
         verifier, challenge = _pkce_pair()
         params["code_challenge"] = challenge
         params["code_challenge_method"] = "S256"
         store["code_verifier"] = verifier
-    if platform == "youtube":
+    if platform in ("youtube", "google_ads"):
         params["access_type"] = "offline"
         params["prompt"] = "consent"
+    _prune_state()
     _STATE[state] = store
-    query = "&".join(f"{k}={httpx.QueryParams({k: v})[k]}" for k, v in params.items())
     # httpx QueryParams handles encoding; build the URL cleanly:
     url = str(httpx.URL(p.auth_url, params=params))
     return url, state
 
 
 def pop_state(state: str) -> dict | None:
-    return _STATE.pop(state, None)
+    _prune_state()
+    entry = _STATE.pop(state, None)
+    if entry is None:
+        return None
+    # Reject expired states even if prune didn't catch them.
+    if time.time() - entry.get("_created_at", 0) > _STATE_TTL:
+        return None
+    return entry
 
 
 async def exchange_code(platform: str, code: str, state_data: dict) -> dict:

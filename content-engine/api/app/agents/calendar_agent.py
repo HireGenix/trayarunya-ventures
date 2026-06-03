@@ -153,6 +153,8 @@ async def generate_calendar(
     goal: str | None = None,
     provider: Provider | None = None,
 ) -> list[dict[str, Any]]:
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
     chosen = [p for p in platforms if p] or DEFAULT_PLATFORMS
     prompt = (
         f"TODAY'S DATE: {today.isoformat()} ({today.strftime('%A, %d %B %Y')})\n"
@@ -187,10 +189,9 @@ async def generate_calendar(
         if fmt not in VALID_FORMATS:
             fmt = default_format(plat, ctype)
         d = str(e.get("date") or "").strip()
-        if not (start_date.isoformat() <= d <= end_date.isoformat()):
-            # Drop out-of-window dates rather than mis-scheduling.
-            if not d:
-                continue
+        if not d or not (start_date.isoformat() <= d <= end_date.isoformat()):
+            # Drop empty or out-of-window dates rather than mis-scheduling.
+            continue
         cleaned.append(
             {
                 "date": d,

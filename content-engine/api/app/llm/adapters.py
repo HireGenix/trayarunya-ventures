@@ -9,16 +9,22 @@ Two providers, one async interface:
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from typing import Any, Literal
 
 import httpx
 
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 Provider = Literal["gpt-5.5", "claude-opus"]
 
 CLAUDE_MAX_OUTPUT_TOKENS = 128_000
+_RETRY_STATUSES = {429, 500, 502, 503, 504}
+_MAX_RETRIES = 3
 
 
 def _gpt5_url() -> str:
@@ -49,22 +55,45 @@ async def complete_gpt5(messages: list[dict[str, str]], system: str) -> str:
         "stream": False,
         "store": False,
     }
-    async with httpx.AsyncClient(timeout=180) as client:
-        res = await client.post(
-            _gpt5_url(),
-            headers={"api-key": settings.azure_gpt5_key or "", "Content-Type": "application/json"},
-            json=payload,
-        )
-    res.raise_for_status()
-    data = res.json()
-    if isinstance(data.get("output_text"), str) and data["output_text"]:
-        return data["output_text"]
-    text = ""
-    for item in data.get("output", []) or []:
-        for part in item.get("content", []) or []:
-            if part.get("type") == "output_text" and isinstance(part.get("text"), str):
-                text += part["text"]
-    return text
+    last_exc: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            async with httpx.AsyncClient(timeout=180) as client:
+                res = await client.post(
+                    _gpt5_url(),
+                    headers={"api-key": settings.azure_gpt5_key or "", "Content-Type": "application/json"},
+                    json=payload,
+                )
+            if res.status_code in _RETRY_STATUSES and attempt < _MAX_RETRIES - 1:
+                wait = 2.0 ** attempt
+                logger.warning("GPT-5.5 returned %d, retrying in %.1fs (attempt %d/%d)", res.status_code, wait, attempt + 1, _MAX_RETRIES)
+                await asyncio.sleep(wait)
+                continue
+            res.raise_for_status()
+            data = res.json()
+            if isinstance(data.get("output_text"), str) and data["output_text"]:
+                return data["output_text"]
+            text = ""
+            for item in data.get("output", []) or []:
+                for part in item.get("content", []) or []:
+                    if part.get("type") == "output_text" and isinstance(part.get("text"), str):
+                        text += part["text"]
+            return text
+        except httpx.HTTPStatusError as exc:
+            last_exc = exc
+            if exc.response.status_code not in _RETRY_STATUSES or attempt >= _MAX_RETRIES - 1:
+                raise
+            wait = 2.0 ** attempt
+            logger.warning("GPT-5.5 HTTP %d, retrying in %.1fs", exc.response.status_code, wait)
+            await asyncio.sleep(wait)
+        except (httpx.TimeoutException, httpx.ConnectError) as exc:
+            last_exc = exc
+            if attempt >= _MAX_RETRIES - 1:
+                raise
+            wait = 2.0 ** attempt
+            logger.warning("GPT-5.5 connection error, retrying in %.1fs: %s", wait, exc)
+            await asyncio.sleep(wait)
+    raise last_exc or RuntimeError("GPT-5.5 failed after retries")
 
 
 async def complete_claude(messages: list[dict[str, str]], system: str) -> str:
@@ -77,23 +106,46 @@ async def complete_claude(messages: list[dict[str, str]], system: str) -> str:
         "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
         "stream": False,
     }
-    async with httpx.AsyncClient(timeout=300) as client:
-        res = await client.post(
-            settings.azure_anthropic_endpoint,
-            headers={
-                "x-api-key": settings.azure_anthropic_key or "",
-                "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-        )
-    res.raise_for_status()
-    data = res.json()
-    return "".join(
-        c.get("text", "")
-        for c in data.get("content", [])
-        if c.get("type") == "text"
-    )
+    last_exc: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            async with httpx.AsyncClient(timeout=300) as client:
+                res = await client.post(
+                    settings.azure_anthropic_endpoint,
+                    headers={
+                        "x-api-key": settings.azure_anthropic_key or "",
+                        "anthropic-version": "2023-06-01",
+                        "Content-Type": "application/json",
+                    },
+                    json=payload,
+                )
+            if res.status_code in _RETRY_STATUSES and attempt < _MAX_RETRIES - 1:
+                wait = 2.0 ** attempt
+                logger.warning("Claude returned %d, retrying in %.1fs (attempt %d/%d)", res.status_code, wait, attempt + 1, _MAX_RETRIES)
+                await asyncio.sleep(wait)
+                continue
+            res.raise_for_status()
+            data = res.json()
+            return "".join(
+                c.get("text", "")
+                for c in data.get("content", [])
+                if c.get("type") == "text"
+            )
+        except httpx.HTTPStatusError as exc:
+            last_exc = exc
+            if exc.response.status_code not in _RETRY_STATUSES or attempt >= _MAX_RETRIES - 1:
+                raise
+            wait = 2.0 ** attempt
+            logger.warning("Claude HTTP %d, retrying in %.1fs", exc.response.status_code, wait)
+            await asyncio.sleep(wait)
+        except (httpx.TimeoutException, httpx.ConnectError) as exc:
+            last_exc = exc
+            if attempt >= _MAX_RETRIES - 1:
+                raise
+            wait = 2.0 ** attempt
+            logger.warning("Claude connection error, retrying in %.1fs: %s", wait, exc)
+            await asyncio.sleep(wait)
+    raise last_exc or RuntimeError("Claude failed after retries")
 
 
 async def complete(

@@ -131,19 +131,22 @@ async def generate_content(
     try:
         data = json.loads(_extract_json(raw))
         items = data.get("items")
+        if not isinstance(items, list):
+            # Some models return the items directly as a list at root level.
+            items = data if isinstance(data, list) else None
         if isinstance(items, list) and items:
             return items[:count]
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, AttributeError, TypeError):
         pass
     # Fallback: wrap the raw text as a single item so the call always yields content.
-    return [{"title": topic[:80], "body": raw, "variants": {}}]
+    return [{"title": (topic or "Content")[:80], "body": raw, "variants": {}}]
 
 
 def _fallback_slides(topic: str, body: str, count: int) -> list[dict[str, Any]]:
     """Best-effort slide split when the model doesn't return clean JSON."""
     blocks = [b.strip() for b in (body or "").split("\n\n") if b.strip()]
     slides: list[dict[str, Any]] = [
-        {"heading": topic[:60], "body": (body or topic)[:160], "kind": "cover"}
+        {"heading": (topic or "Content")[:60], "body": (body or topic or "")[:160], "kind": "cover"}
     ]
     for block in blocks[: max(1, count - 2)]:
         lines = block.split("\n")
@@ -151,7 +154,7 @@ def _fallback_slides(topic: str, body: str, count: int) -> list[dict[str, Any]]:
         rest = "\n".join(lines[1:]).strip() or heading
         slides.append({"heading": heading, "body": rest[:200], "kind": "point"})
     slides.append(
-        {"heading": "Want this for your brand?", "body": "Let's talk.", "kind": "cta"}
+        {"heading": "Ready to grow?", "body": "Let's build your marketing strategy.", "kind": "cta"}
     )
     return slides[:count]
 
@@ -203,10 +206,10 @@ async def generate_carousel_slides(
                     "hashtags": data.get("hashtags") or [],
                     "slides": clean,
                 }
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, AttributeError, TypeError):
         pass
     return {
-        "title": topic[:80],
+        "title": (topic or "Content")[:80],
         "caption": None,
         "hashtags": [],
         "slides": _fallback_slides(topic, raw, slides),

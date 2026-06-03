@@ -201,8 +201,8 @@ async def build_assets(
 
     asset_urls: list[str] = []
     slide_specs = payload.get("slides") or []
-    for idx, (png, used, prompt) in enumerate(payload.get("assets") or []):
-        spec = slide_specs[idx] if idx < len(slide_specs) else None
+    for (orig_idx, png, used, prompt) in (payload.get("assets") or []):
+        spec = slide_specs[orig_idx] if orig_idx < len(slide_specs) else None
         img = _CI(
             workspace_id=ctx.workspace.id,
             content_item_id=item.id,
@@ -213,7 +213,7 @@ async def build_assets(
             mime="image/png",
             data_b64=_b64.b64encode(png).decode("ascii"),
             meta={
-                "slide_index": idx,
+                "slide_index": orig_idx,
                 "heading": (spec or {}).get("heading") if spec else None,
                 "caption": (spec or {}).get("body") if spec else None,
             },

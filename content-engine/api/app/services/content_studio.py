@@ -200,7 +200,7 @@ async def produce_content(
     """Produce a complete deliverable payload (no DB writes).
 
     Returns a dict consumed by :func:`persist_content` with keys: ``item``
-    (``{title, body, variants}``), ``assets`` (list of ``(png, provider, prompt)``),
+    (``{title, body, variants}``), ``assets`` (list of ``(orig_idx, png, provider, prompt)``),
     ``asset_kind``, ``style``, ``caption``, ``hashtags``, ``slides``.
     """
     fmt = (fmt or "static").lower()
@@ -227,7 +227,7 @@ async def produce_content(
         slide_specs = deck["slides"]
         title = deck.get("title") or topic[:80]
         body = _slides_to_body(title, slide_specs)
-        assets: list[tuple[bytes, str, str]] = []
+        assets: list[tuple[int, bytes, str, str]] = []
         if want_image:
             try:
                 assets = await create_slide_deck(
@@ -269,7 +269,7 @@ async def produce_content(
         provider=text_provider,
         scheduled_date=scheduled_date,
     )
-    it = items[0] if items else {"title": topic[:80], "body": "", "variants": {}}
+    it = items[0] if items else {"title": (topic or "Content")[:80], "body": "", "variants": {}}
     body = it.get("body", "")
 
     # Newsletters/emails are a standalone deliverable — strip any per-platform
@@ -293,7 +293,7 @@ async def produce_content(
                 extra=notes,
                 provider=image_provider,
             )
-            assets = [(png, used, prompt)]
+            assets = [(0, png, used, prompt)]  # 4-tuple: (orig_idx, png, provider, prompt)
         except Exception:  # noqa: BLE001
             assets = []
 
@@ -371,8 +371,8 @@ async def persist_content(
 
     asset_urls: list[str] = []
     slide_specs = payload.get("slides") or []
-    for idx, (png, used, prompt) in enumerate(payload.get("assets") or []):
-        spec = slide_specs[idx] if idx < len(slide_specs) else None
+    for (orig_idx, png, used, prompt) in (payload.get("assets") or []):
+        spec = slide_specs[orig_idx] if orig_idx < len(slide_specs) else None
         img = ContentImage(
             workspace_id=workspace_id,
             content_item_id=item.id,
@@ -384,7 +384,7 @@ async def persist_content(
             mime="image/png",
             data_b64=base64.b64encode(png).decode("ascii"),
             meta={
-                "slide_index": idx,
+                "slide_index": orig_idx,
                 "heading": (spec or {}).get("heading") if spec else None,
                 "caption": (spec or {}).get("body") if spec else None,
             },

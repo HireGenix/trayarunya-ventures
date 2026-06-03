@@ -2,8 +2,12 @@
 social graphic prompt, then generates the image."""
 from __future__ import annotations
 
+import logging
+
 from app.agents.logo_overlay import composite_logo, crop_to_banner
 from app.llm.image_adapters import generate_image
+
+logger = logging.getLogger(__name__)
 
 # Visual styles the user can pick in Content Studio.
 STYLE_PRESETS: dict[str, str] = {
@@ -204,12 +208,13 @@ async def create_slide_deck(
     extra: str | None = None,
     provider: str | None = None,
     slide_specs: list[dict] | None = None,
-) -> list[tuple[bytes, str, str]]:
-    """Generate a cohesive multi-slide deck. Returns a list of (png, provider, prompt).
+) -> list[tuple[int, bytes, str, str]]:
+    """Generate a cohesive multi-slide deck.
 
-    When ``slide_specs`` (a list of ``{heading, body, kind}`` dicts) is provided, each
-    slide is rendered with its REAL copy on-image so the deck matches the written
-    content. Otherwise it falls back to generic role-based prompts.
+    Returns a list of ``(original_slide_idx, png, provider, prompt)`` 4-tuples.
+    The ``original_slide_idx`` is the 0-based position in ``slide_specs`` (or the
+    slide sequence) so that the caller can align captions correctly even when some
+    slides fail and are skipped.
 
     Best-effort per slide: a failed slide is skipped so the deck still ships.
     """
@@ -227,8 +232,11 @@ async def create_slide_deck(
         f"{'document' if fmt == 'pdf' else 'carousel'} series — keep a consistent layout, "
         f"color system and typography across all slides."
     )
-    out: list[tuple[bytes, str, str]] = []
+    out: list[tuple[int, bytes, str, str]] = []
     logo_b64 = (brand or {}).get("logo_b64")
+    # Validate logo_b64 is a non-empty string before using it.
+    if logo_b64 and not isinstance(logo_b64, str):
+        logo_b64 = None
     for idx in range(1, total + 1):
         if specs is not None:
             spec = specs[idx - 1]
@@ -255,8 +263,12 @@ async def create_slide_deck(
         try:
             png, used = await generate_image(prompt, size=size, provider=provider)
             if logo_b64:
-                png = composite_logo(png, logo_b64=logo_b64, corner="bottom-right")
-            out.append((png, used, prompt))
-        except Exception:  # noqa: BLE001 — skip failed slide, keep the rest.
+                try:
+                    png = composite_logo(png, logo_b64=logo_b64, corner="bottom-right")
+                except Exception as logo_exc:  # noqa: BLE001
+                    logger.warning("Logo overlay failed on slide %d/%d: %s", idx, total, logo_exc)
+            out.append((idx - 1, png, used, prompt))  # idx-1 = 0-based original index
+        except Exception as exc:  # noqa: BLE001 — skip failed slide, keep the rest.
+            logger.warning("Slide %d/%d image generation failed: %s", idx, total, exc)
             continue
     return out

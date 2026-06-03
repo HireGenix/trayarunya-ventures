@@ -208,8 +208,12 @@ async def extract_brand(url: str) -> BrandProfile:
 
     # ---- social links ----
     socials = []
-    social_domains = ("linkedin.com", "twitter.com", "x.com", "facebook.com",
-                      "instagram.com", "youtube.com", "tiktok.com")
+    social_domains = (
+        "linkedin.com", "twitter.com", "x.com", "facebook.com",
+        "instagram.com", "youtube.com", "tiktok.com",
+        "pinterest.com", "reddit.com", "threads.net", "medium.com",
+        "snapchat.com", "whatsapp.com", "t.me",
+    )
     for a in soup.find_all("a", href=True):
         href = a["href"]
         if any(d in href for d in social_domains) and href.startswith("http"):

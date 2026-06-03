@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date
 from typing import Any
 
 from app.llm.adapters import Provider, _extract_json, complete
@@ -27,7 +28,7 @@ def _slugify_tag(word: str) -> str:
 async def fetch_trending_tags(topic: str, platform: str | None, limit: int = 12) -> list[str]:
     """Return up to ``limit`` trending-ish hashtags for ``topic`` on ``platform``."""
     plat = (platform or "social media").strip()
-    query = f"{topic} {plat} trending hashtags 2026"
+    query = f"{topic} {plat} trending hashtags {date.today().year}"
     found: list[str] = []
     try:
         results = await web_search(query, limit=8)

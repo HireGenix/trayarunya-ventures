@@ -391,6 +391,11 @@ async def audit_many(urls: list[str]) -> list[dict]:
 
     async def one(idx: int, u: str) -> tuple[int, dict]:
         async with sem:
+            # Add per-request jitter (0.3–1.5 s) to avoid Instagram rate-limits
+            # on batched requests. Without this sleep, concurrent requests all
+            # fire at the same instant regardless of the semaphore cap.
+            if idx > 0:
+                await asyncio.sleep(0.3 + (idx % 5) * 0.25)
             try:
                 res = await audit_profile(u)
             except Exception as exc:  # noqa: BLE001
