@@ -223,8 +223,8 @@ export default function PublishingPage() {
             <Typography variant="h6" fontWeight={800}>
               Connected accounts
             </Typography>
-            <Button size="small" onClick={() => setManualOpen(true)}>
-              Paste token
+            <Button size="small" color="inherit" onClick={() => setManualOpen(true)}>
+              Advanced: paste token
             </Button>
           </Stack>
           <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
@@ -259,19 +259,43 @@ export default function PublishingPage() {
             CONNECT A NETWORK
           </Typography>
           <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1 }}>
-            {supported.map((p) => (
-              <Button
-                key={p}
-                variant="outlined"
-                size="small"
-                onClick={() => connect(p)}
-                disabled={!providers[p]}
-                title={providers[p] ? '' : 'OAuth app not configured on server'}
-              >
-                {PLATFORM_LABEL[p] || p}
-              </Button>
-            ))}
+            {supported.map((p) => {
+              const ready = !!providers[p];
+              return (
+                <Tooltip
+                  key={p}
+                  title={
+                    ready
+                      ? `Sign in securely with ${PLATFORM_LABEL[p] || p} — no tokens to copy`
+                      : `One-time setup needed: add the ${PLATFORM_LABEL[p] || p} app credentials in the server .env to enable one-click sign-in`
+                  }
+                >
+                  <span>
+                    <Button
+                      variant={ready ? 'contained' : 'outlined'}
+                      size="small"
+                      onClick={() => connect(p)}
+                      disabled={!ready}
+                      startIcon={<SendIcon sx={{ transform: 'rotate(-45deg)' }} />}
+                    >
+                      {ready ? `Sign in with ${PLATFORM_LABEL[p] || p}` : `${PLATFORM_LABEL[p] || p} (setup)`}
+                    </Button>
+                  </span>
+                </Tooltip>
+              );
+            })}
           </Stack>
+          {supported.some((p) => !providers[p]) && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              <strong>One-click sign-in is built in</strong> — you don&apos;t paste tokens. A network
+              shows <em>(setup)</em> until its developer app is registered once. Each platform
+              (LinkedIn, X, Meta/Instagram, Google/YouTube) requires its own OAuth app with posting
+              permissions — that&apos;s a platform requirement every tool (Buffer, Hootsuite…) follows.
+              Add the <code>CLIENT_ID</code>/<code>CLIENT_SECRET</code> to the API <code>.env</code>{' '}
+              (see <code>OAUTH_SETUP.md</code>) and the button turns into one-click{' '}
+              &quot;Sign in with…&quot;. &quot;Paste token&quot; stays as an advanced fallback only.
+            </Alert>
+          )}
         </CardContent>
       </Card>
 
