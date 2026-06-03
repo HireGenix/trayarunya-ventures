@@ -44,7 +44,7 @@ export default function Landing() {
           transition={{ duration: 0.7 }}
         >
           <Chip
-            label="Agentic • Multi-tenant • Production-grade"
+            label="An in-house platform by Trayarunya Ventures"
             color="secondary"
             sx={{ mb: 3, fontWeight: 600 }}
           />
@@ -70,6 +70,19 @@ export default function Landing() {
               <Chip key={a} label={a} variant="outlined" />
             ))}
           </Stack>
+          <Typography sx={{ mt: 4, maxWidth: 720, color: 'text.secondary' }}>
+            This is the same agentic engine our team runs for our own clients at{' '}
+            <Box
+              component="a"
+              href="https://trayarunya.com"
+              target="_blank"
+              rel="noopener"
+              sx={{ color: '#E59400', fontWeight: 600, textDecoration: 'none' }}
+            >
+              Trayarunya Ventures
+            </Box>{' '}
+            — now available to you.
+          </Typography>
         </MotionBox>
       </Container>
 
@@ -128,7 +141,16 @@ export default function Landing() {
 
       <Box sx={{ py: 4, borderTop: '1px solid rgba(14,23,38,0.08)', textAlign: 'center' }}>
         <Typography variant="body2" color="text.secondary">
-          © {new Date().getFullYear()} Trayarunya Ventures — Content Engine
+          © {new Date().getFullYear()} Trayarunya Ventures — Content Engine ·{' '}
+          <Box
+            component="a"
+            href="https://trayarunya.com"
+            target="_blank"
+            rel="noopener"
+            sx={{ color: 'inherit', textDecoration: 'underline' }}
+          >
+            Back to main site
+          </Box>
         </Typography>
       </Box>
     </Box>

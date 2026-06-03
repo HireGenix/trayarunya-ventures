@@ -367,3 +367,63 @@ export const segments = [
     ],
   },
 ];
+
+/**
+ * Our proprietary in-house platform — the Content Engine. We don't rent a
+ * generic AI tool; we built the machine we run on our own clients. Featured on
+ * the homepage as proof + a lead magnet.
+ */
+export const contentEngine = {
+  eyebrow: 'OUR IN-HOUSE PLATFORM',
+  badge: 'Built in-house • Production-grade',
+  title: "We didn't buy our AI stack. We built it.",
+  subtitle:
+    'Meet the Content Engine — the agentic platform we engineered to research, strategise, create and publish at agency scale. The same system we run on our own clients now powers your growth.',
+  capabilities: [
+    {
+      key: 'research',
+      title: 'Agentic deep research',
+      description:
+        'Autonomous agents crawl your site and the live web (DuckDuckGo + crawl4ai), map real demand and read every competitor — evidence, not opinions.',
+      accent: '#ffaf06',
+    },
+    {
+      key: 'strategy',
+      title: 'Master strategist (DSPy)',
+      description:
+        'A DSPy + LangGraph strategist turns that evidence into pillars, a funnel, lead magnets and a date-aware content calendar in minutes.',
+      accent: '#14bb87',
+    },
+    {
+      key: 'studio',
+      title: 'Brand-aware creation studio',
+      description:
+        'On-brand posts, carousels, PDFs, threads and blogs — generated in your voice and colours, QA-gated before anything ships.',
+      accent: '#0A66C2',
+    },
+    {
+      key: 'publish',
+      title: 'One-click multi-platform publish',
+      description:
+        'Schedule and push to LinkedIn, X, Instagram and more via native OAuth — captions and trending hashtags written for each channel.',
+      accent: '#ff5a5f',
+    },
+    {
+      key: 'ads',
+      title: 'Agentic ads & learning loop',
+      description:
+        'Agents create and optimise ad campaigns, then real metrics feed a loop that sharpens every future strategy automatically.',
+      accent: '#7c5cff',
+    },
+  ],
+  stages: ['Research', 'Strategy', 'Studio', 'Publish', 'Learn'],
+  stats: [
+    { value: '5', label: 'agentic stages, one closed loop' },
+    { value: '10x', label: 'faster content production' },
+    { value: '24/7', label: 'always-on research & optimisation' },
+  ],
+  whyLine:
+    'When you partner with us, you get this engine working for you — the same proprietary tech we trust with our own growth.',
+  ctaPrimary: 'Explore the Content Engine',
+  ctaSecondary: 'See how we work',
+};

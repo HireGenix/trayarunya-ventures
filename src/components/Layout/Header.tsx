@@ -43,6 +43,7 @@ const navLinks = [
   { name: 'Home', href: '/' },
   { name: 'Services', href: '/services', mega: true },
   { name: 'How We Work', href: '/how-we-work' },
+  { name: 'Platform', href: '/contact' },
   { name: 'Insights', href: '/insights' },
   { name: 'About', href: '/about' },
   { name: 'Contact', href: '/contact' },

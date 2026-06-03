@@ -9,6 +9,7 @@ import {
   SegmentsSection,
   HowWeWorkSection,
   GrowthEngineSection,
+  ContentEngineSection,
   ServicesSection,
   LinkedInFunnelSection,
   WhyUsSection,
@@ -25,6 +26,7 @@ export default function HomePage() {
       <SegmentsSection />
       <HowWeWorkSection />
       <GrowthEngineSection />
+      <ContentEngineSection />
       <ServicesSection />
       <LinkedInFunnelSection />
       <WhyUsSection />
