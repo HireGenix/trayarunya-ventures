@@ -44,6 +44,7 @@ import RadarIcon from '@mui/icons-material/RadarOutlined';
 import BusinessIcon from '@mui/icons-material/BusinessOutlined';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunchOutlined';
 import HubIcon from '@mui/icons-material/HubOutlined';
+import AccountTreeIcon from '@mui/icons-material/AccountTreeOutlined';
 import MenuIcon from '@mui/icons-material/MenuOutlined';
 import { useAuth } from '@/lib/auth';
 import { Workspaces, Calendar } from '@/lib/api';
@@ -96,6 +97,7 @@ const NAV: NavGroup[] = [
     items: [
       { href: '/dashboard/abm', label: 'ABM Accounts', icon: <BusinessIcon fontSize="small" />, color: '#2563EB' },
       { href: '/dashboard/campaigns', label: 'Campaign Builder', icon: <RocketLaunchIcon fontSize="small" />, color: BRAND.amber },
+      { href: '/dashboard/attribution', label: 'Revenue Attribution', icon: <AccountTreeIcon fontSize="small" />, color: BRAND.teal },
     ],
   },
   {

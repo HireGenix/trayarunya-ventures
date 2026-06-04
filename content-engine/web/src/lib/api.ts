@@ -3,6 +3,8 @@
 // Lightweight typed client for the Content Engine API. Handles JWT + workspace
 // scoping headers and JSON (de)serialization.
 
+import { runAITask } from '@/lib/aiProgress';
+
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8099';
 
@@ -256,7 +258,10 @@ export const Research = {
     countries?: string[];
     platforms?: string[];
     self_handle?: string;
-  }) => api<ResearchJob>('/research', { method: 'POST', body, workspace: true }),
+  }) =>
+    runAITask('research_enqueue', () =>
+      api<ResearchJob>('/research', { method: 'POST', body, workspace: true }),
+    ),
   list: () => api<ResearchJob[]>('/research', { workspace: true }),
   get: (id: string) => api<ResearchJob>(`/research/${id}`, { workspace: true }),
   update: (id: string, body: { topic?: string; target_url?: string; summary?: string }) =>
@@ -267,14 +272,21 @@ export const Research = {
   auditSnapshots: (id: string) =>
     api<AuditSnapshot[]>(`/research/${id}/audit-snapshots`, { workspace: true }),
   socialAudit: (url: string) =>
-    api<SocialProfile>('/research/social-audit', { method: 'POST', body: { url }, workspace: true }),
+    runAITask('social_audit', () =>
+      api<SocialProfile>('/research/social-audit', { method: 'POST', body: { url }, workspace: true }),
+    ),
   socialBenchmark: (urls: string[]) =>
-    api<SocialProfile[]>('/research/social-benchmark', { method: 'POST', body: { urls }, workspace: true }),
+    runAITask('social_audit', () =>
+      api<SocialProfile[]>('/research/social-benchmark', { method: 'POST', body: { urls }, workspace: true }),
+      { title: 'Benchmarking profiles' },
+    ),
 };
 
 export const Strategies = {
   create: (body: { research_job_id: string; objective?: string }) =>
-    api<Strategy>('/strategies', { method: 'POST', body, workspace: true }),
+    runAITask('strategy', () =>
+      api<Strategy>('/strategies', { method: 'POST', body, workspace: true }),
+    ),
   list: () => api<Strategy[]>('/strategies', { workspace: true }),
   get: (id: string) => api<Strategy>(`/strategies/${id}`, { workspace: true }),
   update: (
@@ -307,12 +319,17 @@ export interface StrategyRefinement {
 export const Learning = {
   signals: () => api<LearningSignal[]>('/learning/signals', { workspace: true }),
   analyze: () =>
-    api<LearningSignal[]>('/learning/analyze', { method: 'POST', workspace: true }),
+    runAITask('learning', () =>
+      api<LearningSignal[]>('/learning/analyze', { method: 'POST', workspace: true }),
+    ),
   refineStrategy: (strategyId: string) =>
-    api<StrategyRefinement>(`/learning/strategies/${strategyId}/refine`, {
-      method: 'POST',
-      workspace: true,
-    }),
+    runAITask('learning', () =>
+      api<StrategyRefinement>(`/learning/strategies/${strategyId}/refine`, {
+        method: 'POST',
+        workspace: true,
+      }),
+      { title: 'Refining strategy' },
+    ),
   applyStrategy: (strategyId: string, updatedPillars: Strategy['pillars']) =>
     api<{ id: string; pillars: Strategy['pillars'] }>(
       `/learning/strategies/${strategyId}/apply`,
@@ -364,7 +381,9 @@ export interface InsightAction {
 export const Brand = {
   get: () => api<Brand | null>('/brand', { workspace: true }),
   build: (body: { website: string }) =>
-    api<Brand>('/brand', { method: 'POST', body, workspace: true }),
+    runAITask('brand_build', () =>
+      api<Brand>('/brand', { method: 'POST', body, workspace: true }),
+    ),
   update: (body: {
     primary_color?: string;
     accent_color?: string;
@@ -412,8 +431,10 @@ export const Insights = {
   update: (id: string, body: { tags?: string[]; status?: string }) =>
     api<InsightAction>(`/insights/${id}`, { method: 'PATCH', body, workspace: true }),
   toContent: (id: string) =>
-    api<{ content_item_id: string; title: string }>(
-      `/insights/${id}/to-content`, { method: 'POST', workspace: true }),
+    runAITask('insight_to_content', () =>
+      api<{ content_item_id: string; title: string }>(
+        `/insights/${id}/to-content`, { method: 'POST', workspace: true }),
+    ),
   toStrategy: (id: string, strategy_id: string) =>
     api<{ strategy_id: string; added: boolean }>(
       `/insights/${id}/to-strategy`, { method: 'POST', body: { strategy_id }, workspace: true }),
@@ -490,7 +511,9 @@ export const Content = {
     image_provider?: string;
     email_format?: string;
   }) =>
-    api<ContentItem[]>('/content/generate', { method: 'POST', body, workspace: true }),
+    runAITask('content_generate', () =>
+      api<ContentItem[]>('/content/generate', { method: 'POST', body, workspace: true }),
+    ),
   list: () => api<ContentItem[]>('/content', { workspace: true }),
   get: (id: string) => api<ContentItem>(`/content/${id}`, { workspace: true }),
   generateAssets: (
@@ -504,7 +527,9 @@ export const Content = {
       email_format?: string;
     },
   ) =>
-    api<ContentItem>(`/content/${id}/assets`, { method: 'POST', body, workspace: true }),
+    runAITask('assets_generate', () =>
+      api<ContentItem>(`/content/${id}/assets`, { method: 'POST', body, workspace: true }),
+    ),
   update: (
     id: string,
     body: Partial<Pick<ContentItem, 'title' | 'body' | 'status' | 'platform' | 'variants' | 'meta'>>,
@@ -592,7 +617,10 @@ export const Calendar = {
     start_date?: string;
     end_date?: string;
     provider?: string;
-  }) => api<ContentCalendar>('/calendar/generate', { method: 'POST', body, workspace: true }),
+  }) =>
+    runAITask('calendar_plan', () =>
+      api<ContentCalendar>('/calendar/generate', { method: 'POST', body, workspace: true }),
+    ),
   list: () => api<ContentCalendar[]>('/calendar', { workspace: true }),
   get: (id: string) => api<ContentCalendar>(`/calendar/${id}`, { workspace: true }),
   remove: (id: string) => api<void>(`/calendar/${id}`, { method: 'DELETE', workspace: true }),
@@ -608,11 +636,13 @@ export const Calendar = {
       email_format?: string;
     },
   ) =>
-    api<ContentCalendar>(`/calendar/${calendarId}/entries/${entryId}/generate`, {
-      method: 'POST',
-      body,
-      workspace: true,
-    }),
+    runAITask('content_generate', () =>
+      api<ContentCalendar>(`/calendar/${calendarId}/entries/${entryId}/generate`, {
+        method: 'POST',
+        body,
+        workspace: true,
+      }),
+    ),
   generateDay: (
     calendarId: string,
     body: {
@@ -624,11 +654,13 @@ export const Calendar = {
       email_format?: string;
     },
   ) =>
-    api<ContentCalendar>(`/calendar/${calendarId}/generate-day`, {
-      method: 'POST',
-      body,
-      workspace: true,
-    }),
+    runAITask('calendar_day', () =>
+      api<ContentCalendar>(`/calendar/${calendarId}/generate-day`, {
+        method: 'POST',
+        body,
+        workspace: true,
+      }),
+    ),
 };
 
 // ---------- Image generation (Canva/Gamma-style social graphics) ----------
@@ -667,11 +699,17 @@ export const Images = {
     content_item_id?: string;
     use_brand?: boolean;
     extra?: string;
-  }) => api<ContentImage>('/images/generate', { method: 'POST', body, workspace: true }),
+  }) =>
+    runAITask('image_generate', () =>
+      api<ContentImage>('/images/generate', { method: 'POST', body, workspace: true }),
+    ),
   regenerate: (
     id: string,
     body: { instruction: string; provider?: string; replace?: boolean },
-  ) => api<ContentImage>(`/images/${id}/regenerate`, { method: 'POST', body, workspace: true }),
+  ) =>
+    runAITask('image_regenerate', () =>
+      api<ContentImage>(`/images/${id}/regenerate`, { method: 'POST', body, workspace: true }),
+    ),
   list: (contentItemId?: string) =>
     api<ContentImage[]>(
       `/images${contentItemId ? `?content_item_id=${contentItemId}` : ''}`,
@@ -1136,7 +1174,9 @@ export const Experiments = {
   update: (id: string, body: Partial<Experiment>) =>
     api<Experiment>(`/experiments/${id}`, { method: 'PATCH', body, workspace: true }),
   evaluate: (id: string) =>
-    api<Experiment>(`/experiments/${id}/evaluate`, { method: 'POST', workspace: true }),
+    runAITask('experiment', () =>
+      api<Experiment>(`/experiments/${id}/evaluate`, { method: 'POST', workspace: true }),
+    ),
   remove: (id: string) =>
     api<void>(`/experiments/${id}`, { method: 'DELETE', workspace: true }),
 };
@@ -1222,9 +1262,11 @@ export const Watchtower = {
     api<CompetitorWatch>('/watchtower', { method: 'POST', body, workspace: true }),
   get: (id: string) => api<CompetitorWatch>(`/watchtower/${id}`, { workspace: true }),
   check: (id: string) =>
-    api<{ watch_id: string; ok: boolean; events_created: number; error: string | null; events: WatchEvent[] }>(
-      `/watchtower/${id}/check`,
-      { method: 'POST', workspace: true },
+    runAITask('watch_scan', () =>
+      api<{ watch_id: string; ok: boolean; events_created: number; error: string | null; events: WatchEvent[] }>(
+        `/watchtower/${id}/check`,
+        { method: 'POST', workspace: true },
+      ),
     ),
   events: (limit = 50) => api<WatchEvent[]>(`/watchtower/events?limit=${limit}`, { workspace: true }),
   update: (id: string, body: Partial<Pick<CompetitorWatch, 'name' | 'website' | 'social_handles' | 'active'>>) =>
@@ -1272,9 +1314,13 @@ export const Abm = {
     api<AbmAccount>(`/abm/accounts/${id}`, { method: 'PATCH', body, workspace: true }),
   deleteAccount: (id: string) => api<void>(`/abm/accounts/${id}`, { method: 'DELETE', workspace: true }),
   generatePersonas: (id: string) =>
-    api<Persona[]>(`/abm/accounts/${id}/personas`, { method: 'POST', workspace: true }),
+    runAITask('abm_personas', () =>
+      api<Persona[]>(`/abm/accounts/${id}/personas`, { method: 'POST', workspace: true }),
+    ),
   generateAssets: (id: string) =>
-    api<Record<string, unknown>>(`/abm/accounts/${id}/assets`, { method: 'POST', workspace: true }),
+    runAITask('abm_assets', () =>
+      api<Record<string, unknown>>(`/abm/accounts/${id}/assets`, { method: 'POST', workspace: true }),
+    ),
 };
 
 // ---------- Creative Intelligence ----------
@@ -1340,16 +1386,21 @@ export const Campaigns = {
     source_strategy_id?: string;
     start_date?: string;
     end_date?: string;
-  }) => api<CampaignPlan>('/campaign-plans/build', { method: 'POST', body, workspace: true }),
+  }) =>
+    runAITask('campaign', () =>
+      api<CampaignPlan>('/campaign-plans/build', { method: 'POST', body, workspace: true }),
+    ),
   get: (id: string) => api<CampaignPlan>(`/campaign-plans/${id}`, { workspace: true }),
   update: (id: string, body: Partial<Pick<CampaignPlan, 'name' | 'status' | 'budget' | 'start_date' | 'end_date'>>) =>
     api<CampaignPlan>(`/campaign-plans/${id}`, { method: 'PATCH', body, workspace: true }),
   remove: (id: string) => api<void>(`/campaign-plans/${id}`, { method: 'DELETE', workspace: true }),
   toContent: (id: string) =>
-    api<{ created_item_ids: string[]; count: number }>(`/campaign-plans/${id}/to-content`, {
-      method: 'POST',
-      workspace: true,
-    }),
+    runAITask('campaign_to_content', () =>
+      api<{ created_item_ids: string[]; count: number }>(`/campaign-plans/${id}/to-content`, {
+        method: 'POST',
+        workspace: true,
+      }),
+    ),
 };
 
 // ---------- Workflow Collaboration ----------
@@ -1466,9 +1517,87 @@ export const Forecast = {
     return api<BenchmarksResponse>(`/forecast/benchmarks${qs ? `?${qs}` : ''}`, { workspace: true });
   },
   narrative: (body: { summary: unknown; metric?: string }) =>
-    api<{ narrative: string; source: 'llm' | 'fallback' }>('/forecast/narrative', {
-      method: 'POST',
-      body,
+    runAITask('forecast', () =>
+      api<{ narrative: string; source: 'llm' | 'fallback' }>('/forecast/narrative', {
+        method: 'POST',
+        body,
+        workspace: true,
+      }),
+    ),
+};
+
+// --- Revenue Attribution ---
+export type RevenueChannel =
+  | 'linkedin' | 'content' | 'ads' | 'email' | 'organic' | 'referral' | 'events' | 'other';
+export type RevenueStage =
+  | 'touch' | 'lead' | 'mql' | 'sql' | 'opportunity' | 'closed_won' | 'closed_lost';
+
+export interface RevenueEvent {
+  id: string;
+  contact_ref: string;
+  channel: RevenueChannel;
+  campaign: string | null;
+  stage: RevenueStage;
+  value: number;
+  cost: number;
+  currency: string;
+  occurred_at: string;
+}
+
+export interface AttributionChannel {
+  channel: string;
+  touches: number;
+  leads: number;
+  deals_won: number;
+  revenue: number;
+  pipeline: number;
+  cost: number;
+  attributed_revenue: { first_touch: number; last_touch: number; linear: number };
+  roi_linear: number | null;
+  roi_last_touch: number | null;
+}
+
+export interface AttributionSummary {
+  channels: AttributionChannel[];
+  funnel: Record<string, number>;
+  totals: {
+    revenue: number;
+    pipeline: number;
+    cost: number;
+    deals_won: number;
+    leads: number;
+    blended_roi: number | null;
+  };
+}
+
+export interface RevenueEventInput {
+  contact_ref: string;
+  channel: RevenueChannel;
+  stage: RevenueStage;
+  campaign?: string | null;
+  value?: number;
+  cost?: number;
+  currency?: string;
+  occurred_at?: string | null;
+}
+
+export const Attribution = {
+  summary: (since?: string) =>
+    api<AttributionSummary>(`/attribution/summary${since ? `?since=${encodeURIComponent(since)}` : ''}`, {
       workspace: true,
     }),
+  events: (params?: { channel?: string; stage?: string; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.channel) q.set('channel', params.channel);
+    if (params?.stage) q.set('stage', params.stage);
+    if (params?.limit) q.set('limit', String(params.limit));
+    const qs = q.toString();
+    return api<RevenueEvent[]>(`/attribution/events${qs ? `?${qs}` : ''}`, { workspace: true });
+  },
+  create: (body: RevenueEventInput) =>
+    api<RevenueEvent>('/attribution/events', { method: 'POST', body, workspace: true }),
+  createBulk: (items: RevenueEventInput[]) =>
+    api<{ created: number }>('/attribution/events/bulk', { method: 'POST', body: items, workspace: true }),
+  remove: (id: string) =>
+    api<void>(`/attribution/events/${id}`, { method: 'DELETE', workspace: true }),
 };
