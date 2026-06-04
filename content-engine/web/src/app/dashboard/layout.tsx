@@ -214,6 +214,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Box
           sx={{
             flex: 1,
+            minHeight: 0,
             width: '100%',
             bgcolor: INK,
             borderRadius: '24px',
@@ -230,6 +231,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               component={Link}
               href="/dashboard"
               sx={{
+                flexShrink: 0,
                 width: 52,
                 height: 52,
                 borderRadius: '17px',
@@ -261,13 +263,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Box
             sx={{
               flex: 1,
+              minHeight: 0,
               width: '100%',
               overflowY: 'auto',
+              overflowX: 'hidden',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               gap: 0.75,
-              '&::-webkit-scrollbar': { display: 'none' },
+              '&::-webkit-scrollbar': { width: 4 },
+              '&::-webkit-scrollbar-thumb': {
+                bgcolor: 'rgba(255,255,255,0.18)',
+                borderRadius: 4,
+              },
+              '&:hover::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.3)' },
             }}
           >
             {NAV.map((group, gi) => (
@@ -350,7 +359,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Box>
 
           {/* User avatar + menu */}
-          <Box sx={{ mt: 1.5, width: '100%', px: 1 }}>
+          <Box sx={{ flexShrink: 0, mt: 1.5, width: '100%', px: 1 }}>
             <Tooltip title="Account" placement="right" arrow>
               <IconButton
                 onClick={(e) => setUserMenuEl(e.currentTarget)}
