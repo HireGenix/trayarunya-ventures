@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.models import Membership, Role, User, Workspace
+from app.models.portal_client import ClientPortalMember, PortalRole
 from app.security import decode_token
 
 bearer = HTTPBearer(auto_error=False)
@@ -24,6 +25,9 @@ async def get_current_user(
     payload = decode_token(creds.credentials)
     if not payload or "sub" not in payload:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token")
+    # Portal (client) tokens must never authenticate against agency endpoints.
+    if payload.get("scope") == "portal":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Client portal token cannot access this resource")
     try:
         user_id = uuid.UUID(str(payload["sub"]))
     except ValueError:
@@ -83,6 +87,76 @@ def require_role(*allowed: Role):
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 f"Requires one of roles: {', '.join(r.value for r in allowed)}",
+            )
+        return ctx
+
+    return _guard
+
+
+# --------------------------------------------------------------------------- #
+# Client portal context
+# --------------------------------------------------------------------------- #
+class PortalContext:
+    """Resolved portal session: the client user, their workspace and portal role."""
+
+    def __init__(self, user: User, workspace: Workspace, member: ClientPortalMember):
+        self.user = user
+        self.workspace = workspace
+        self.member = member
+        self.role = member.role
+
+
+async def get_portal_ctx(
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer),
+    db: AsyncSession = Depends(get_db),
+) -> PortalContext:
+    """Authenticate a client-portal user.
+
+    Portal tokens carry ``scope="portal"`` and a ``wsid`` claim. Access is granted
+    only if an active :class:`ClientPortalMember` row links the user to that
+    workspace — completely independent of agency memberships.
+    """
+    if creds is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
+    payload = decode_token(creds.credentials)
+    if not payload or payload.get("scope") != "portal":
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid portal session")
+    try:
+        user_id = uuid.UUID(str(payload.get("sub")))
+        ws_id = uuid.UUID(str(payload.get("wsid")))
+    except (ValueError, TypeError):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Malformed portal token")
+
+    user = await db.get(User, user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found or inactive")
+
+    res = await db.execute(
+        select(ClientPortalMember).where(
+            ClientPortalMember.user_id == user_id,
+            ClientPortalMember.workspace_id == ws_id,
+            ClientPortalMember.is_active.is_(True),
+        )
+    )
+    member = res.scalar_one_or_none()
+    if member is None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Portal access revoked")
+
+    workspace = await db.get(Workspace, ws_id)
+    if workspace is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Workspace not found")
+
+    return PortalContext(user=user, workspace=workspace, member=member)
+
+
+def require_portal_role(*allowed: PortalRole):
+    """Guard factory: ensure the portal caller's role is in ``allowed``."""
+
+    async def _guard(ctx: PortalContext = Depends(get_portal_ctx)) -> PortalContext:
+        if ctx.role not in allowed:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                f"Requires portal role: {', '.join(r.value for r in allowed)}",
             )
         return ctx
 

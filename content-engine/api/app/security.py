@@ -40,6 +40,23 @@ def create_access_token(
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
+def create_portal_token(
+    subject: str,
+    workspace_id: str,
+    expires_minutes: int | None = None,
+) -> str:
+    """Issue a client-portal JWT scoped to a single workspace.
+
+    Carries ``scope="portal"`` and ``wsid`` so it is rejected by every agency
+    endpoint and only honoured by the portal dependency.
+    """
+    return create_access_token(
+        subject,
+        extra={"scope": "portal", "wsid": workspace_id},
+        expires_minutes=expires_minutes,
+    )
+
+
 def decode_token(token: str) -> dict[str, Any] | None:
     try:
         return jwt.decode(

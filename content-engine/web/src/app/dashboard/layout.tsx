@@ -45,6 +45,7 @@ import BusinessIcon from '@mui/icons-material/BusinessOutlined';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunchOutlined';
 import HubIcon from '@mui/icons-material/HubOutlined';
 import AccountTreeIcon from '@mui/icons-material/AccountTreeOutlined';
+import GroupsIcon from '@mui/icons-material/GroupsOutlined';
 import MenuIcon from '@mui/icons-material/MenuOutlined';
 import { useAuth } from '@/lib/auth';
 import { Workspaces, Calendar } from '@/lib/api';
@@ -103,6 +104,7 @@ const NAV: NavGroup[] = [
   {
     heading: 'Account',
     items: [
+      { href: '/dashboard/clients', label: 'Client Portal', icon: <GroupsIcon fontSize="small" />, color: BRAND.pink },
       { href: '/dashboard/integrations', label: 'Integrations', icon: <HubIcon fontSize="small" />, color: BRAND.teal },
       { href: '/dashboard/billing', label: 'Billing', icon: <CreditCardIcon fontSize="small" />, color: '#2563EB' },
     ],

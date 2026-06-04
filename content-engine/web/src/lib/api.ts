@@ -1601,3 +1601,172 @@ export const Attribution = {
   remove: (id: string) =>
     api<void>(`/attribution/events/${id}`, { method: 'DELETE', workspace: true }),
 };
+
+// ===========================================================================
+// Client Portal
+// ===========================================================================
+// The portal is a separate, client-facing surface. It uses its OWN token store
+// (independent of the agency `ce_token`) so an agency user and a client can be
+// logged in side by side without clobbering each other's session.
+
+const PORTAL_TOKEN_KEY = 'ce_portal_token';
+
+export function getPortalToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem(PORTAL_TOKEN_KEY);
+}
+export function setPortalToken(token: string | null) {
+  if (typeof window === 'undefined') return;
+  if (token) window.localStorage.setItem(PORTAL_TOKEN_KEY, token);
+  else window.localStorage.removeItem(PORTAL_TOKEN_KEY);
+}
+
+export async function portalApi<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = getPortalToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_URL}/api/v1${path}`, {
+    method: opts.method || 'GET',
+    headers,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+
+  if (!res.ok) {
+    let detail = `Request failed (${res.status})`;
+    try {
+      const data = await res.json();
+      detail = data.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    if (res.status === 401) setPortalToken(null);
+    throw new ApiError(res.status, detail);
+  }
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
+
+export type PortalRole = 'viewer' | 'approver';
+export type PortalInviteStatus = 'pending' | 'accepted' | 'revoked';
+
+export interface PortalWorkspaceRef {
+  workspace_id: string;
+  workspace_name: string;
+  role: PortalRole;
+}
+
+export interface PortalSession {
+  access_token: string;
+  workspace_id: string;
+  workspace_name: string;
+  role: PortalRole;
+  full_name: string;
+  email: string;
+  workspaces: PortalWorkspaceRef[];
+}
+
+export interface PortalInvite {
+  id: string;
+  email: string;
+  role: PortalRole;
+  status: PortalInviteStatus;
+  invited_by_name: string | null;
+  expires_at: string;
+  accepted_at: string | null;
+  created_at: string;
+}
+
+export interface PortalInviteCreated {
+  invite: PortalInvite;
+  token: string;
+  accept_path: string;
+}
+
+export interface PortalMember {
+  id: string;
+  user_id: string;
+  email: string;
+  full_name: string;
+  role: PortalRole;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface PortalInvitePreview {
+  email: string;
+  role: PortalRole;
+  workspace_name: string;
+  agency_name: string | null;
+  valid: boolean;
+}
+
+export interface PortalOverview {
+  workspace: { id: string; name: string };
+  role: PortalRole;
+  totals: AttributionSummary['totals'];
+  top_channels: AttributionChannel[];
+  funnel: Record<string, number>;
+  content_counts: Record<string, number>;
+  reports_count: number;
+  pending_approvals: number;
+  published_count: number;
+}
+
+export interface PortalApprovalItem {
+  id: string;
+  title: string | null;
+  body: string;
+  content_type: string;
+  platform: string | null;
+  updated_at: string | null;
+  latest_decision: string | null;
+  latest_note: string | null;
+}
+
+export interface PortalReport {
+  id: string;
+  token: string;
+  title: string;
+  client_name: string | null;
+  date_from: string | null;
+  date_to: string | null;
+  views: number;
+  created_at: string;
+}
+
+// Agency-side portal management (uses the agency `api()` client + workspace header).
+export const PortalAdmin = {
+  invites: () => api<PortalInvite[]>('/portal/invites', { workspace: true }),
+  createInvite: (body: { email: string; role: PortalRole }) =>
+    api<PortalInviteCreated>('/portal/invites', { method: 'POST', body, workspace: true }),
+  revokeInvite: (id: string) =>
+    api<PortalInvite>(`/portal/invites/${id}/revoke`, { method: 'POST', workspace: true }),
+  members: () => api<PortalMember[]>('/portal/members', { workspace: true }),
+  revokeMember: (id: string) =>
+    api<PortalMember>(`/portal/members/${id}/revoke`, { method: 'POST', workspace: true }),
+  restoreMember: (id: string) =>
+    api<PortalMember>(`/portal/members/${id}/restore`, { method: 'POST', workspace: true }),
+};
+
+// Client-side portal (uses the portal token store).
+export const Portal = {
+  previewInvite: (token: string) =>
+    portalApi<PortalInvitePreview>(`/portal/invites/preview/${token}`),
+  accept: (body: { token: string; full_name: string; password: string }) =>
+    portalApi<PortalSession>('/portal/accept', { method: 'POST', body }),
+  login: (body: { email: string; password: string; workspace_id?: string }) =>
+    portalApi<PortalSession>('/portal/login', { method: 'POST', body }),
+  me: () => portalApi<PortalSession>('/portal/me'),
+  switch: (workspaceId: string) =>
+    portalApi<PortalSession>(`/portal/switch/${workspaceId}`, { method: 'POST' }),
+  overview: () => portalApi<PortalOverview>('/portal/overview'),
+  attribution: () => portalApi<AttributionSummary>('/portal/attribution'),
+  reports: () => portalApi<PortalReport[]>('/portal/reports'),
+  approvals: () => portalApi<PortalApprovalItem[]>('/portal/approvals'),
+  decide: (contentItemId: string, body: { decision: 'approved' | 'changes_requested'; note?: string }) =>
+    portalApi<{ content_item_id: string; decision: string; status: string; approval_id: string }>(
+      `/portal/approvals/${contentItemId}`,
+      { method: 'POST', body },
+    ),
+};

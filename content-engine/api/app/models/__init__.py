@@ -36,6 +36,12 @@ from app.models.platform import (
     Benchmark,
 )
 from app.models.attribution import RevenueEvent
+from app.models.portal_client import (
+    ClientPortalInvite,
+    ClientPortalMember,
+    InviteStatus,
+    PortalRole,
+)
 
 __all__ = [
     "Base",
@@ -84,4 +90,8 @@ __all__ = [
     "AuditLog",
     "Benchmark",
     "RevenueEvent",
+    "ClientPortalInvite",
+    "ClientPortalMember",
+    "InviteStatus",
+    "PortalRole",
 ]
