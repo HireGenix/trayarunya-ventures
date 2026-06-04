@@ -36,6 +36,13 @@ import BarChartIcon from '@mui/icons-material/BarChartOutlined';
 import AssessmentIcon from '@mui/icons-material/AssessmentOutlined';
 import CreditCardIcon from '@mui/icons-material/CreditCardOutlined';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonthOutlined';
+import BiotechIcon from '@mui/icons-material/BiotechOutlined';
+import AutoGraphIcon from '@mui/icons-material/AutoGraphOutlined';
+import TrendingUpIcon from '@mui/icons-material/TrendingUpOutlined';
+import RadarIcon from '@mui/icons-material/RadarOutlined';
+import BusinessIcon from '@mui/icons-material/BusinessOutlined';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunchOutlined';
+import HubIcon from '@mui/icons-material/HubOutlined';
 import { useAuth } from '@/lib/auth';
 import { Workspaces, Calendar } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
@@ -74,8 +81,25 @@ const NAV: NavGroup[] = [
     ],
   },
   {
+    heading: 'Intelligence',
+    items: [
+      { href: '/dashboard/creative', label: 'Creative Intel', icon: <AutoGraphIcon fontSize="small" />, color: BRAND.pink },
+      { href: '/dashboard/experiments', label: 'Experiments', icon: <BiotechIcon fontSize="small" />, color: BRAND.teal },
+      { href: '/dashboard/forecast', label: 'Forecast', icon: <TrendingUpIcon fontSize="small" />, color: BRAND.amber },
+      { href: '/dashboard/watchtower', label: 'Watchtower', icon: <RadarIcon fontSize="small" />, color: '#7C3AED' },
+    ],
+  },
+  {
+    heading: 'B2B Engine',
+    items: [
+      { href: '/dashboard/abm', label: 'ABM Accounts', icon: <BusinessIcon fontSize="small" />, color: '#2563EB' },
+      { href: '/dashboard/campaigns', label: 'Campaign Builder', icon: <RocketLaunchIcon fontSize="small" />, color: BRAND.amber },
+    ],
+  },
+  {
     heading: 'Account',
     items: [
+      { href: '/dashboard/integrations', label: 'Integrations', icon: <HubIcon fontSize="small" />, color: BRAND.teal },
       { href: '/dashboard/billing', label: 'Billing', icon: <CreditCardIcon fontSize="small" />, color: '#2563EB' },
     ],
   },
