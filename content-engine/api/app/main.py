@@ -32,6 +32,7 @@ from app.routers import (
     insight_actions,
     insights,
     integrations,
+    linkedin_growth,
     learning,
     next_moves,
     notifications,
@@ -169,6 +170,7 @@ def create_app() -> FastAPI:
     app.include_router(billing_checkout.router, prefix=p)
     app.include_router(experiments.router, prefix=p)
     app.include_router(integrations.router, prefix=p)
+    app.include_router(linkedin_growth.router, prefix=p)
     app.include_router(attribution.router, prefix=p)
     app.include_router(watchtower.router, prefix=p)
     app.include_router(abm.router, prefix=p)

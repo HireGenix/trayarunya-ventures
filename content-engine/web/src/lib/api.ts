@@ -1926,3 +1926,96 @@ export const Automation = {
   deleteTask: (id: string) =>
     api<void>(`/automation/tasks/${id}`, { method: 'DELETE', workspace: true }),
 };
+
+// ---------- LinkedIn Growth Copilot ----------
+export interface LinkedInGrowthProfile {
+  id: string;
+  account_label: string;
+  profile_url: string | null;
+  objective: string;
+  icp: Record<string, unknown> | null;
+  offer: string | null;
+  voice: string | null;
+  status: string;
+  latest_score: number | null;
+  latest_grade: string | null;
+  latest_audit: Record<string, unknown> | null;
+  latest_audit_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface LinkedInAudit {
+  id: string;
+  profile_id: string;
+  snapshot: Record<string, unknown>;
+  objective_context: Record<string, unknown>;
+  score: number;
+  grade: string;
+  findings: Record<string, unknown>;
+  recommendations: Array<Record<string, unknown>>;
+  drafts: Record<string, unknown>;
+  compliance: Record<string, unknown>;
+  created_by_name: string | null;
+  created_at: string | null;
+}
+
+export interface LinkedInActionItem {
+  id: string;
+  profile_id: string;
+  audit_id: string | null;
+  section: string;
+  title: string;
+  detail: string | null;
+  priority: string;
+  status: string;
+  suggested_copy: string | null;
+  policy_note: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export const LinkedInGrowth = {
+  playbook: () =>
+    api<{
+      objectives: Array<{ id: string; label: string; description: string }>;
+      guardrails: string[];
+      sections: string[];
+      policy_safe_mode: string;
+      browser_note: string;
+    }>('/linkedin-growth/playbook', { workspace: true }),
+  profiles: () =>
+    api<LinkedInGrowthProfile[]>('/linkedin-growth/profiles', { workspace: true }),
+  createProfile: (body: {
+    account_label: string;
+    profile_url?: string | null;
+    objective?: string;
+    icp?: Record<string, unknown>;
+    offer?: string | null;
+    voice?: string | null;
+  }) => api<LinkedInGrowthProfile>('/linkedin-growth/profiles', { method: 'POST', body, workspace: true }),
+  updateProfile: (id: string, body: Partial<LinkedInGrowthProfile>) =>
+    api<LinkedInGrowthProfile>(`/linkedin-growth/profiles/${id}`, { method: 'PATCH', body, workspace: true }),
+  deleteProfile: (id: string) =>
+    api<void>(`/linkedin-growth/profiles/${id}`, { method: 'DELETE', workspace: true }),
+  audit: (id: string, body: Record<string, unknown>) =>
+    api<LinkedInAudit>(`/linkedin-growth/profiles/${id}/audit`, { method: 'POST', body, workspace: true }),
+  audits: (id: string) =>
+    api<LinkedInAudit[]>(`/linkedin-growth/profiles/${id}/audits`, { workspace: true }),
+  actions: (id: string, status?: string) =>
+    api<LinkedInActionItem[]>(
+      `/linkedin-growth/profiles/${id}/actions${status ? `?status=${status}` : ''}`,
+      { workspace: true },
+    ),
+  updateAction: (id: string, status: string) =>
+    api<LinkedInActionItem>(`/linkedin-growth/actions/${id}`, {
+      method: 'PATCH',
+      body: { status },
+      workspace: true,
+    }),
+  browserSession: (profile_url?: string | null) =>
+    api<{ url: string; mode: string; policy: string; guardrails: string[]; capture_steps: string[] }>(
+      '/linkedin-growth/browser-session',
+      { method: 'POST', body: { profile_url }, workspace: true },
+    ),
+};

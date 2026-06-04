@@ -51,6 +51,13 @@ from app.models.automation import (
     RunStatus,
     TaskStatus,
 )
+from app.models.linkedin_growth import (
+    LinkedInGrowthProfile,
+    LinkedInProfileAudit,
+    LinkedInActionItem,
+    LinkedInActionStatus,
+    LinkedInActionPriority,
+)
 
 __all__ = [
     "Base",
@@ -110,4 +117,9 @@ __all__ = [
     "EventStatus",
     "RunStatus",
     "TaskStatus",
+    "LinkedInGrowthProfile",
+    "LinkedInProfileAudit",
+    "LinkedInActionItem",
+    "LinkedInActionStatus",
+    "LinkedInActionPriority",
 ]

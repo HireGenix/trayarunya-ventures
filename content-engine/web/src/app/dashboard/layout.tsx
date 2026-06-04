@@ -49,6 +49,7 @@ import GroupsIcon from '@mui/icons-material/GroupsOutlined';
 import MenuIcon from '@mui/icons-material/MenuOutlined';
 import BoltIcon from '@mui/icons-material/BoltOutlined';
 import TaskAltIcon from '@mui/icons-material/TaskAltOutlined';
+import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import { useAuth } from '@/lib/auth';
 import { Workspaces, Calendar } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
@@ -99,6 +100,7 @@ const NAV: NavGroup[] = [
     heading: 'B2B Engine',
     items: [
       { href: '/dashboard/abm', label: 'ABM Accounts', icon: <BusinessIcon fontSize="small" />, color: '#2563EB' },
+      { href: '/dashboard/linkedin-growth', label: 'LinkedIn Growth', icon: <LinkedInIcon fontSize="small" />, color: '#0A66C2' },
       { href: '/dashboard/campaigns', label: 'Campaign Builder', icon: <RocketLaunchIcon fontSize="small" />, color: BRAND.amber },
       { href: '/dashboard/attribution', label: 'Revenue Attribution', icon: <AccountTreeIcon fontSize="small" />, color: BRAND.teal },
     ],
