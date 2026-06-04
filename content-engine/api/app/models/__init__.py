@@ -42,6 +42,15 @@ from app.models.portal_client import (
     InviteStatus,
     PortalRole,
 )
+from app.models.automation import (
+    AutomationEvent,
+    Workflow,
+    WorkflowRun,
+    Task,
+    EventStatus,
+    RunStatus,
+    TaskStatus,
+)
 
 __all__ = [
     "Base",
@@ -94,4 +103,11 @@ __all__ = [
     "ClientPortalMember",
     "InviteStatus",
     "PortalRole",
+    "AutomationEvent",
+    "Workflow",
+    "WorkflowRun",
+    "Task",
+    "EventStatus",
+    "RunStatus",
+    "TaskStatus",
 ]

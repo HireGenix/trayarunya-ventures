@@ -47,6 +47,8 @@ import HubIcon from '@mui/icons-material/HubOutlined';
 import AccountTreeIcon from '@mui/icons-material/AccountTreeOutlined';
 import GroupsIcon from '@mui/icons-material/GroupsOutlined';
 import MenuIcon from '@mui/icons-material/MenuOutlined';
+import BoltIcon from '@mui/icons-material/BoltOutlined';
+import TaskAltIcon from '@mui/icons-material/TaskAltOutlined';
 import { useAuth } from '@/lib/auth';
 import { Workspaces, Calendar } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
@@ -99,6 +101,13 @@ const NAV: NavGroup[] = [
       { href: '/dashboard/abm', label: 'ABM Accounts', icon: <BusinessIcon fontSize="small" />, color: '#2563EB' },
       { href: '/dashboard/campaigns', label: 'Campaign Builder', icon: <RocketLaunchIcon fontSize="small" />, color: BRAND.amber },
       { href: '/dashboard/attribution', label: 'Revenue Attribution', icon: <AccountTreeIcon fontSize="small" />, color: BRAND.teal },
+    ],
+  },
+  {
+    heading: 'Automation',
+    items: [
+      { href: '/dashboard/automations', label: 'Workflows', icon: <BoltIcon fontSize="small" />, color: BRAND.amber },
+      { href: '/dashboard/tasks', label: 'Tasks', icon: <TaskAltIcon fontSize="small" />, color: BRAND.teal },
     ],
   },
   {

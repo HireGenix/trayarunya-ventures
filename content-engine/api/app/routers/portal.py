@@ -750,6 +750,21 @@ async def portal_decide(
     )
     await db.flush()
     await db.refresh(approval)
+    try:
+        from app.services.automation import emit_event
+        event_type = "content.approved" if decision == "approved" else "content.changes_requested"
+        await emit_event(
+            db, ctx.workspace.id, event_type,
+            {
+                "title": item.title or "",
+                "platform": getattr(item.content_type, "value", str(item.content_type)),
+                "reviewer": _actor_name(ctx.user),
+                "note": payload.note or "",
+            },
+            source="portal",
+        )
+    except Exception:  # noqa: BLE001 — automation must never break the approval
+        pass
     return {
         "content_item_id": str(item.id),
         "decision": decision,

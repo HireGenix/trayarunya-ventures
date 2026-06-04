@@ -36,6 +36,7 @@ from app.routers import (
     next_moves,
     notifications,
     portal,
+    automation,
     reports,
     research,
     social,
@@ -176,6 +177,7 @@ def create_app() -> FastAPI:
     app.include_router(collab.router, prefix=p)
     app.include_router(forecast.router, prefix=p)
     app.include_router(portal.router, prefix=p)
+    app.include_router(automation.router, prefix=p)
 
     @app.get("/")
     async def root() -> dict:

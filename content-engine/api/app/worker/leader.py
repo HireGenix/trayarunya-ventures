@@ -32,6 +32,7 @@ def _loop_factories() -> list[tuple[str, LoopFactory]]:
     from app.services.alerts_loop import alerts_loop
     from app.services.watchtower import watchtower_loop
     from app.services.ads_optimizer_loop import ads_optimizer_loop
+    from app.services.automation import automation_loop
 
     return [
         ("scheduler", scheduler_loop),
@@ -39,6 +40,7 @@ def _loop_factories() -> list[tuple[str, LoopFactory]]:
         ("alerts", alerts_loop),
         ("watchtower", watchtower_loop),
         ("ads_optimizer", ads_optimizer_loop),
+        ("automation", automation_loop),
     ]
 
 

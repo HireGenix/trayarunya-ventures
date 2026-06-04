@@ -20,8 +20,25 @@ from app.db import get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
 from app.models.attribution import CHANNELS, STAGES, RevenueEvent
 from app.services.attribution import compute_attribution
+from app.services.automation import emit_event
 
 router = APIRouter(prefix="/attribution", tags=["attribution"])
+
+# Revenue stages that fan out to the automation engine.
+_AUTOMATION_STAGES = {"lead", "mql", "sql", "opportunity", "closed_won"}
+
+
+def _revenue_payload(event: RevenueEvent) -> dict:
+    return {
+        "stage": event.stage,
+        "channel": event.channel,
+        "campaign": event.campaign,
+        "value": float(event.value or 0),
+        "cost": float(event.cost or 0),
+        "currency": event.currency,
+        "contact_ref": event.contact_ref,
+        "source": event.source,
+    }
 
 
 class RevenueEventIn(BaseModel):
@@ -89,6 +106,11 @@ async def create_event(
     )
     db.add(event)
     await db.flush()
+    if event.stage in _AUTOMATION_STAGES:
+        await emit_event(
+            db, ctx.workspace.id, f"revenue.{event.stage}",
+            _revenue_payload(event), source="attribution",
+        )
     return event
 
 
@@ -103,24 +125,39 @@ async def create_events_bulk(
     created = 0
     for data in items:
         data.validated()
-        db.add(
-            RevenueEvent(
-                workspace_id=ctx.workspace.id,
-                contact_ref=data.contact_ref,
-                channel=data.channel,
-                campaign=data.campaign,
-                stage=data.stage,
-                value=data.value,
-                cost=data.cost,
-                currency=data.currency,
-                external_id=data.external_id,
-                source=data.source or "import",
-                meta=data.meta,
-                occurred_at=data.occurred_at or datetime.now(timezone.utc),
-            )
+        event = RevenueEvent(
+            workspace_id=ctx.workspace.id,
+            contact_ref=data.contact_ref,
+            channel=data.channel,
+            campaign=data.campaign,
+            stage=data.stage,
+            value=data.value,
+            cost=data.cost,
+            currency=data.currency,
+            external_id=data.external_id,
+            source=data.source or "import",
+            meta=data.meta,
+            occurred_at=data.occurred_at or datetime.now(timezone.utc),
         )
+        db.add(event)
         created += 1
     await db.flush()
+    for data in items:
+        if data.stage in _AUTOMATION_STAGES:
+            await emit_event(
+                db, ctx.workspace.id, f"revenue.{data.stage}",
+                {
+                    "stage": data.stage,
+                    "channel": data.channel,
+                    "campaign": data.campaign,
+                    "value": float(data.value or 0),
+                    "cost": float(data.cost or 0),
+                    "currency": data.currency,
+                    "contact_ref": data.contact_ref,
+                    "source": data.source or "import",
+                },
+                source="attribution",
+            )
     return {"created": created}
 
 

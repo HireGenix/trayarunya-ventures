@@ -118,6 +118,20 @@ async def execute_publish(
             )
         except Exception:  # noqa: BLE001 — notification must never break publishing
             log.exception("Failed to create publish-success notification")
+        try:
+            from app.services.automation import emit_event
+            await emit_event(
+                db, account.workspace_id, "content.published",
+                {
+                    "platform": platform,
+                    "title": item.title or "",
+                    "content_type": getattr(item.content_type, "value", str(item.content_type)),
+                    "external_post_id": external_id,
+                },
+                source="publish_flow",
+            )
+        except Exception:  # noqa: BLE001 — automation must never break publishing
+            log.exception("Failed to emit content.published event")
     except PublishError as exc:
         sched.status = ScheduleStatus.failed
         sched.error = str(exc)[:1000]
@@ -133,3 +147,16 @@ async def execute_publish(
             )
         except Exception:  # noqa: BLE001
             log.exception("Failed to create publish-failure notification")
+        try:
+            from app.services.automation import emit_event
+            await emit_event(
+                db, account.workspace_id, "publish.failed",
+                {
+                    "platform": platform,
+                    "title": item.title or "",
+                    "error": str(exc)[:300],
+                },
+                source="publish_flow",
+            )
+        except Exception:  # noqa: BLE001
+            log.exception("Failed to emit publish.failed event")

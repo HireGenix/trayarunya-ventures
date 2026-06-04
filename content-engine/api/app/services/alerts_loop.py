@@ -65,6 +65,16 @@ async def run_alerts_tick() -> int:
                 )
                 if note is not None:
                     raised += 1
+                try:
+                    from app.services.automation import emit_event
+                    await emit_event(
+                        db, wid, "performance.drop",
+                        {"drop_pct": drop_pct, "recent": recent, "prior": prior},
+                        source="alerts_loop",
+                    )
+                    await db.commit()
+                except Exception:  # noqa: BLE001
+                    log.exception("Failed to emit performance.drop event")
 
             spend_res = await db.execute(
                 select(func.coalesce(func.sum(Metric.spend), 0.0))

@@ -1770,3 +1770,148 @@ export const Portal = {
       { method: 'POST', body },
     ),
 };
+
+// ---------- Automation Engine (workflows / runs / tasks) ----------
+export interface AutomationTriggerMeta {
+  type: string;
+  label: string;
+  description: string;
+  fields: string[];
+}
+export interface AutomationActionMeta {
+  type: string;
+  label: string;
+  description: string;
+  config: string[];
+}
+export interface AutomationCatalog {
+  triggers: AutomationTriggerMeta[];
+  actions: AutomationActionMeta[];
+}
+export interface WorkflowCondition {
+  field: string;
+  op: string;
+  value: unknown;
+}
+export interface WorkflowAction {
+  type: string;
+  config: Record<string, unknown>;
+}
+export interface Workflow {
+  id: string;
+  name: string;
+  description: string | null;
+  trigger_type: string;
+  conditions: WorkflowCondition[];
+  actions: WorkflowAction[];
+  is_active: boolean;
+  run_count: number;
+  last_run_at: string | null;
+  created_by_name: string | null;
+  created_at: string | null;
+}
+export interface WorkflowInput {
+  name: string;
+  description?: string | null;
+  trigger_type: string;
+  conditions: WorkflowCondition[];
+  actions: WorkflowAction[];
+  is_active?: boolean;
+}
+export interface WorkflowRunStep {
+  type: string;
+  status: string;
+  detail: string;
+}
+export interface WorkflowRun {
+  id: string;
+  workflow_id: string;
+  trigger_type: string;
+  status: 'success' | 'partial' | 'failed' | 'skipped';
+  steps: WorkflowRunStep[];
+  error: string | null;
+  is_test: boolean;
+  trigger_payload: Record<string, unknown>;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string | null;
+}
+export interface AutomationTask {
+  id: string;
+  title: string;
+  description: string | null;
+  status: 'open' | 'in_progress' | 'done';
+  priority: 'low' | 'normal' | 'high';
+  assignee: string | null;
+  due_at: string | null;
+  source: string;
+  workflow_id: string | null;
+  completed_at: string | null;
+  created_at: string | null;
+}
+export interface AutomationEventItem {
+  id: string;
+  event_type: string;
+  status: string;
+  attempts: number;
+  source: string;
+  error: string | null;
+  processed_at: string | null;
+  created_at: string | null;
+}
+
+export const Automation = {
+  catalog: () => api<AutomationCatalog>('/automation/catalog', { workspace: true }),
+  listWorkflows: () => api<Workflow[]>('/automation/workflows', { workspace: true }),
+  createWorkflow: (body: WorkflowInput) =>
+    api<Workflow>('/automation/workflows', { method: 'POST', body, workspace: true }),
+  updateWorkflow: (id: string, body: Partial<WorkflowInput>) =>
+    api<Workflow>(`/automation/workflows/${id}`, { method: 'PATCH', body, workspace: true }),
+  toggleWorkflow: (id: string) =>
+    api<Workflow>(`/automation/workflows/${id}/toggle`, { method: 'POST', workspace: true }),
+  deleteWorkflow: (id: string) =>
+    api<void>(`/automation/workflows/${id}`, { method: 'DELETE', workspace: true }),
+  testWorkflow: (id: string, payload: Record<string, unknown>) =>
+    api<WorkflowRun>(`/automation/workflows/${id}/test`, {
+      method: 'POST',
+      body: { payload },
+      workspace: true,
+    }),
+  listRuns: (limit = 50) =>
+    api<WorkflowRun[]>(`/automation/runs?limit=${limit}`, { workspace: true }),
+  workflowRuns: (id: string, limit = 50) =>
+    api<WorkflowRun[]>(`/automation/workflows/${id}/runs?limit=${limit}`, { workspace: true }),
+  listEvents: (limit = 50) =>
+    api<AutomationEventItem[]>(`/automation/events?limit=${limit}`, { workspace: true }),
+  emit: (event_type: string, payload: Record<string, unknown>) =>
+    api<{ accepted: boolean; event_id: string | null }>('/automation/events/emit', {
+      method: 'POST',
+      body: { event_type, payload },
+      workspace: true,
+    }),
+  // Tasks
+  listTasks: (status?: string) =>
+    api<AutomationTask[]>(`/automation/tasks${status ? `?status=${status}` : ''}`, {
+      workspace: true,
+    }),
+  createTask: (body: {
+    title: string;
+    description?: string | null;
+    priority?: string;
+    assignee?: string | null;
+    due_at?: string | null;
+  }) => api<AutomationTask>('/automation/tasks', { method: 'POST', body, workspace: true }),
+  updateTask: (
+    id: string,
+    body: Partial<{
+      title: string;
+      description: string | null;
+      status: string;
+      priority: string;
+      assignee: string | null;
+      due_at: string | null;
+    }>,
+  ) => api<AutomationTask>(`/automation/tasks/${id}`, { method: 'PATCH', body, workspace: true }),
+  deleteTask: (id: string) =>
+    api<void>(`/automation/tasks/${id}`, { method: 'DELETE', workspace: true }),
+};
