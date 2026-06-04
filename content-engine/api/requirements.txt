@@ -54,3 +54,6 @@ reportlab==4.5.1
 pytest==8.3.4
 pytest-asyncio==0.25.0
 httpx==0.28.1
+
+# --- Observability (optional; activates when SENTRY_DSN is set) ---
+sentry-sdk==2.19.2

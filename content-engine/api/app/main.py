@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.middleware import RateLimitMiddleware, RequestContextMiddleware
 from app.logging_config import configure_logging
+from app.observability import init_sentry, register_exception_handlers
 
 from app.config import settings
 from app.routers import (
@@ -123,11 +124,14 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     configure_logging()
+    init_sentry()
     app = FastAPI(
         title=settings.app_name,
         version="0.1.0",
         lifespan=lifespan,
     )
+
+    register_exception_handlers(app)
 
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(
