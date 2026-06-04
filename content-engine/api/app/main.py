@@ -71,6 +71,13 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(120)",
                 "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(120)",
                 "ALTER TABLE plans ADD COLUMN IF NOT EXISTS stripe_price_id VARCHAR(120)",
+                # report sharing → expiry / revoke / passcode
+                "ALTER TABLE reports ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ",
+                "ALTER TABLE reports ADD COLUMN IF NOT EXISTS revoked BOOLEAN NOT NULL DEFAULT FALSE",
+                "ALTER TABLE reports ADD COLUMN IF NOT EXISTS passcode VARCHAR(60)",
+                # collaboration → assignee on content items
+                "ALTER TABLE content_items ADD COLUMN IF NOT EXISTS assignee_id UUID",
+                "ALTER TABLE content_items ADD COLUMN IF NOT EXISTS approval_status VARCHAR(30) NOT NULL DEFAULT 'draft'",
             ):
                 await conn.execute(text(ddl))
         async with AsyncSessionLocal() as db:

@@ -113,6 +113,35 @@ class Settings(BaseSettings):
     def stripe_configured(self) -> bool:
         return bool(self.stripe_secret_key)
 
+    # --- Security: token encryption at rest ---
+    # Fernet key (urlsafe base64, 32 bytes). When unset, the crypto service
+    # derives a dev key from jwt_secret so local dev still works.
+    encryption_key: str | None = None
+
+    # --- Outbound notifications: email (SMTP) + Slack ---
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str = Field(default="alerts@trayarunya.com")
+    slack_webhook_url: str | None = None
+
+    @property
+    def email_configured(self) -> bool:
+        return bool(self.smtp_host and self.smtp_user and self.smtp_password)
+
+    @property
+    def slack_configured(self) -> bool:
+        return bool(self.slack_webhook_url)
+
+    # --- External integrations (CRM / analytics / ecommerce) ---
+    hubspot_client_id: str | None = None
+    hubspot_client_secret: str | None = None
+    ga4_property_id: str | None = None
+    google_search_console_site: str | None = None
+    shopify_api_key: str | None = None
+    shopify_api_secret: str | None = None
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

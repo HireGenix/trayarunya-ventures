@@ -22,6 +22,19 @@ from app.models.ads import AdAccount, Campaign, Metric, AdPlatform, CampaignStat
 from app.models.billing import Plan, UsageRecord
 from app.models.report import Report
 from app.models.engagement import Notification, LearningSignal
+from app.models.platform import (
+    Experiment,
+    Integration,
+    CompetitorWatch,
+    WatchEvent,
+    AbmAccount,
+    CampaignPlan,
+    Comment,
+    Approval,
+    ContentVersion,
+    AuditLog,
+    Benchmark,
+)
 
 __all__ = [
     "Base",
@@ -58,4 +71,15 @@ __all__ = [
     "Report",
     "Notification",
     "LearningSignal",
+    "Experiment",
+    "Integration",
+    "CompetitorWatch",
+    "WatchEvent",
+    "AbmAccount",
+    "CampaignPlan",
+    "Comment",
+    "Approval",
+    "ContentVersion",
+    "AuditLog",
+    "Benchmark",
 ]
