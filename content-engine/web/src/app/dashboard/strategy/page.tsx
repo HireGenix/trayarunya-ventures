@@ -31,10 +31,13 @@ import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined
 import FormatQuoteRoundedIcon from '@mui/icons-material/FormatQuoteRounded';
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlined';
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
+import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import { useAuth } from '@/lib/auth';
 import {
   Strategies,
   Calendar,
+  Learning,
   ALL_PLATFORMS,
   AI_MODELS,
   type Strategy,
@@ -280,9 +283,285 @@ function CalendarGenerator({
   );
 }
 
+/* ── Learning loop ──────────────────────────────────────── */
+
+type LearnSignal = {
+  id: string;
+  kind: 'top_performer' | 'underperformer' | 'pattern' | string;
+  title: string;
+  detail: string | null;
+  recommendation: string | null;
+  metric: Record<string, unknown> | null;
+  applied: boolean;
+  created_at: string | null;
+};
+
+type Refinement = {
+  summary: string;
+  keep: string[];
+  stop: string[];
+  double_down: string[];
+  pillar_changes: string[];
+  updated_pillars: Strategy['pillars'];
+};
+
+const SIGNAL_STYLE: Record<
+  string,
+  { color: string; bg: string; border: string; label: string }
+> = {
+  top_performer: { color: BRAND.tealDeep, bg: '#E4F8F0', border: '#BFEBDC', label: 'Top performer' },
+  underperformer: { color: BRAND.pink, bg: '#FDE8EC', border: '#F7C6D0', label: 'Underperformer' },
+  pattern: { color: BRAND.amberDeep, bg: BRAND.amberSoft, border: '#FFE2A6', label: 'Pattern' },
+};
+
+function signalStyle(kind: string) {
+  return SIGNAL_STYLE[kind] || SIGNAL_STYLE.pattern;
+}
+
+function LearningLoopPanel({
+  strategy,
+  onApplied,
+}: {
+  strategy: Strategy;
+  onApplied: () => void;
+}) {
+  const [signals, setSignals] = useState<LearnSignal[]>([]);
+  const [refinement, setRefinement] = useState<Refinement | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [refining, setRefining] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setSignals([]);
+    setRefinement(null);
+    setLoaded(false);
+    Learning.signals()
+      .then((s) => setSignals(s as LearnSignal[]))
+      .catch(() => setSignals([]))
+      .finally(() => setLoaded(true));
+  }, [strategy.id]);
+
+  const analyze = async () => {
+    setAnalyzing(true);
+    setError('');
+    setRefinement(null);
+    try {
+      const s = await Learning.analyze();
+      setSignals(s as LearnSignal[]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Analysis failed');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const refine = async () => {
+    setRefining(true);
+    setError('');
+    try {
+      const r = await Learning.refineStrategy(strategy.id);
+      setRefinement(r as Refinement);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Refinement failed');
+    } finally {
+      setRefining(false);
+    }
+  };
+
+  const apply = async () => {
+    if (!refinement) return;
+    setApplying(true);
+    setError('');
+    try {
+      await Learning.applyStrategy(strategy.id, refinement.updated_pillars);
+      setRefinement(null);
+      onApplied();
+      const s = await Learning.signals();
+      setSignals(s as LearnSignal[]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Apply failed');
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  return (
+    <Box sx={{ mt: 4 }}>
+      <Divider sx={{ mb: 2.5 }} />
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.5}
+        alignItems={{ xs: 'flex-start', sm: 'center' }}
+        justifyContent="space-between"
+        sx={{ mb: 2 }}
+      >
+        <Stack direction="row" spacing={1.25} alignItems="center">
+          <InsightsOutlinedIcon sx={{ color: BRAND.tealDeep }} />
+          <Typography sx={{ ...sectionLabel, mb: 0 }}>Learning loop</Typography>
+        </Stack>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={
+            analyzing ? <CircularProgress size={16} color="inherit" /> : <TrendingUpOutlinedIcon />
+          }
+          onClick={analyze}
+          disabled={analyzing}
+          sx={{ borderRadius: `${R}px`, textTransform: 'none', fontWeight: 700 }}
+        >
+          {analyzing ? 'Analyzing…' : 'Analyze performance'}
+        </Button>
+      </Stack>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2, borderRadius: `${R - 4}px` }}>
+          {error}
+        </Alert>
+      )}
+
+      {loaded && signals.length === 0 && !analyzing && (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          No signals yet. Run “Analyze performance” to learn from your published posts.
+        </Typography>
+      )}
+
+      {signals.length > 0 && (
+        <Stack spacing={1.5} sx={{ mb: 2 }}>
+          {signals.map((s) => {
+            const st = signalStyle(s.kind);
+            return (
+              <Box
+                key={s.id}
+                sx={{
+                  p: 2,
+                  borderRadius: `${R}px`,
+                  border: `1px solid ${st.border}`,
+                  background: '#fff',
+                }}
+              >
+                <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 0.75 }}>
+                  <Chip
+                    label={st.label}
+                    size="small"
+                    sx={{
+                      bgcolor: st.bg,
+                      color: st.color,
+                      fontWeight: 700,
+                      borderRadius: '8px',
+                    }}
+                  />
+                  {s.applied && (
+                    <Chip
+                      label="Applied"
+                      size="small"
+                      variant="outlined"
+                      sx={{ borderRadius: '8px', fontWeight: 600 }}
+                    />
+                  )}
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    {s.title}
+                  </Typography>
+                </Stack>
+                {s.detail && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                    {s.detail}
+                  </Typography>
+                )}
+                {s.recommendation && (
+                  <Typography variant="body2" sx={{ color: st.color, fontWeight: 600 }}>
+                    → {s.recommendation}
+                  </Typography>
+                )}
+              </Box>
+            );
+          })}
+        </Stack>
+      )}
+
+      {signals.length > 0 && (
+        <Button
+          variant="contained"
+          size="small"
+          startIcon={refining ? <CircularProgress size={16} color="inherit" /> : <AutoAwesomeOutlinedIcon />}
+          onClick={refine}
+          disabled={refining}
+          sx={{ borderRadius: `${R}px`, textTransform: 'none', fontWeight: 700 }}
+        >
+          {refining ? 'Refining…' : 'Refine this strategy'}
+        </Button>
+      )}
+
+      {refinement && (
+        <Box
+          sx={{
+            mt: 2,
+            p: 2.5,
+            borderRadius: `${R}px`,
+            border: '1px solid',
+            borderColor: 'divider',
+            background: BRAND.amberSoft,
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>
+            Proposed refinement
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            {refinement.summary}
+          </Typography>
+
+          {([
+            ['Keep', refinement.keep, BRAND.tealDeep],
+            ['Stop', refinement.stop, BRAND.pink],
+            ['Double down', refinement.double_down, BRAND.amberDeep],
+            ['Pillar changes', refinement.pillar_changes, BRAND.ink],
+          ] as [string, string[], string][])
+            .filter(([, items]) => items && items.length > 0)
+            .map(([label, items, color]) => (
+              <Box key={label} sx={{ mb: 1.5 }}>
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.06em' }}
+                >
+                  {label}
+                </Typography>
+                <Stack component="ul" sx={{ m: 0, pl: 2.5, mt: 0.5 }} spacing={0.25}>
+                  {items.map((it, i) => (
+                    <Typography key={i} component="li" variant="body2" color="text.secondary">
+                      {it}
+                    </Typography>
+                  ))}
+                </Stack>
+              </Box>
+            ))}
+
+          <Button
+            variant="contained"
+            size="small"
+            color="secondary"
+            startIcon={applying ? <CircularProgress size={16} color="inherit" /> : undefined}
+            onClick={apply}
+            disabled={applying}
+            sx={{ mt: 1, borderRadius: `${R}px`, textTransform: 'none', fontWeight: 700 }}
+          >
+            {applying ? 'Applying…' : 'Apply changes'}
+          </Button>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 /* ── StrategyDetail ─────────────────────────────────────── */
 
-function StrategyDetail({ strategy }: { strategy: Strategy }) {
+function StrategyDetail({
+  strategy,
+  onApplied,
+}: {
+  strategy: Strategy;
+  onApplied: () => void;
+}) {
   const funnelColors: Record<string, string> = {
     tofu: BRAND.amber,
     mofu: BRAND.teal,
@@ -624,6 +903,8 @@ function StrategyDetail({ strategy }: { strategy: Strategy }) {
             </Grid>
           </Box>
         )}
+
+        <LearningLoopPanel strategy={strategy} onApplied={onApplied} />
       </Box>
     </Card>
   );
@@ -671,6 +952,17 @@ function StrategyInner() {
       if (selected?.id === s.id) setSelected(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Delete failed');
+    }
+  };
+
+  const refreshSelected = async () => {
+    if (!selected) return;
+    try {
+      const updated = await Strategies.get(selected.id);
+      setSelected(updated);
+      setList((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+    } catch {
+      /* keep current view on refresh failure */
     }
   };
 
@@ -860,7 +1152,7 @@ function StrategyInner() {
         {/* right column — detail */}
         <Grid size={{ xs: 12, md: 8 }}>
           {selected ? (
-            <StrategyDetail strategy={selected} />
+            <StrategyDetail strategy={selected} onApplied={refreshSelected} />
           ) : (
             <Card
               sx={{

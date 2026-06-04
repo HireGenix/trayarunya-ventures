@@ -40,6 +40,7 @@ import { useAuth } from '@/lib/auth';
 import { Workspaces, Calendar } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
 import { ConfirmProvider } from '@/components/ConfirmDialog';
+import NotificationBell from '@/components/NotificationBell';
 
 const INK = BRAND.ink;
 
@@ -425,6 +426,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Typography>
           )}
           <Stack direction="row" spacing={1} alignItems="center">
+            <NotificationBell />
             <Select
               size="small"
               value={activeWorkspace?.id || ''}

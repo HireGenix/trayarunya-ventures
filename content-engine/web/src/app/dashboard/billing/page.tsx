@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
+  Alert,
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -13,29 +16,67 @@ import {
   ListItemIcon,
   ListItemText,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
 import { useAuth } from '@/lib/auth';
-import { Billing, type Plan, type BillingSummary } from '@/lib/api';
+import { Billing, ApiError, type Plan, type BillingSummary } from '@/lib/api';
+import { BRAND } from '@/theme/theme';
 
-export default function BillingPage() {
+function BillingPageInner() {
   const { activeWorkspace } = useAuth();
+  const searchParams = useSearchParams();
+  const checkoutParam = searchParams.get('checkout');
+
   const [plans, setPlans] = useState<Plan[]>([]);
   const [summary, setSummary] = useState<BillingSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [stripeConfigured, setStripeConfigured] = useState(false);
+  const [pendingCode, setPendingCode] = useState<string | null>(null);
+  const [portalPending, setPortalPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeWorkspace) return;
     setLoading(true);
-    Promise.all([Billing.plans().catch(() => []), Billing.summary().catch(() => null)]).then(
-      ([p, s]) => {
-        setPlans(p);
-        setSummary(s);
-        setLoading(false);
-      },
-    );
+    Promise.all([
+      Billing.plans().catch(() => []),
+      Billing.summary().catch(() => null),
+      Billing.checkoutStatus().catch(() => ({ configured: false })),
+    ]).then(([p, s, st]) => {
+      setPlans(p);
+      setSummary(s);
+      setStripeConfigured(Boolean(st?.configured));
+      setLoading(false);
+    });
   }, [activeWorkspace]);
+
+  const handleUpgrade = useCallback(async (code: string) => {
+    setError(null);
+    setPendingCode(code);
+    try {
+      const res = await Billing.checkout(code);
+      window.location.href = res.url;
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Failed to start checkout');
+      setPendingCode(null);
+    }
+  }, []);
+
+  const handlePortal = useCallback(async () => {
+    setError(null);
+    setPortalPending(true);
+    try {
+      const res = await Billing.portal();
+      window.location.href = res.url;
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Failed to open billing portal');
+      setPortalPending(false);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -46,29 +87,73 @@ export default function BillingPage() {
   }
 
   const currentCode = summary?.plan?.code;
+  const isPaidCurrent = Boolean(
+    summary?.plan && summary.plan.price_monthly > 0 && summary.plan.code !== 'free',
+  );
 
   return (
     <Stack spacing={3}>
+      {checkoutParam === 'success' && (
+        <Alert severity="success">
+          Payment successful — your subscription is being activated. It may take a
+          moment for your new plan to appear here.
+        </Alert>
+      )}
+      {checkoutParam === 'cancel' && (
+        <Alert severity="info">Checkout cancelled. No changes were made.</Alert>
+      )}
+      {error && (
+        <Alert severity="error" onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+      {!stripeConfigured && (
+        <Alert severity="info">
+          Stripe is not connected. Plan upgrades are disabled until billing is
+          configured.
+        </Alert>
+      )}
+
       <Card>
         <CardContent sx={{ p: 3 }}>
-          <Typography variant="h6" fontWeight={800} gutterBottom>
-            Current plan
-          </Typography>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <Typography variant="h4" fontWeight={800}>
-              {summary?.plan?.name || 'Free'}
-            </Typography>
-            {summary?.plan && (
-              <Chip
-                color="primary"
-                label={
-                  summary.plan.price_monthly === 0
-                    ? 'Free'
-                    : `$${summary.plan.price_monthly}/mo`
-                }
-              />
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            spacing={2}
+          >
+            <Box>
+              <Typography variant="h6" fontWeight={800} gutterBottom>
+                Current plan
+              </Typography>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Typography variant="h4" fontWeight={800}>
+                  {summary?.plan?.name || 'Free'}
+                </Typography>
+                {summary?.plan && (
+                  <Chip
+                    color="primary"
+                    label={
+                      summary.plan.price_monthly === 0
+                        ? 'Free'
+                        : `$${summary.plan.price_monthly}/mo`
+                    }
+                  />
+                )}
+              </Stack>
+            </Box>
+            {isPaidCurrent && stripeConfigured && (
+              <Button
+                variant="outlined"
+                startIcon={<CreditCardIcon />}
+                onClick={handlePortal}
+                disabled={portalPending}
+              >
+                {portalPending ? 'Opening…' : 'Manage billing'}
+              </Button>
             )}
           </Stack>
+
           {summary && summary.usage.length > 0 && (
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -87,16 +172,21 @@ export default function BillingPage() {
       <Grid container spacing={3}>
         {plans.map((p) => {
           const active = p.code === currentCode;
+          const isFree = p.price_monthly === 0 || p.code === 'free';
+          const canUpgrade = !active && !isFree;
+          const upgrading = pendingCode === p.code;
           return (
             <Grid key={p.id} size={{ xs: 12, md: 4 }}>
               <Card
                 sx={{
                   height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
                   border: active ? '2px solid' : '1px solid rgba(0,0,0,0.1)',
                   borderColor: active ? 'primary.main' : undefined,
                 }}
               >
-                <CardContent sx={{ p: 3 }}>
+                <CardContent sx={{ p: 3, flexGrow: 1 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Typography variant="h6" fontWeight={800}>
                       {p.name}
@@ -141,11 +231,60 @@ export default function BillingPage() {
                     </List>
                   )}
                 </CardContent>
+
+                {canUpgrade && (
+                  <Box sx={{ px: 3, pb: 3 }}>
+                    {stripeConfigured ? (
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        startIcon={<RocketLaunchIcon />}
+                        onClick={() => handleUpgrade(p.code)}
+                        disabled={upgrading || Boolean(pendingCode)}
+                        sx={{
+                          background: BRAND.gradient,
+                          color: '#fff',
+                          fontWeight: 700,
+                          '&:hover': { background: BRAND.gradientWarm },
+                        }}
+                      >
+                        {upgrading ? 'Redirecting…' : 'Upgrade'}
+                      </Button>
+                    ) : (
+                      <Tooltip title="Connect Stripe to enable checkout">
+                        <span>
+                          <Button
+                            fullWidth
+                            variant="contained"
+                            startIcon={<RocketLaunchIcon />}
+                            disabled
+                          >
+                            Upgrade
+                          </Button>
+                        </span>
+                      </Tooltip>
+                    )}
+                  </Box>
+                )}
               </Card>
             </Grid>
           );
         })}
       </Grid>
     </Stack>
+  );
+}
+
+export default function BillingPage() {
+  return (
+    <Suspense
+      fallback={
+        <Box sx={{ display: 'grid', placeItems: 'center', minHeight: 240 }}>
+          <CircularProgress />
+        </Box>
+      }
+    >
+      <BillingPageInner />
+    </Suspense>
   );
 }

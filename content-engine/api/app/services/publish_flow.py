@@ -99,12 +99,37 @@ async def execute_publish(
     """
     text = compose_text(item, account)
     image_bytes = await load_primary_image(db, item)
+    platform = getattr(account.platform, "value", str(account.platform))
     try:
         external_id = await publish(account, text, image_bytes)
         sched.status = ScheduleStatus.published
         sched.external_post_id = external_id
         sched.error = None
         item.status = ContentStatus.published
+        try:
+            from app.services.notifications import notify
+            await notify(
+                db, account.workspace_id,
+                level="success", category="publishing",
+                title=f"Published to {platform}",
+                body=(item.title or text)[:160],
+                link="/dashboard/publishing",
+                dedupe_key=f"pub-ok:{sched.id}",
+            )
+        except Exception:  # noqa: BLE001 — notification must never break publishing
+            log.exception("Failed to create publish-success notification")
     except PublishError as exc:
         sched.status = ScheduleStatus.failed
         sched.error = str(exc)[:1000]
+        try:
+            from app.services.notifications import notify
+            await notify(
+                db, account.workspace_id,
+                level="error", category="publishing",
+                title=f"Publish failed on {platform}",
+                body=str(exc)[:200],
+                link="/dashboard/publishing",
+                dedupe_key=f"pub-fail:{sched.id}",
+            )
+        except Exception:  # noqa: BLE001
+            log.exception("Failed to create publish-failure notification")

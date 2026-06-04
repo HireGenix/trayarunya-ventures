@@ -13,12 +13,17 @@ from app.routers import (
     analytics,
     auth,
     billing,
+    billing_checkout,
     brand,
     calendar,
     content,
     health,
     images,
+    insight_actions,
     insights,
+    learning,
+    next_moves,
+    notifications,
     reports,
     research,
     social,
@@ -74,17 +79,20 @@ async def lifespan(app: FastAPI):
     # Start the publishing scheduler: fires due, approved/scheduled posts.
     # Plus the results loop: pulls real engagement back from published posts.
     from app.services.scheduler import metrics_refresh_loop, scheduler_loop
+    from app.services.alerts_loop import alerts_loop
 
     stop = asyncio.Event()
     scheduler_task = asyncio.create_task(scheduler_loop(stop))
     metrics_task = asyncio.create_task(metrics_refresh_loop(stop))
+    alerts_task = asyncio.create_task(alerts_loop(stop))
     try:
         yield
     finally:
         stop.set()
         scheduler_task.cancel()
         metrics_task.cancel()
-        for task in (scheduler_task, metrics_task):
+        alerts_task.cancel()
+        for task in (scheduler_task, metrics_task, alerts_task):
             try:
                 await task
             except (asyncio.CancelledError, Exception):  # noqa: BLE001
@@ -120,8 +128,13 @@ def create_app() -> FastAPI:
     app.include_router(social.router, prefix=p)
     app.include_router(ads.router, prefix=p)
     app.include_router(analytics.router, prefix=p)
+    app.include_router(next_moves.router, prefix=p)
+    app.include_router(learning.router, prefix=p)
+    app.include_router(insight_actions.router, prefix=p)
+    app.include_router(notifications.router, prefix=p)
     app.include_router(reports.router, prefix=p)
     app.include_router(billing.router, prefix=p)
+    app.include_router(billing_checkout.router, prefix=p)
 
     @app.get("/")
     async def root() -> dict:

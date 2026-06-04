@@ -284,6 +284,42 @@ export const Strategies = {
   remove: (id: string) => api<void>(`/strategies/${id}`, { method: 'DELETE', workspace: true }),
 };
 
+// ---------- Learning loop (M6) ----------
+export interface LearningSignal {
+  id: string;
+  kind: string;
+  title: string;
+  detail: string | null;
+  recommendation: string | null;
+  metric: Record<string, unknown> | null;
+  applied: boolean;
+  created_at: string | null;
+}
+export interface StrategyRefinement {
+  summary: string;
+  keep: string[];
+  stop: string[];
+  double_down: string[];
+  pillar_changes: string[];
+  updated_pillars: Strategy['pillars'];
+}
+
+export const Learning = {
+  signals: () => api<LearningSignal[]>('/learning/signals', { workspace: true }),
+  analyze: () =>
+    api<LearningSignal[]>('/learning/analyze', { method: 'POST', workspace: true }),
+  refineStrategy: (strategyId: string) =>
+    api<StrategyRefinement>(`/learning/strategies/${strategyId}/refine`, {
+      method: 'POST',
+      workspace: true,
+    }),
+  applyStrategy: (strategyId: string, updatedPillars: Strategy['pillars']) =>
+    api<{ id: string; pillars: Strategy['pillars'] }>(
+      `/learning/strategies/${strategyId}/apply`,
+      { method: 'POST', body: { updated_pillars: updatedPillars }, workspace: true },
+    ),
+};
+
 // ---------- M1: Brand Brain + Insights ----------
 export interface Brand {
   id: string;
@@ -309,6 +345,19 @@ export interface ExplorerInsight {
   text: string;
   intent: string | null;
   score: number;
+  tags?: string[] | null;
+  status?: string;
+  created_at: string;
+}
+
+export interface InsightAction {
+  id: string;
+  kind: string;
+  text: string;
+  intent: string | null;
+  score: number;
+  tags: string[] | null;
+  status: string;
   created_at: string;
 }
 
@@ -360,6 +409,46 @@ export const Insights = {
     return api<ExplorerInsight[]>(`/insights${s ? `?${s}` : ''}`, { workspace: true });
   },
   remove: (id: string) => api<void>(`/insights/${id}`, { method: 'DELETE', workspace: true }),
+  update: (id: string, body: { tags?: string[]; status?: string }) =>
+    api<InsightAction>(`/insights/${id}`, { method: 'PATCH', body, workspace: true }),
+  toContent: (id: string) =>
+    api<{ content_item_id: string; title: string }>(
+      `/insights/${id}/to-content`, { method: 'POST', workspace: true }),
+  toStrategy: (id: string, strategy_id: string) =>
+    api<{ strategy_id: string; added: boolean }>(
+      `/insights/${id}/to-strategy`, { method: 'POST', body: { strategy_id }, workspace: true }),
+  bulkTag: (ids: string[], tags: string[]) =>
+    api<{ updated: number }>(`/insights/bulk-tag`, { method: 'POST', body: { ids, tags }, workspace: true }),
+};
+
+// ---------- Notifications & Alerts ----------
+export interface NotificationItem {
+  id: string;
+  level: string;
+  category: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read: boolean;
+  created_at: string;
+}
+
+export const Notifications = {
+  list: (params?: { unread_only?: boolean; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.unread_only) qs.set('unread_only', 'true');
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const s = qs.toString();
+    return api<NotificationItem[]>(`/notifications${s ? `?${s}` : ''}`, { workspace: true });
+  },
+  unreadCount: () =>
+    api<{ count: number }>('/notifications/unread-count', { workspace: true }),
+  markRead: (id: string) =>
+    api<NotificationItem>(`/notifications/${id}/read`, { method: 'POST', workspace: true }),
+  markAllRead: () =>
+    api<{ updated: number }>('/notifications/read-all', { method: 'POST', workspace: true }),
+  remove: (id: string) =>
+    api<void>(`/notifications/${id}`, { method: 'DELETE', workspace: true }),
 };
 
 // ---------- M2: Content Studio ----------
@@ -654,6 +743,24 @@ export const Social = {
 };
 
 // ---------- M5: Ads ----------
+export interface DiscoveredAccount {
+  external_id: string;
+  name: string;
+  currency: string;
+  is_manager: boolean;
+  is_test: boolean;
+  is_grant_guess: boolean;
+  monthly_budget: number | null;
+  grant_signals: string[];
+}
+export interface AdAccountMeta {
+  mode?: string;
+  discovered?: DiscoveredAccount[];
+  grant_detected?: boolean;
+  grant_signals?: string[];
+  needs_confirmation?: boolean;
+  [key: string]: unknown;
+}
 export interface AdAccount {
   id: string;
   platform: string;
@@ -662,6 +769,7 @@ export interface AdAccount {
   is_grant: boolean;
   connected: boolean;
   currency: string;
+  meta: AdAccountMeta | null;
   created_at: string;
 }
 export interface Campaign {
@@ -765,6 +873,12 @@ export const Ads = {
     api<AdAccount>(`/ads/accounts/${id}/connect`, { method: 'POST', workspace: true }),
   disconnectAccount: (id: string) =>
     api<AdAccount>(`/ads/accounts/${id}/disconnect`, { method: 'POST', workspace: true }),
+  updateAccount: (
+    id: string,
+    body: { external_id?: string; name?: string; is_grant?: boolean },
+  ) => api<AdAccount>(`/ads/accounts/${id}`, { method: 'PATCH', body, workspace: true }),
+  discoverAccount: (id: string) =>
+    api<AdAccount>(`/ads/accounts/${id}/discover`, { method: 'POST', workspace: true }),
   generate: (body: {
     ad_account_id: string;
     objective: string;
@@ -843,6 +957,28 @@ export interface PostStat {
   simulated: boolean;
 }
 
+export interface NextMove {
+  title: string;
+  rationale: string;
+  impact: string;
+  category: string;
+}
+export interface NextMovesResponse {
+  moves: NextMove[];
+  generated: boolean;
+}
+
+export interface NextMove {
+  title: string;
+  rationale: string;
+  impact: string;
+  category: string;
+}
+export interface NextMovesResponse {
+  moves: NextMove[];
+  generated: boolean;
+}
+
 export const Analytics = {
   summary: () => api<AnalyticsSummary>('/analytics/summary', { workspace: true }),
   ingest: (body: {
@@ -862,11 +998,22 @@ export const Analytics = {
     ),
   posts: (days = 30) =>
     api<PostStat[]>(`/analytics/posts?days=${days}`, { workspace: true }),
+  nextMoves: (days = 30, refresh = false) =>
+    api<NextMovesResponse>(
+      `/analytics/next-moves?days=${days}&refresh=${refresh}`,
+      { workspace: true },
+    ),
 };
 
 export const Billing = {
   plans: () => api<Plan[]>('/billing/plans', { workspace: true }),
   summary: () => api<BillingSummary>('/billing/summary', { workspace: true }),
+  checkout: (planCode: string) =>
+    api<{ url: string }>('/billing/checkout', {
+      method: 'POST', workspace: true, body: { plan_code: planCode },
+    }),
+  portal: () => api<{ url: string }>('/billing/portal', { method: 'POST', workspace: true }),
+  checkoutStatus: () => api<{ configured: boolean }>('/billing/status'),
 };
 
 // ---------- Client Reports ----------

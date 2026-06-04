@@ -2,18 +2,30 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
-  Box, Chip, CircularProgress, Grid, IconButton,
-  MenuItem, Stack, TextField, Tooltip, Typography,
+  Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
+  DialogTitle, Grid, IconButton, Menu, MenuItem, Snackbar, Alert, Stack,
+  TextField, Tooltip, Typography,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import SearchIcon from '@mui/icons-material/SearchOutlined';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import PsychologyAltIcon from '@mui/icons-material/PsychologyAlt';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
+import EditNoteIcon from '@mui/icons-material/EditNote';
+import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useAuth } from '@/lib/auth';
-import { Insights, Research, type Insight, type ResearchJob } from '@/lib/api';
+import {
+  Insights, Research, Strategies,
+  type Insight as ApiInsight, type ResearchJob, type Strategy,
+} from '@/lib/api';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { BRAND } from '@/theme/theme';
+
+/* Insight enriched with action metadata (tags/status) used on this page. */
+type Insight = ApiInsight & { tags?: string[] | null; status?: string };
 
 /* ─── design tokens (light) ─── */
 const INK      = '#11151B';
@@ -346,13 +358,25 @@ function SignalFeed({ items, onDelete }: { items: Insight[]; onDelete: (id: stri
 }
 
 /* ─────────── Insight Card ─────────── */
-function InsightCard({ ins, onDelete }: { ins: Insight; onDelete: () => void }) {
+function InsightCard({
+  ins, onDelete, onTag, onCreateContent, onSendToStrategy,
+}: {
+  ins: Insight;
+  onDelete: () => void;
+  onTag: (anchor: HTMLElement) => void;
+  onCreateContent: () => void;
+  onSendToStrategy: (anchor: HTMLElement) => void;
+}) {
   const color  = (ins.intent && INTENT_COLOR[ins.intent]) || '#94a3b8';
   const isHigh = ins.score >= 0.7;
+  const actioned = ins.status === 'actioned';
+  const tags = ins.tags || [];
+  const [menuEl, setMenuEl] = useState<HTMLElement | null>(null);
+
   return (
     <Box sx={{
       p: 2.2, borderRadius: 3, bgcolor: WHITE, position: 'relative',
-      border: `1px solid ${LINE}`, borderLeft: `3px solid ${color}`,
+      border: `1px solid ${LINE}`, borderLeft: `3px solid ${actioned ? BRAND.teal : color}`,
       transition: 'all .18s',
       '&:hover': {
         boxShadow: `0 6px 28px ${color}18`,
@@ -360,17 +384,29 @@ function InsightCard({ ins, onDelete }: { ins: Insight; onDelete: () => void }) 
         '& .del-btn': { opacity: 1 },
       },
     }}>
-      {isHigh && (
-        <Box sx={{ position: 'absolute', top: 10, right: 10,
-          px: 0.9, py: 0.2, borderRadius: 1,
-          bgcolor: `${BRAND.amber}20`, border: `1px solid ${BRAND.amber}40` }}>
-          <Typography sx={{ fontSize: 8.5, fontWeight: 900, color: BRAND.amberDeep, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-            priority
-          </Typography>
-        </Box>
-      )}
+      <Stack direction="row" spacing={0.5} sx={{ position: 'absolute', top: 10, right: 10 }} alignItems="center">
+        {actioned && (
+          <Tooltip title="Actioned">
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4,
+              px: 0.8, py: 0.2, borderRadius: 1, bgcolor: `${BRAND.teal}16`, border: `1px solid ${BRAND.teal}38` }}>
+              <CheckCircleIcon sx={{ fontSize: 11, color: BRAND.teal }} />
+              <Typography sx={{ fontSize: 8.5, fontWeight: 900, color: BRAND.teal, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                actioned
+              </Typography>
+            </Box>
+          </Tooltip>
+        )}
+        {isHigh && !actioned && (
+          <Box sx={{ px: 0.9, py: 0.2, borderRadius: 1,
+            bgcolor: `${BRAND.amber}20`, border: `1px solid ${BRAND.amber}40` }}>
+            <Typography sx={{ fontSize: 8.5, fontWeight: 900, color: BRAND.amberDeep, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+              priority
+            </Typography>
+          </Box>
+        )}
+      </Stack>
 
-      <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mb: 1.5 }}>
+      <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ mb: 1.5, pr: actioned ? 8 : 5 }}>
         <Ring v={ins.score} size={38} color={color} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           {ins.intent && (
@@ -387,19 +423,60 @@ function InsightCard({ ins, onDelete }: { ins: Insight; onDelete: () => void }) 
         </Box>
       </Stack>
 
+      {tags.length > 0 && (
+        <Stack direction="row" spacing={0.6} flexWrap="wrap" useFlexGap sx={{ mb: 1.2 }}>
+          {tags.map((t) => (
+            <Chip key={t} label={t} size="small" icon={<LocalOfferOutlinedIcon sx={{ fontSize: 12 }} />}
+              sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: `${BRAND.teal}10`,
+                color: BRAND.teal, border: `1px solid ${BRAND.teal}30`,
+                '& .MuiChip-icon': { color: BRAND.teal, ml: 0.5 } }} />
+          ))}
+        </Stack>
+      )}
+
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Box sx={{ px: 0.9, py: 0.2, borderRadius: 1, bgcolor: CANVAS }}>
           <Typography sx={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, color: SUBTLE }}>
             {ins.kind}
           </Typography>
         </Box>
-        <IconButton size="small" onClick={onDelete} className="del-btn"
-          sx={{ opacity: 0, transition: 'opacity .15s', color: SUBTLE,
-            '&:hover': { color: '#ef4444', bgcolor: '#fef2f2' } }}
-          aria-label="delete insight">
-          <DeleteOutlineIcon sx={{ fontSize: 15 }} />
-        </IconButton>
+        <Stack direction="row" spacing={0.3} alignItems="center">
+          <Tooltip title="Tag insight">
+            <IconButton size="small" onClick={(e) => onTag(e.currentTarget)}
+              sx={{ color: SUBTLE, '&:hover': { color: BRAND.teal, bgcolor: `${BRAND.teal}10` } }}
+              aria-label="tag insight">
+              <LocalOfferOutlinedIcon sx={{ fontSize: 15 }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="More actions">
+            <IconButton size="small" onClick={(e) => setMenuEl(e.currentTarget)}
+              sx={{ color: SUBTLE, '&:hover': { color: INK, bgcolor: CANVAS } }}
+              aria-label="more actions">
+              <MoreVertIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+          <IconButton size="small" onClick={onDelete} className="del-btn"
+            sx={{ opacity: 0, transition: 'opacity .15s', color: SUBTLE,
+              '&:hover': { color: '#ef4444', bgcolor: '#fef2f2' } }}
+            aria-label="delete insight">
+            <DeleteOutlineIcon sx={{ fontSize: 15 }} />
+          </IconButton>
+        </Stack>
       </Stack>
+
+      <Menu anchorEl={menuEl} open={Boolean(menuEl)} onClose={() => setMenuEl(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
+        <MenuItem onClick={(e) => { setMenuEl(null); onTag(e.currentTarget); }} sx={{ fontSize: 13 }}>
+          <LocalOfferOutlinedIcon sx={{ fontSize: 16, mr: 1, color: SUBTLE }} /> Tag
+        </MenuItem>
+        <MenuItem onClick={() => { setMenuEl(null); onCreateContent(); }} sx={{ fontSize: 13 }}>
+          <EditNoteIcon sx={{ fontSize: 17, mr: 1, color: SUBTLE }} /> Create content
+        </MenuItem>
+        <MenuItem onClick={(e) => { setMenuEl(null); onSendToStrategy(e.currentTarget); }} sx={{ fontSize: 13 }}>
+          <HubOutlinedIcon sx={{ fontSize: 16, mr: 1, color: SUBTLE }} /> Send to strategy
+        </MenuItem>
+      </Menu>
     </Box>
   );
 }
@@ -420,6 +497,17 @@ export default function InsightsPage() {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const [graphSize, setGraphSize]     = useState({ w: 700, h: 460 });
   const confirm = useConfirm();
+
+  // Insights → Action state
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [toast, setToast] = useState<{ msg: string; severity: 'success' | 'error' } | null>(null);
+  const [tagAnchor, setTagAnchor] = useState<HTMLElement | null>(null);
+  const [tagTarget, setTagTarget] = useState<Insight | null>(null);
+  const [tagInput, setTagInput] = useState('');
+  const [tagSaving, setTagSaving] = useState(false);
+  const [stratAnchor, setStratAnchor] = useState<HTMLElement | null>(null);
+  const [stratTarget, setStratTarget] = useState<Insight | null>(null);
+  const [stratBusyId, setStratBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     const el = graphContainerRef.current;
@@ -442,6 +530,11 @@ export default function InsightsPage() {
   }, [activeWorkspace]);
 
   useEffect(() => {
+    if (!activeWorkspace) { setStrategies([]); return; }
+    Strategies.list().then(setStrategies).catch(() => setStrategies([]));
+  }, [activeWorkspace]);
+
+  useEffect(() => {
     if (!jobId) { setItems([]); return; }
     setLoading(true); setActiveCluster(null);
     Research.insights(jobId).then(setItems).catch(() => setItems([])).finally(() => setLoading(false));
@@ -454,6 +547,70 @@ export default function InsightsPage() {
     setItems((l) => l.filter((x) => x.id !== ins.id));
     try { await Insights.remove(ins.id); } catch { setItems(prev); }
   }, [confirm, items]);
+
+  const patchItem = useCallback((id: string, patch: Partial<Insight>) => {
+    setItems((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  }, []);
+
+  const openTag = useCallback((ins: Insight, anchor: HTMLElement) => {
+    setTagTarget(ins);
+    setTagInput((ins.tags || []).join(', '));
+    setTagAnchor(anchor);
+  }, []);
+
+  const closeTag = useCallback(() => {
+    setTagAnchor(null); setTagTarget(null); setTagInput(''); setTagSaving(false);
+  }, []);
+
+  const saveTags = useCallback(async () => {
+    if (!tagTarget) return;
+    const tags = Array.from(new Set(
+      tagInput.split(',').map((t) => t.trim()).filter(Boolean),
+    ));
+    setTagSaving(true);
+    try {
+      const updated = await Insights.update(tagTarget.id, { tags });
+      patchItem(tagTarget.id, { tags: updated.tags, status: updated.status });
+      setToast({ msg: 'Tags saved', severity: 'success' });
+      closeTag();
+    } catch {
+      setToast({ msg: 'Failed to save tags', severity: 'error' });
+      setTagSaving(false);
+    }
+  }, [tagTarget, tagInput, patchItem, closeTag]);
+
+  const createContent = useCallback(async (ins: Insight) => {
+    try {
+      const res = await Insights.toContent(ins.id);
+      patchItem(ins.id, { status: 'actioned' });
+      setToast({ msg: `Draft created: "${res.title.slice(0, 40)}"`, severity: 'success' });
+    } catch {
+      setToast({ msg: 'Failed to create content', severity: 'error' });
+    }
+  }, [patchItem]);
+
+  const openStrategyPicker = useCallback((ins: Insight, anchor: HTMLElement) => {
+    setStratTarget(ins);
+    setStratAnchor(anchor);
+  }, []);
+
+  const closeStrategyPicker = useCallback(() => {
+    setStratAnchor(null); setStratTarget(null); setStratBusyId(null);
+  }, []);
+
+  const sendToStrategy = useCallback(async (strategyId: string) => {
+    if (!stratTarget) return;
+    setStratBusyId(strategyId);
+    try {
+      await Insights.toStrategy(stratTarget.id, strategyId);
+      patchItem(stratTarget.id, { status: 'actioned' });
+      setToast({ msg: 'Sent to strategy', severity: 'success' });
+      closeStrategyPicker();
+    } catch {
+      setToast({ msg: 'Failed to send to strategy', severity: 'error' });
+      setStratBusyId(null);
+    }
+  }, [stratTarget, patchItem, closeStrategyPicker]);
 
   const selectedJob = jobs.find((j) => j.id === jobId) || null;
   const intents     = useMemo(() => Array.from(new Set(items.map((i) => i.intent).filter(Boolean))) as string[], [items]);
@@ -704,7 +861,13 @@ export default function InsightsPage() {
               <Grid container spacing={1.5}>
                 {filtered.map((ins) => (
                   <Grid key={ins.id} size={{ xs: 12, sm: 6, lg: 4, xl: 3 }}>
-                    <InsightCard ins={ins} onDelete={() => handleDelete(ins)} />
+                    <InsightCard
+                      ins={ins}
+                      onDelete={() => handleDelete(ins)}
+                      onTag={(anchor) => openTag(ins, anchor)}
+                      onCreateContent={() => createContent(ins)}
+                      onSendToStrategy={(anchor) => openStrategyPicker(ins, anchor)}
+                    />
                   </Grid>
                 ))}
               </Grid>
@@ -719,6 +882,78 @@ export default function InsightsPage() {
           to   { opacity: 1; transform: none; }
         }
       `}</style>
+
+      {/* ── Tag editor ── */}
+      <Dialog open={Boolean(tagAnchor && tagTarget)} onClose={closeTag} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontSize: 16, fontWeight: 900, color: INK, pb: 0.5 }}>
+          Tag insight
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 12, color: SUBTLE, mb: 1.5 }}>
+            {tagTarget?.text.slice(0, 90)}{(tagTarget?.text.length ?? 0) > 90 ? '…' : ''}
+          </Typography>
+          <TextField
+            autoFocus fullWidth size="small" label="Tags (comma separated)"
+            placeholder="e.g. priority, q2-campaign"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveTags(); } }}
+          />
+          <Stack direction="row" spacing={0.6} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
+            {tagInput.split(',').map((t) => t.trim()).filter(Boolean).map((t) => (
+              <Chip key={t} label={t} size="small"
+                sx={{ height: 22, fontSize: 11, fontWeight: 700, bgcolor: `${BRAND.teal}10`,
+                  color: BRAND.teal, border: `1px solid ${BRAND.teal}30` }} />
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={closeTag} sx={{ color: SUBTLE, textTransform: 'none', fontWeight: 700 }}>
+            Cancel
+          </Button>
+          <Button onClick={saveTags} disabled={tagSaving} variant="contained" color="secondary"
+            sx={{ textTransform: 'none', fontWeight: 800 }}>
+            {tagSaving ? 'Saving…' : 'Save tags'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Strategy picker ── */}
+      <Menu anchorEl={stratAnchor} open={Boolean(stratAnchor && stratTarget)}
+        onClose={closeStrategyPicker}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{ paper: { sx: { maxWidth: 280, maxHeight: 320 } } }}>
+        <Typography sx={{ px: 2, py: 1, fontSize: 11, fontWeight: 900, textTransform: 'uppercase',
+          letterSpacing: 0.6, color: SUBTLE }}>
+          Send to strategy
+        </Typography>
+        {strategies.length === 0 ? (
+          <MenuItem disabled sx={{ fontSize: 13 }}>No strategies yet</MenuItem>
+        ) : (
+          strategies.map((s) => (
+            <MenuItem key={s.id} disabled={stratBusyId !== null}
+              onClick={() => sendToStrategy(s.id)}
+              sx={{ fontSize: 13, whiteSpace: 'normal' }}>
+              <HubOutlinedIcon sx={{ fontSize: 16, mr: 1, color: SUBTLE, flexShrink: 0 }} />
+              <Box sx={{ flex: 1, minWidth: 0 }}>{s.title}</Box>
+              {stratBusyId === s.id && <CircularProgress size={14} sx={{ ml: 1 }} color="secondary" />}
+            </MenuItem>
+          ))
+        )}
+      </Menu>
+
+      {/* ── Toast ── */}
+      <Snackbar open={Boolean(toast)} autoHideDuration={3200}
+        onClose={() => setToast(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        {toast ? (
+          <Alert severity={toast.severity} variant="filled" onClose={() => setToast(null)}
+            sx={{ fontWeight: 700 }}>
+            {toast.msg}
+          </Alert>
+        ) : undefined}
+      </Snackbar>
     </Box>
   );
 }

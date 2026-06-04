@@ -43,3 +43,6 @@ azure-storage-blob==12.24.0
 # --- Misc ---
 tenacity==9.0.0
 orjson==3.10.13
+
+# --- Stripe billing ---
+stripe==11.4.1

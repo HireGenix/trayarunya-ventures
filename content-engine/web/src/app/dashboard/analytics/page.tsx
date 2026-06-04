@@ -18,6 +18,7 @@ import FavoriteIcon from '@mui/icons-material/FavoriteBorderOutlined';
 import InsightsIcon from '@mui/icons-material/InsightsOutlined';
 import PaidIcon from '@mui/icons-material/PaidOutlined';
 import RefreshIcon from '@mui/icons-material/RefreshOutlined';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunchOutlined';
 import TouchAppIcon from '@mui/icons-material/TouchAppOutlined';
 import TrendingUpIcon from '@mui/icons-material/TrendingUpOutlined';
@@ -28,6 +29,15 @@ import { BRAND } from '@/theme/theme';
 
 const INK = '#11151B';
 const PANEL = 'rgba(255,255,255,0.82)';
+
+type NextMove = { title: string; rationale: string; impact: string; category: string };
+type NextMovesResponse = { moves: NextMove[]; generated: boolean };
+
+const IMPACT_COLOR: Record<string, string> = {
+  high: '#2BD9A4',
+  medium: BRAND.amber,
+  low: 'rgba(255,255,255,0.55)',
+};
 
 function fmt(n: number): string {
   if (!Number.isFinite(n)) return '0';
@@ -150,6 +160,84 @@ function TrendStrip({ series }: { series: AnalyticsSummary['series'] }) {
         );
       })}
     </Stack>
+  );
+}
+
+function AiNextMoves({ workspaceKey }: { workspaceKey: string }) {
+  const [moves, setMoves] = useState<NextMove[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [regenerating, setRegenerating] = useState(false);
+
+  const fetchMoves = (refresh = false) => {
+    if (refresh) setRegenerating(true); else setLoading(true);
+    Analytics.nextMoves(30, refresh)
+      .then((res: NextMovesResponse) => setMoves(res.moves || []))
+      .catch(() => setMoves([]))
+      .finally(() => { setLoading(false); setRegenerating(false); });
+  };
+
+  useEffect(() => { fetchMoves(false); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [workspaceKey]);
+
+  return (
+    <Card sx={{ height: '100%', borderRadius: 4, color: '#fff', overflow: 'hidden', background: 'linear-gradient(145deg,#11151B 0%,#1B2330 60%,#10231E 100%)', boxShadow: '0 22px 60px rgba(17,21,27,0.18)' }}>
+      <CardContent sx={{ p: 3, position: 'relative' }}>
+        <Box sx={{ position: 'absolute', right: -70, top: -70, width: 230, height: 230, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,187,135,0.34), transparent 65%)' }} />
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ position: 'relative' }}>
+          <Box>
+            <RocketLaunchIcon sx={{ color: BRAND.amber, mb: 1 }} />
+            <Typography variant="h6" fontWeight={950}>AI marketing next moves</Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', mt: 0.3 }}>
+              Generated from your live metrics.
+            </Typography>
+          </Box>
+          <Button
+            size="small"
+            onClick={() => fetchMoves(true)}
+            disabled={regenerating || loading}
+            startIcon={regenerating ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeIcon sx={{ fontSize: 16 }} />}
+            sx={{ textTransform: 'none', fontWeight: 800, color: INK, borderRadius: 2.5, px: 1.6, background: `linear-gradient(135deg, ${BRAND.amber} 0%, ${BRAND.teal} 100%)`, '&:hover': { opacity: 0.92 }, '&.Mui-disabled': { color: 'rgba(17,21,27,0.5)' } }}
+          >
+            {regenerating ? 'Generating…' : 'Regenerate'}
+          </Button>
+        </Stack>
+
+        <Stack spacing={1.5} sx={{ mt: 2.2, position: 'relative' }}>
+          {loading ? (
+            <Box sx={{ display: 'grid', placeItems: 'center', minHeight: 160 }}>
+              <CircularProgress size={28} sx={{ color: BRAND.amber }} />
+            </Box>
+          ) : !moves || moves.length === 0 ? (
+            <Box sx={{ p: 1.7, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                Publish content or ingest metrics to unlock AI-generated recommendations.
+              </Typography>
+            </Box>
+          ) : (
+            moves.map((m, i) => {
+              const accent = IMPACT_COLOR[m.impact?.toLowerCase()] || BRAND.amber;
+              return (
+                <Box key={`${m.title}-${i}`} sx={{ p: 1.7, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+                    <Typography fontWeight={900}>{m.title}</Typography>
+                    <Chip
+                      label={m.impact}
+                      size="small"
+                      sx={{ textTransform: 'capitalize', fontWeight: 800, fontSize: 10.5, height: 22, color: INK, bgcolor: accent }}
+                    />
+                  </Stack>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.68)', mt: 0.4 }}>{m.rationale}</Typography>
+                  <Chip
+                    label={m.category}
+                    size="small"
+                    sx={{ mt: 1, textTransform: 'capitalize', fontWeight: 700, fontSize: 10, height: 20, color: 'rgba(255,255,255,0.78)', bgcolor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.16)' }}
+                  />
+                </Box>
+              );
+            })
+          )}
+        </Stack>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -293,25 +381,7 @@ export default function AnalyticsPage() {
           </Card>
         </Grid>
         <Grid size={{ xs: 12, md: 5 }}>
-          <Card sx={{ height: '100%', borderRadius: 4, color: '#fff', overflow: 'hidden', background: 'linear-gradient(145deg,#11151B 0%,#1B2330 60%,#10231E 100%)', boxShadow: '0 22px 60px rgba(17,21,27,0.18)' }}>
-            <CardContent sx={{ p: 3, position: 'relative' }}>
-              <Box sx={{ position: 'absolute', right: -70, top: -70, width: 230, height: 230, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,187,135,0.34), transparent 65%)' }} />
-              <RocketLaunchIcon sx={{ color: BRAND.amber, mb: 1 }} />
-              <Typography variant="h6" fontWeight={950}>AI marketing next moves</Typography>
-              <Stack spacing={1.5} sx={{ mt: 2.2, position: 'relative' }}>
-                {[
-                  ['Double down on winning hooks', `Use top-performing channel patterns to generate next week's content angles.`],
-                  ['Improve click path friction', `CTR is ${pct(derived.ctr)}; test sharper CTAs and offer-led landing pages.`],
-                  ['Turn proof into reports', 'Package these metrics into a client-facing report when a campaign milestone is reached.'],
-                ].map(([title, desc]) => (
-                  <Box key={title} sx={{ p: 1.7, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
-                    <Typography fontWeight={900}>{title}</Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.68)', mt: 0.4 }}>{desc}</Typography>
-                  </Box>
-                ))}
-              </Stack>
-            </CardContent>
-          </Card>
+          <AiNextMoves workspaceKey={activeWorkspace?.id ?? 'none'} />
         </Grid>
       </Grid>
     </Stack>
