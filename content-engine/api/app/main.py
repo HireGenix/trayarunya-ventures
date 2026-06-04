@@ -1,7 +1,6 @@
 """FastAPI application factory for the Trayarunya Content Engine API."""
 from __future__ import annotations
 
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -41,9 +40,6 @@ from app.routers import (
     watchtower,
     workspaces,
 )
-
-logging.basicConfig(level=logging.INFO)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
