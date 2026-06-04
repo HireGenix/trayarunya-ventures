@@ -15,6 +15,7 @@ from app.routers import (
     abm,
     ads,
     analytics,
+    attribution,
     auth,
     billing,
     billing_checkout,
@@ -166,6 +167,7 @@ def create_app() -> FastAPI:
     app.include_router(billing_checkout.router, prefix=p)
     app.include_router(experiments.router, prefix=p)
     app.include_router(integrations.router, prefix=p)
+    app.include_router(attribution.router, prefix=p)
     app.include_router(watchtower.router, prefix=p)
     app.include_router(abm.router, prefix=p)
     app.include_router(creative_intel.router, prefix=p)

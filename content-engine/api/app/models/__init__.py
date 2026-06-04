@@ -35,6 +35,7 @@ from app.models.platform import (
     AuditLog,
     Benchmark,
 )
+from app.models.attribution import RevenueEvent
 
 __all__ = [
     "Base",
@@ -82,4 +83,5 @@ __all__ = [
     "ContentVersion",
     "AuditLog",
     "Benchmark",
+    "RevenueEvent",
 ]

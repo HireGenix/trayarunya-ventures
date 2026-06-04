@@ -9,7 +9,7 @@ import pytest
 from app.main import create_app
 
 # Expected total route count — bump intentionally when routes are added/removed.
-EXPECTED_ROUTE_COUNT = 161
+EXPECTED_ROUTE_COUNT = 166
 
 
 @pytest.fixture(scope="module")
