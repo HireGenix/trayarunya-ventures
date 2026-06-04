@@ -44,6 +44,30 @@ class Settings(BaseSettings):
     run_background_loops: bool = Field(default=True)
     leader_lock_ttl_seconds: int = Field(default=30)
 
+    # Max research jobs a single worker processes concurrently. Each in-flight
+    # deep-research job may spawn a Chromium crawl, so keep this in line with the
+    # worker container's memory (≈1–1.5 GB headroom per concurrent job).
+    worker_concurrency: int = Field(default=3, ge=1, le=20)
+
+    # Deep-research depth controls. Each reflect-driven pass re-runs search+crawl,
+    # so fewer iterations / a wall-clock budget keeps jobs from appearing "stuck"
+    # at the reflect phase (88% in the UI) for several minutes.
+    research_max_iterations: int = Field(default=2, ge=1, le=5)
+    research_time_budget_seconds: int = Field(default=360, ge=60, le=1800)
+
+    # LLM provider for the research pipeline. GPT-5.5 is markedly faster than
+    # Claude Opus for the many sequential reasoning calls a research run makes,
+    # so it is the default; set to "claude-opus" to prioritise depth over speed.
+    research_llm_provider: str = Field(default="gpt-5.5")
+
+    # --- Web search providers (keys loaded from env/secrets; never hard-coded) ---
+    # Tried in order; DuckDuckGo's keyless HTML scrape is always the final
+    # fallback. Adding any of these makes search reliable when DDG rate-limits
+    # (HTTP 403), which is the usual cause of a research run stalling at "search".
+    tavily_api_key: str | None = None
+    brave_search_api_key: str | None = None
+    langsearch_api_key: str | None = None
+
     # --- CORS ---
     cors_origins: str = Field(
         default="http://localhost:3000,http://localhost:3100",
@@ -94,6 +118,64 @@ class Settings(BaseSettings):
     azure_flux_key: str | None = None
     azure_flux_model: str = "flux-2-pro"
 
+    # --- AI video (Content Studio): voiceover + captions + Pexels b-roll ---
+    # Voiceover via Azure OpenAI gpt-4o-mini-tts (steerable TTS). Falls back to
+    # the gpt-5 Azure resource endpoint/key when the dedicated TTS values are
+    # unset, so a single Azure OpenAI resource powers text + image + audio.
+    azure_tts_endpoint: str | None = None
+    azure_tts_key: str | None = None
+    azure_tts_deployment: str = "gpt-4o-mini-tts"
+    azure_tts_api_version: str = "2025-03-01-preview"
+    azure_tts_voice: str = "alloy"  # alloy|echo|fable|onyx|nova|shimmer|coral|sage
+    # Caption word-timing via Azure OpenAI Whisper transcription (verbose_json).
+    azure_whisper_endpoint: str | None = None
+    azure_whisper_key: str | None = None
+    azure_whisper_deployment: str = "whisper"
+    azure_whisper_api_version: str = "2024-06-01"
+    # Pexels stock footage (b-roll). Get a free key at https://www.pexels.com/api/
+    pexels_api_key: str | None = None
+    # Local fallback storage for rendered videos when Azure Blob is unconfigured.
+    media_root: str = "media"
+
+    # --- Social profile auditing (public Instagram reads) ---------------------
+    # Instagram blocks anonymous reads from cloud/datacenter IPs (Azure/AWS/GCP),
+    # so the research audit works locally but returns "found: false" in prod.
+    # Provide either of the following to make it work from the cloud:
+    #   1. social_proxy_url  – an outbound residential/rotating proxy URL, e.g.
+    #      http://user:pass@host:port (all social scraping routes through it).
+    #   2. ig_sessionid      – the `sessionid` cookie from a logged-in instagram
+    #      browser session; makes public reads succeed from datacenter IPs.
+    social_proxy_url: str | None = None
+    ig_sessionid: str | None = None
+    # Free cookie pool: comma-separated list of instagram `sessionid` cookies
+    # (your own throwaway accounts). The self-hosted scraper rotates across them
+    # so no single account/IP gets rate-limited — this is how we scale reads
+    # from the cloud without any paid provider.
+    ig_sessionids: str | None = None
+    # Audit cache TTL (seconds). At scale we serve repeat audits from Redis
+    # instead of hitting Instagram every time. 0 disables caching.
+    social_audit_cache_ttl: int = Field(default=21600)  # 6 hours
+
+    @property
+    def tts_endpoint(self) -> str | None:
+        return self.azure_tts_endpoint or self.azure_gpt5_endpoint
+
+    @property
+    def tts_key(self) -> str | None:
+        return self.azure_tts_key or self.azure_gpt5_key
+
+    @property
+    def whisper_endpoint(self) -> str | None:
+        return self.azure_whisper_endpoint or self.azure_gpt5_endpoint
+
+    @property
+    def whisper_key(self) -> str | None:
+        return self.azure_whisper_key or self.azure_gpt5_key
+
+    @property
+    def video_configured(self) -> bool:
+        return bool(self.pexels_api_key and self.tts_endpoint and self.tts_key)
+
     # --- OAuth: social networks (native OAuth; you create the developer apps) ---
     oauth_redirect_base: str = Field(
         default="http://localhost:8099",
@@ -101,6 +183,10 @@ class Settings(BaseSettings):
     )
     linkedin_client_id: str | None = None
     linkedin_client_secret: str | None = None
+    # Only request company-page (organization) posting scopes when the LinkedIn app
+    # is approved for the Community Management API. Otherwise authorization fails
+    # with unauthorized_scope_error. Set to true once approved.
+    linkedin_org_posting: bool = False
     x_client_id: str | None = None
     x_client_secret: str | None = None
     meta_app_id: str | None = None

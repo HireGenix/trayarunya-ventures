@@ -76,8 +76,118 @@ async def _post(client: httpx.AsyncClient, url: str, query: str) -> str:
     return res.text
 
 
-async def web_search(query: str, limit: int = 8) -> list[SearchResult]:
-    """Return up to ``limit`` DuckDuckGo results for ``query``."""
+# --------------------------------------------------------------------------- #
+# Keyed providers (preferred — reliable, no scraping/403). Each returns [] when
+# unconfigured or on error so the caller can fall through to the next provider.
+# --------------------------------------------------------------------------- #
+async def _tavily_search(query: str, limit: int) -> list[SearchResult]:
+    from app.config import settings
+
+    if not settings.tavily_api_key:
+        return []
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            res = await client.post(
+                "https://api.tavily.com/search",
+                json={
+                    "api_key": settings.tavily_api_key,
+                    "query": query,
+                    "max_results": limit,
+                    "search_depth": "basic",
+                },
+            )
+            res.raise_for_status()
+            data = res.json()
+        out: list[SearchResult] = []
+        for r in (data.get("results") or [])[:limit]:
+            url = r.get("url") or ""
+            if url.startswith("http"):
+                out.append(
+                    SearchResult(
+                        title=r.get("title") or url,
+                        url=url,
+                        snippet=r.get("content") or "",
+                    )
+                )
+        return out
+    except Exception:
+        return []
+
+
+async def _brave_search(query: str, limit: int) -> list[SearchResult]:
+    from app.config import settings
+
+    if not settings.brave_search_api_key:
+        return []
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            res = await client.get(
+                "https://api.search.brave.com/res/v1/web/search",
+                params={"q": query, "count": limit},
+                headers={
+                    "Accept": "application/json",
+                    "X-Subscription-Token": settings.brave_search_api_key,
+                },
+            )
+            res.raise_for_status()
+            data = res.json()
+        out: list[SearchResult] = []
+        for r in ((data.get("web") or {}).get("results") or [])[:limit]:
+            url = r.get("url") or ""
+            if url.startswith("http"):
+                out.append(
+                    SearchResult(
+                        title=r.get("title") or url,
+                        url=url,
+                        snippet=r.get("description") or "",
+                    )
+                )
+        return out
+    except Exception:
+        return []
+
+
+async def _langsearch_search(query: str, limit: int) -> list[SearchResult]:
+    from app.config import settings
+
+    if not settings.langsearch_api_key:
+        return []
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            res = await client.post(
+                "https://api.langsearch.com/v1/web-search",
+                json={"query": query, "count": limit},
+                headers={
+                    "Authorization": f"Bearer {settings.langsearch_api_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+            res.raise_for_status()
+            data = res.json()
+        # LangSearch nests results under data.webPages.value
+        pages = (
+            ((data.get("data") or {}).get("webPages") or {}).get("value")
+            or (data.get("webPages") or {}).get("value")
+            or []
+        )
+        out: list[SearchResult] = []
+        for r in pages[:limit]:
+            url = r.get("url") or ""
+            if url.startswith("http"):
+                out.append(
+                    SearchResult(
+                        title=r.get("name") or url,
+                        url=url,
+                        snippet=r.get("snippet") or r.get("summary") or "",
+                    )
+                )
+        return out
+    except Exception:
+        return []
+
+
+async def _ddg_search(query: str, limit: int) -> list[SearchResult]:
+    """Keyless DuckDuckGo HTML scrape (last-resort; can be rate-limited)."""
     async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
         try:
             html = await _post(client, "https://html.duckduckgo.com/html/", query)
@@ -91,6 +201,20 @@ async def web_search(query: str, limit: int = 8) -> list[SearchResult]:
             return _parse(html, limit)
         except Exception:
             return []
+
+
+async def web_search(query: str, limit: int = 8) -> list[SearchResult]:
+    """Return up to ``limit`` web results, trying reliable keyed providers first.
+
+    Order: Tavily -> Brave -> LangSearch -> DuckDuckGo. The first provider that
+    returns results wins; unconfigured/failing providers are skipped. This keeps
+    research from stalling when DuckDuckGo returns HTTP 403.
+    """
+    for provider in (_tavily_search, _brave_search, _langsearch_search, _ddg_search):
+        results = await provider(query, limit)
+        if results:
+            return results
+    return []
 
 
 def _parse_news(payload: dict, limit: int) -> list[SearchResult]:
