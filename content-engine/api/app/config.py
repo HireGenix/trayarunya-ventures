@@ -7,6 +7,7 @@ Azure Anthropic Claude Opus) so both products share one Azure AI resource.
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import ClassVar
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -20,8 +21,20 @@ class Settings(BaseSettings):
     # --- App ---
     app_name: str = "Trayarunya Content Engine API"
     environment: str = Field(default="development")
-    debug: bool = Field(default=True)
+    debug: bool = Field(default=False)
     api_v1_prefix: str = "/api/v1"
+
+    # --- Rate limiting (per client IP, sliding window in Redis; falls back to
+    # in-process when Redis is unavailable) ---
+    rate_limit_enabled: bool = Field(default=True)
+    rate_limit_auth_per_minute: int = Field(default=10)
+    rate_limit_ai_per_minute: int = Field(default=30)
+    rate_limit_public_per_minute: int = Field(default=60)
+    rate_limit_default_per_minute: int = Field(default=240)
+
+    # --- Observability ---
+    sentry_dsn: str | None = None
+    log_json: bool = Field(default=True)
 
     # --- CORS ---
     cors_origins: str = Field(
@@ -178,6 +191,53 @@ class Settings(BaseSettings):
     @property
     def claude_configured(self) -> bool:
         return bool(self.azure_anthropic_endpoint and self.azure_anthropic_key)
+
+    # --- Production safety ---
+    _UNSAFE_JWT_SECRETS: ClassVar[set[str]] = {"dev-insecure-change-me", "", "changeme", "secret"}
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.lower() in {"production", "prod"}
+
+    def production_safety_errors(self) -> list[str]:
+        """Return a list of misconfigurations that must block production startup.
+
+        Empty list means the configuration is safe to run in production. This is
+        only enforced when ``environment`` is production/prod, so local and
+        staging keep working with dev-friendly defaults.
+        """
+        errors: list[str] = []
+        if not self.is_production:
+            return errors
+
+        if self.jwt_secret in self._UNSAFE_JWT_SECRETS or len(self.jwt_secret) < 32:
+            errors.append(
+                "JWT_SECRET is unset/weak — set a random value of at least 32 chars."
+            )
+        if not self.encryption_key:
+            errors.append(
+                "ENCRYPTION_KEY is unset — token encryption would fall back to a "
+                "key derived from JWT_SECRET. Set a stable Fernet key in production."
+            )
+        if "postgres:postgres@localhost" in self.database_url or "@localhost" in self.database_url:
+            errors.append(
+                "DATABASE_URL points at a local/default database — set the managed "
+                "Postgres URL."
+            )
+        if self.debug:
+            errors.append("DEBUG must be false in production.")
+        insecure_origins = [
+            o for o in self.cors_origin_list if o.startswith("http://") and "localhost" not in o
+        ]
+        if not self.cors_origin_list:
+            errors.append("CORS_ORIGINS is empty — set the public web origin(s).")
+        if insecure_origins:
+            errors.append(
+                f"CORS_ORIGINS contains insecure non-localhost http origins: {insecure_origins}"
+            )
+        if self.oauth_redirect_base.startswith("http://") and "localhost" not in self.oauth_redirect_base:
+            errors.append("OAUTH_REDIRECT_BASE must be https in production.")
+        return errors
 
 
 @lru_cache

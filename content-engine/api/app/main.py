@@ -7,6 +7,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.middleware import RateLimitMiddleware, RequestContextMiddleware
+from app.logging_config import configure_logging
+
 from app.config import settings
 from app.routers import (
     abm,
@@ -45,6 +48,15 @@ logging.basicConfig(level=logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     import asyncio
+
+    # Production safety gate: refuse to start with unsafe configuration.
+    safety_errors = settings.production_safety_errors()
+    if safety_errors:
+        joined = "\n  - ".join(safety_errors)
+        raise RuntimeError(
+            "Refusing to start in production with unsafe configuration:\n  - "
+            + joined
+        )
 
     # In production, schema is managed by Alembic migrations. For local/dev we
     # create tables on startup so the app is runnable without a migration step.
@@ -127,12 +139,14 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    configure_logging()
     app = FastAPI(
         title=settings.app_name,
         version="0.1.0",
         lifespan=lifespan,
     )
 
+    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
@@ -140,6 +154,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RequestContextMiddleware)
 
     app.include_router(health.router)
     p = settings.api_v1_prefix
