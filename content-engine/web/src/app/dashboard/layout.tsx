@@ -13,6 +13,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  Drawer,
   IconButton,
   Menu,
   MenuItem,
@@ -43,6 +44,7 @@ import RadarIcon from '@mui/icons-material/RadarOutlined';
 import BusinessIcon from '@mui/icons-material/BusinessOutlined';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunchOutlined';
 import HubIcon from '@mui/icons-material/HubOutlined';
+import MenuIcon from '@mui/icons-material/MenuOutlined';
 import { useAuth } from '@/lib/auth';
 import { Workspaces, Calendar } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
@@ -121,6 +123,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [wsSite, setWsSite] = useState('');
   const [userMenuEl, setUserMenuEl] = useState<null | HTMLElement>(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (!loading && !me) router.replace('/login');
@@ -414,6 +421,83 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </MenuItem>
       </Menu>
 
+      {/* Mobile navigation drawer */}
+      <Drawer
+        anchor="left"
+        open={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+        sx={{ display: { xs: 'block', md: 'none' } }}
+        slotProps={{ paper: { sx: { width: 280, bgcolor: INK, color: '#fff', p: 2 } } }}
+      >
+        <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 2, px: 0.5 }}>
+          <Box
+            sx={{
+              width: 34,
+              height: 34,
+              borderRadius: '11px',
+              display: 'grid',
+              placeItems: 'center',
+              background: BRAND.gradient,
+              color: '#fff',
+            }}
+          >
+            <AutoAwesomeIcon sx={{ fontSize: 19 }} />
+          </Box>
+          <Typography sx={{ fontWeight: 800, fontSize: 16 }}>Trayarunya</Typography>
+        </Stack>
+        <Box sx={{ overflowY: 'auto' }}>
+          {NAV.map((group, gi) => (
+            <Box key={gi} sx={{ mb: 1.5 }}>
+              {group.heading && (
+                <Typography
+                  sx={{
+                    px: 1,
+                    py: 0.5,
+                    fontSize: 10.5,
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: 'rgba(255,255,255,0.4)',
+                  }}
+                >
+                  {group.heading}
+                </Typography>
+              )}
+              {group.items.map((item) => {
+                const active = isActive(item.href, pathname);
+                return (
+                  <Box
+                    key={item.href}
+                    component={Link}
+                    href={item.href}
+                    onClick={() => setMobileNavOpen(false)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.25,
+                      px: 1,
+                      py: 1,
+                      borderRadius: '12px',
+                      textDecoration: 'none',
+                      color: active ? INK : 'rgba(255,255,255,0.75)',
+                      bgcolor: active ? '#fff' : 'transparent',
+                      fontWeight: active ? 700 : 500,
+                      fontSize: 14,
+                      '&:hover': { bgcolor: active ? '#fff' : 'rgba(255,255,255,0.08)' },
+                    }}
+                  >
+                    <Box sx={{ display: 'grid', placeItems: 'center', color: active ? item.color : 'inherit' }}>
+                      {item.icon}
+                    </Box>
+                    {item.label}
+                  </Box>
+                );
+              })}
+            </Box>
+          ))}
+        </Box>
+      </Drawer>
+
       {/* Main */}
       <Box sx={{ flexGrow: 1, minWidth: 0, minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
         {/* Topbar */}
@@ -428,6 +512,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             borderColor: 'rgba(14,17,22,0.06)',
           }}
         >
+          <IconButton
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open navigation"
+            sx={{ display: { xs: 'inline-flex', md: 'none' }, mr: 1, ml: -0.5 }}
+          >
+            <MenuIcon />
+          </IconButton>
           <Typography sx={{ fontWeight: 600, fontSize: 15 }}>{currentLabel}</Typography>
           <Box sx={{ flexGrow: 1 }} />
           {activeWorkspace?.website && (

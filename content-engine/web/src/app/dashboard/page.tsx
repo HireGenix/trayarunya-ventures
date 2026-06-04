@@ -35,8 +35,10 @@ import {
   type Strategy,
   type ContentItem,
   type ContentCalendar,
+  type CalendarEntry,
 } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
+import OnboardingChecklist from '@/components/OnboardingChecklist';
 
 /* ----------------------------- helpers ----------------------------- */
 
@@ -533,6 +535,19 @@ export default function OverviewPage() {
     [calendars],
   );
 
+  // Upcoming planned (un-generated) calendar entries, soonest first.
+  const upNext = useMemo(() => {
+    const rows: { calId: string; entry: CalendarEntry }[] = [];
+    calendars.forEach((c) => {
+      c.entries.forEach((e) => {
+        if (e.status !== 'generated') rows.push({ calId: c.id, entry: e });
+      });
+    });
+    rows.sort((a, b) => a.entry.date.localeCompare(b.entry.date));
+    return rows.slice(0, 4);
+  }, [calendars]);
+  const pendingTotal = plannedEntries - generatedEntries;
+
   const contentCap = softCap(content.length);
   const contentPct = content.length / contentCap;
   const calendarPct = plannedEntries ? generatedEntries / plannedEntries : 0;
@@ -542,6 +557,34 @@ export default function OverviewPage() {
 
   return (
     <Box>
+      <OnboardingChecklist
+        steps={[
+          {
+            label: 'Run your first research',
+            description: 'Let AI map your market, audience and competitors.',
+            href: '/dashboard/research',
+            done: jobs.length > 0,
+          },
+          {
+            label: 'Build a strategy',
+            description: 'Turn research into content pillars and a posting plan.',
+            href: '/dashboard/strategy',
+            done: strategies.length > 0,
+          },
+          {
+            label: 'Create content',
+            description: 'Generate on-brand posts and creatives in the studio.',
+            href: '/dashboard/studio',
+            done: content.length > 0,
+          },
+          {
+            label: 'Plan your calendar',
+            description: 'Schedule a steady drumbeat of posts to publish.',
+            href: '/dashboard/calendar',
+            done: plannedEntries > 0,
+          },
+        ]}
+      />
       {/* header */}
       <Stack
         direction={{ xs: 'column', md: 'row' }}
@@ -835,6 +878,123 @@ export default function OverviewPage() {
 
         {/* right rail */}
         <Stack spacing={2}>
+          {/* Next up — calendar quick-action */}
+          <Box
+            sx={{
+              borderRadius: CARD_RADIUS,
+              bgcolor: '#fff',
+              border: '1px solid rgba(14,17,22,0.07)',
+              boxShadow: CARD_SHADOW,
+              overflow: 'hidden',
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1.25} sx={{ px: 2.25, pt: 2, pb: 1.5 }}>
+              <Box
+                sx={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: '11px',
+                  display: 'grid',
+                  placeItems: 'center',
+                  bgcolor: 'rgba(14,17,22,0.05)',
+                  color: INK,
+                }}
+              >
+                <CalendarMonthIcon fontSize="small" />
+              </Box>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography sx={{ fontWeight: 800, fontSize: 16, lineHeight: 1.2 }}>Next up</Typography>
+                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+                  {pendingTotal > 0 ? `${pendingTotal} planned to generate` : 'All planned posts generated'}
+                </Typography>
+              </Box>
+              {pendingTotal > 0 && (
+                <Box sx={{ px: 1, py: 0.2, borderRadius: '999px', bgcolor: BRAND.amberSoft, color: BRAND.amberDeep, fontSize: 12, fontWeight: 800 }}>
+                  {pendingTotal}
+                </Box>
+              )}
+            </Stack>
+
+            {upNext.length === 0 ? (
+              <Box sx={{ px: 2.25, pb: 2.25, color: 'text.secondary' }}>
+                <Typography sx={{ fontSize: 13 }}>
+                  {plannedEntries === 0
+                    ? 'No content calendar yet — plan your month to generate on autopilot.'
+                    : 'Everything planned has been generated. Nice work!'}
+                </Typography>
+                <Button
+                  component={Link}
+                  href={plannedEntries === 0 ? '/dashboard/calendar' : '/dashboard/studio'}
+                  endIcon={<CallMadeIcon sx={{ fontSize: 15 }} />}
+                  sx={{ mt: 1.25, textTransform: 'none', fontWeight: 700, fontSize: 13, px: 0, color: BRAND.tealDeep, '&:hover': { bgcolor: 'transparent' } }}
+                >
+                  {plannedEntries === 0 ? 'Open Content Calendar' : 'Open Content Studio'}
+                </Button>
+              </Box>
+            ) : (
+              <Stack sx={{ px: 1.25, pb: 1.5 }} spacing={0.5}>
+                {upNext.map(({ calId, entry }) => {
+                  const d = new Date(entry.date + 'T00:00:00');
+                  return (
+                    <Box
+                      key={entry.id}
+                      component={Link}
+                      href={`/dashboard/studio?mode=calendar&cal=${calId}&date=${entry.date}`}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.25,
+                        px: 1,
+                        py: 1,
+                        borderRadius: '14px',
+                        textDecoration: 'none',
+                        transition: 'background .15s ease',
+                        '&:hover': { bgcolor: 'rgba(14,17,22,0.04)' },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 42,
+                          height: 42,
+                          flexShrink: 0,
+                          borderRadius: '12px',
+                          bgcolor: '#F4F6F8',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          lineHeight: 1,
+                        }}
+                      >
+                        <Typography sx={{ fontSize: 9.5, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>
+                          {d.toLocaleDateString(undefined, { month: 'short' })}
+                        </Typography>
+                        <Typography sx={{ fontSize: 16, fontWeight: 800, color: INK }}>{d.getDate()}</Typography>
+                      </Box>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {entry.title}
+                        </Typography>
+                        <Typography sx={{ fontSize: 11.5, color: 'text.secondary', textTransform: 'capitalize' }}>
+                          {entry.platform} · {(entry.format || entry.content_type).replace(/_/g, ' ')}
+                        </Typography>
+                      </Box>
+                      <AutoAwesomeIcon sx={{ fontSize: 17, color: BRAND.amberDeep, flexShrink: 0 }} />
+                    </Box>
+                  );
+                })}
+                <Button
+                  component={Link}
+                  href="/dashboard/studio?mode=calendar"
+                  fullWidth
+                  sx={{ mt: 0.5, textTransform: 'none', fontWeight: 800, fontSize: 13, py: 0.9, borderRadius: '12px', color: '#fff', background: BRAND.gradient, boxShadow: '0 6px 16px rgba(255,175,6,0.28)', '&:hover': { background: `linear-gradient(135deg,${BRAND.amberDeep},${BRAND.tealDeep})` } }}
+                >
+                  Generate from calendar
+                </Button>
+              </Stack>
+            )}
+          </Box>
+
           <Stack direction="row" spacing={2}>
             <SquareTile icon={<PaletteIcon fontSize="small" />} label="Brand Brain" href="/dashboard/brand" />
             <SquareTile icon={<BarChartIcon fontSize="small" />} label="Analytics" href="/dashboard/analytics" />
