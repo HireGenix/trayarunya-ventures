@@ -82,3 +82,73 @@ network, and the Publishing page shows **"Sign in with …"** buttons.
 - OAuth `state` is single-use (CSRF protection); back it with Redis when running more than one API
   instance (`app/services/oauth.py` `_STATE` is in-memory for single-instance/local dev).
 - Store `SocialAccount.access_token` / `refresh_token` encrypted at rest in production.
+
+---
+
+# Integrations hub OAuth (CRM / Analytics / Ecommerce)
+
+Beyond social publishing, the **Integrations** page connects business systems —
+HubSpot, Google Analytics 4, Google Search Console and Shopify — so the platform can
+read live data (contacts, sessions, search performance, orders) for attribution and
+reporting. Exactly like the social flow: **manual API-token connect always works**, and
+**one-click OAuth** turns on once you register a developer app and add its credentials.
+
+The redirect / callback URL to register for each provider is:
+
+```
+<OAUTH_REDIRECT_BASE>/api/v1/integrations/<provider>/oauth/callback
+```
+
+| Provider | `<provider>` | Callback URL (local dev) |
+|---|---|---|
+| HubSpot | `hubspot` | `http://localhost:8099/api/v1/integrations/hubspot/oauth/callback` |
+| Google Analytics 4 | `ga4` | `http://localhost:8099/api/v1/integrations/ga4/oauth/callback` |
+| Google Search Console | `search_console` | `http://localhost:8099/api/v1/integrations/search_console/oauth/callback` |
+| Shopify | `shopify` | `http://localhost:8099/api/v1/integrations/shopify/oauth/callback` |
+
+## Register the apps & scopes
+
+| Provider | Where to create the app | Scopes requested |
+|---|---|---|
+| **HubSpot** | https://developers.hubspot.com → Apps → Auth | `oauth`, `crm.objects.contacts.read` |
+| **Google (GA4 + Search Console)** | https://console.cloud.google.com/apis/credentials (OAuth client ID) | `analytics.readonly`, `webmasters.readonly` |
+| **Shopify** | https://partners.shopify.com → Apps (or a custom app) | `read_products`, `read_orders` |
+
+> GA4 and Search Console **share** the single Google OAuth client (`GOOGLE_CLIENT_ID` /
+> `GOOGLE_CLIENT_SECRET`). Add both redirect URLs and both scopes to that one client.
+> Google requires `access_type=offline` (already sent) to issue a refresh token.
+
+## Paste the credentials into `.env`
+
+```
+OAUTH_REDIRECT_BASE=http://localhost:8099
+HUBSPOT_CLIENT_ID=...
+HUBSPOT_CLIENT_SECRET=...
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+SHOPIFY_API_KEY=...
+SHOPIFY_API_SECRET=...
+```
+
+Restart the API. `GET /api/v1/integrations/catalog` now reports `configured: true` for those
+providers and the Integrations dialog shows a **"Connect with … (OAuth)"** button.
+
+## How a user connects (after setup)
+
+1. Integrations page → click a provider → **Connect with … (OAuth)**. (For Shopify, enter the
+   store domain first, e.g. `my-store.myshopify.com`.)
+2. A popup opens the real provider consent screen (`POST /integrations/connect` returns the
+   authorization URL).
+3. After consent the provider redirects to `/integrations/<provider>/oauth/callback`; the API
+   exchanges the code for tokens (`exchange_code`), stores them **encrypted** on an `Integration`
+   row (with refresh token + expiry), and the popup self-closes.
+4. **Sync** reads live data; if a Google access token has expired, the API automatically uses the
+   stored refresh token to mint a new one and retries — no reconnect needed.
+
+## Security notes
+
+- `client_secret` values live only in the server `.env` — never shipped to the browser.
+- OAuth `state` is single-use with a 10-minute TTL (CSRF protection); back it with Redis when
+  running more than one API instance (`app/services/integrations_oauth.py` `_store` is in-memory
+  for single-instance/local dev).
+- Access and refresh tokens are encrypted at rest via the `ENCRYPTION_KEY` Fernet key.

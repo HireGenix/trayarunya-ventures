@@ -11,21 +11,26 @@ configured at the platform level we return ``503`` with a clear message.
 """
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.db import get_db
+from app.db import AsyncSessionLocal, get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
 from app.models import Integration
+from app.services import integrations_oauth as oauth_svc
 from app.services.crypto import decrypt, encrypt
 from app.services.integrations import SYNC, SyncError
+
+log = logging.getLogger("integrations")
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
@@ -223,6 +228,38 @@ async def _get_owned(
     return obj
 
 
+async def _maybe_refresh(
+    db: AsyncSession, obj: Integration, exc: SyncError
+) -> str | None:
+    """Attempt a one-shot OAuth token refresh after an auth failure.
+
+    Returns the new decrypted access token on success (and persists the rotated
+    tokens), or ``None`` if refresh is not applicable/possible. Never raises.
+    """
+    if "authentication failed" not in str(exc).lower():
+        return None
+    if not oauth_svc.supports_refresh(obj.provider):
+        return None
+    refresh_token = decrypt(obj.refresh_token_enc)
+    if not refresh_token:
+        return None
+    try:
+        token = await oauth_svc.refresh_access_token(
+            obj.provider, refresh_token, obj.config or {}
+        )
+    except oauth_svc.OAuthError:
+        return None
+    access = token.get("access_token")
+    if not access:
+        return None
+    obj.access_token_enc = encrypt(access)
+    new_refresh = token.get("refresh_token")
+    if new_refresh:
+        obj.refresh_token_enc = encrypt(new_refresh)
+    obj.expires_at = oauth_svc.expires_at_from(token)
+    return access
+
+
 # --------------------------------------------------------------------------- #
 # Endpoints
 # --------------------------------------------------------------------------- #
@@ -316,11 +353,17 @@ async def connect(
                     "Set the platform credentials or connect with a manual API "
                     "token instead.",
                 )
-            # Platform OAuth app exists & configured — return a start stub.
-            state = uuid.uuid4().hex
+            # Platform OAuth app exists & configured — build the real provider
+            # authorization URL the browser should be sent to.
+            try:
+                url, state = oauth_svc.build_authorization_url(
+                    provider, str(ctx.workspace.id), body.config or {}
+                )
+            except oauth_svc.OAuthError as exc:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
             return OAuthStart(
                 provider=provider,
-                authorization_url=f"/api/integrations/{provider}/oauth/callback?state={state}",
+                authorization_url=url,
                 state=state,
             )
         raise HTTPException(
@@ -347,6 +390,146 @@ async def connect(
     return IntegrationOut.from_model(integration)
 
 
+# --------------------------------------------------------------------------- #
+# OAuth callback (browser redirect target — no auth dependency)
+# --------------------------------------------------------------------------- #
+def _popup_html(title: str, message: str, ok: bool, status_code: int = 200) -> HTMLResponse:
+    color = "#0FA874" if ok else "#D92C4A"
+    icon = "✅" if ok else "⚠️"
+    return HTMLResponse(
+        "<!doctype html><html><body style='font-family:system-ui,sans-serif;"
+        "padding:2.5rem;color:#11151B;background:#FAFBFC'>"
+        f"<h2 style='color:{color};margin:0 0 .5rem'>{icon} {title}</h2>"
+        f"<p style='color:#6B7280'>{message}</p>"
+        "<p style='color:#6B7280;font-size:.9rem'>You can close this window and "
+        "return to the dashboard.</p>"
+        "<script>try{if(window.opener){window.opener.postMessage("
+        f"{{source:'integrations-oauth',ok:{str(ok).lower()}}},'*');}}"
+        "setTimeout(function(){window.close();},1600);}catch(e){}</script>"
+        "</body></html>",
+        status_code=status_code,
+    )
+
+
+@router.get("/{provider}/oauth/callback", response_class=HTMLResponse)
+async def oauth_callback(
+    provider: str,
+    code: str | None = Query(default=None),
+    state: str | None = Query(default=None),
+    error: str | None = Query(default=None),
+    error_description: str | None = Query(default=None),
+) -> HTMLResponse:
+    """Provider OAuth redirect target.
+
+    Exchanges the authorization ``code`` for tokens, persists (or updates) an
+    encrypted :class:`Integration` for the originating workspace, then renders a
+    self-closing popup page. No workspace auth dependency runs here — the
+    signed, short-lived ``state`` is the trust anchor.
+    """
+    provider = provider.strip().lower()
+    if provider not in oauth_svc.OAUTH_PROVIDERS:
+        return _popup_html("Unsupported provider", provider, ok=False, status_code=400)
+    if error:
+        return _popup_html(
+            "Authorization declined",
+            error_description or error,
+            ok=False,
+            status_code=400,
+        )
+    if not code or not state:
+        return _popup_html(
+            "Missing parameters",
+            "The provider did not return a code/state.",
+            ok=False,
+            status_code=400,
+        )
+
+    state_data = oauth_svc.pop_state(state)
+    if not state_data:
+        return _popup_html(
+            "Session expired",
+            "This authorization link is invalid or has expired. Please retry the connection.",
+            ok=False,
+            status_code=400,
+        )
+
+    try:
+        token = await oauth_svc.exchange_code(provider, code, state_data)
+    except oauth_svc.OAuthError as exc:
+        return _popup_html("Connection failed", str(exc), ok=False, status_code=502)
+
+    access = token.get("access_token")
+    if not access:
+        return _popup_html(
+            "Connection failed",
+            f"{provider}: the provider did not return an access token.",
+            ok=False,
+            status_code=502,
+        )
+    refresh = token.get("refresh_token")
+    expires_at = oauth_svc.expires_at_from(token)
+
+    meta = PROVIDERS.get(provider, {})
+    config: dict[str, Any] = {}
+    if state_data.get("shop"):
+        config["shop_domain"] = state_data["shop"]
+    if token.get("scope"):
+        config["scopes"] = token["scope"]
+
+    try:
+        workspace_id = uuid.UUID(str(state_data["workspace_id"]))
+    except (ValueError, KeyError):
+        return _popup_html(
+            "Connection failed",
+            "Invalid workspace context in the authorization state.",
+            ok=False,
+            status_code=400,
+        )
+
+    async with AsyncSessionLocal() as db:
+        existing = (
+            await db.execute(
+                select(Integration).where(
+                    Integration.workspace_id == workspace_id,
+                    Integration.provider == provider,
+                )
+            )
+        ).scalar_one_or_none()
+
+        if existing is not None:
+            existing.access_token_enc = encrypt(access)
+            if refresh:
+                existing.refresh_token_enc = encrypt(refresh)
+            existing.expires_at = expires_at
+            existing.status = "connected"
+            existing.last_error = None
+            merged = dict(existing.config or {})
+            merged.update(config)
+            existing.config = merged
+        else:
+            db.add(
+                Integration(
+                    workspace_id=workspace_id,
+                    provider=provider,
+                    category=meta.get("category", "crm"),
+                    display_name=meta.get("label", provider),
+                    status="connected",
+                    access_token_enc=encrypt(access),
+                    refresh_token_enc=encrypt(refresh) if refresh else None,
+                    config=config,
+                    expires_at=expires_at,
+                    last_error=None,
+                )
+            )
+        await db.commit()
+
+    return _popup_html(
+        f"{meta.get('label', provider.title())} connected",
+        "Your account is connected and ready to sync.",
+        ok=True,
+    )
+
+
 @router.post("/{integration_id}/sync", response_model=SyncResult)
 async def sync(
     integration_id: uuid.UUID,
@@ -367,6 +550,29 @@ async def sync(
     try:
         summary = fn(token, obj.config or {})
     except SyncError as exc:
+        # Auth failure + refreshable provider → try a one-shot token refresh.
+        refreshed = await _maybe_refresh(db, obj, exc)
+        if refreshed is not None:
+            try:
+                summary = fn(refreshed, obj.config or {})
+            except SyncError as exc2:
+                exc = exc2
+            except Exception:  # noqa: BLE001
+                exc = SyncError("Unexpected error during sync after token refresh.")
+            else:
+                obj.status = "connected"
+                obj.last_error = None
+                obj.last_sync_at = _now()
+                await db.commit()
+                await db.refresh(obj)
+                return SyncResult(
+                    id=str(obj.id),
+                    provider=obj.provider,
+                    status=obj.status,
+                    last_sync_at=obj.last_sync_at,
+                    summary=summary,
+                    last_error=None,
+                )
         obj.status = "error"
         obj.last_error = str(exc)
         await db.commit()

@@ -37,6 +37,7 @@ import {
   type IntegrationCatalogEntry,
   type IntegrationHealth,
   type IntegrationStatus,
+  type IntegrationOAuthStart,
 } from '@/lib/api';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { BRAND } from '@/theme/theme';
@@ -88,6 +89,7 @@ export default function IntegrationsPage() {
   const [dialogEntry, setDialogEntry] = useState<IntegrationCatalogEntry | null>(null);
   const [tokenValue, setTokenValue] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [shopDomain, setShopDomain] = useState('');
 
   const load = () => {
     if (!activeWorkspace) return;
@@ -127,6 +129,13 @@ export default function IntegrationsPage() {
     return Array.from(map.entries());
   }, [catalog]);
 
+  const closeDialog = () => {
+    setDialogEntry(null);
+    setTokenValue('');
+    setDisplayName('');
+    setShopDomain('');
+  };
+
   const doConnect = async (
     entry: IntegrationCatalogEntry,
     extra?: { api_key?: string; access_token?: string; display_name?: string },
@@ -139,9 +148,7 @@ export default function IntegrationsPage() {
         ...extra,
       });
       setToast({ msg: `${entry.label} connected`, severity: 'success' });
-      setDialogEntry(null);
-      setTokenValue('');
-      setDisplayName('');
+      closeDialog();
       refetch();
     } catch {
       setToast({ msg: `Failed to connect ${entry.label}`, severity: 'error' });
@@ -150,11 +157,75 @@ export default function IntegrationsPage() {
     }
   };
 
+  // Real OAuth: ask the API for the provider authorization URL, open it in a
+  // popup, and refetch once the popup signals completion (or closes).
+  const startOAuth = async (entry: IntegrationCatalogEntry) => {
+    setConnectingProvider(entry.provider);
+    try {
+      const config: Record<string, unknown> = {};
+      if (entry.provider === 'shopify') {
+        if (!shopDomain.trim()) {
+          setToast({ msg: 'Enter your Shopify store domain first.', severity: 'error' });
+          setConnectingProvider(null);
+          return;
+        }
+        config.shop_domain = shopDomain.trim();
+      }
+      const res = (await Integrations.connect({
+        provider: entry.provider,
+        category: entry.category,
+        config,
+      })) as Integration | IntegrationOAuthStart;
+
+      if (!('authorization_url' in res)) {
+        // Already connected (no OAuth needed) — treat as success.
+        setToast({ msg: `${entry.label} connected`, severity: 'success' });
+        closeDialog();
+        refetch();
+        return;
+      }
+
+      const popup = window.open(
+        res.authorization_url,
+        'integrations-oauth',
+        'width=620,height=760,menubar=no,toolbar=no',
+      );
+      if (!popup) {
+        setToast({ msg: 'Popup blocked — allow popups and retry.', severity: 'error' });
+        return;
+      }
+      closeDialog();
+
+      const finish = (ok: boolean) => {
+        window.removeEventListener('message', onMessage);
+        window.clearInterval(timer);
+        if (ok) {
+          setToast({ msg: `${entry.label} connected`, severity: 'success' });
+        }
+        refetch();
+      };
+      const onMessage = (ev: MessageEvent) => {
+        if (ev.data && ev.data.source === 'integrations-oauth') {
+          finish(Boolean(ev.data.ok));
+        }
+      };
+      window.addEventListener('message', onMessage);
+      const timer = window.setInterval(() => {
+        if (popup.closed) finish(false);
+      }, 800);
+    } catch {
+      setToast({ msg: `Failed to start ${entry.label} connection`, severity: 'error' });
+    } finally {
+      setConnectingProvider(null);
+    }
+  };
+
   const handleConnectClick = (entry: IntegrationCatalogEntry) => {
-    if (entry.manual_connect) {
+    if (entry.manual_connect || entry.oauth) {
       setDialogEntry(entry);
       setTokenValue('');
       setDisplayName('');
+      setShopDomain('');
       return;
     }
     void doConnect(entry);
@@ -433,13 +504,54 @@ export default function IntegrationsPage() {
       )}
 
       {/* Manual connect dialog */}
-      <Dialog open={!!dialogEntry} onClose={() => setDialogEntry(null)} fullWidth maxWidth="xs"
+      <Dialog open={!!dialogEntry} onClose={closeDialog} fullWidth maxWidth="xs"
         PaperProps={{ sx: { borderRadius: 4 } }}>
         <DialogTitle sx={{ fontWeight: 950, color: INK }}>
           Connect {dialogEntry?.label}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2.5} sx={{ pt: 1 }}>
+            {dialogEntry?.oauth && dialogEntry?.configured && (
+              <>
+                {dialogEntry.provider === 'shopify' && (
+                  <TextField
+                    label="Shopify store domain"
+                    placeholder="my-store.myshopify.com"
+                    value={shopDomain}
+                    onChange={(e) => setShopDomain(e.target.value)}
+                    fullWidth
+                    helperText="Required to start the secure OAuth connection."
+                  />
+                )}
+                <Button
+                  onClick={() => dialogEntry && void startOAuth(dialogEntry)}
+                  variant="contained"
+                  fullWidth
+                  disabled={connectingProvider !== null}
+                  startIcon={
+                    connectingProvider !== null ? (
+                      <CircularProgress size={14} color="inherit" />
+                    ) : (
+                      <LinkIcon />
+                    )
+                  }
+                  sx={{
+                    borderRadius: 3,
+                    textTransform: 'none',
+                    fontWeight: 900,
+                    color: '#11151B',
+                    background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})`,
+                  }}
+                >
+                  Connect with {dialogEntry.label} (OAuth)
+                </Button>
+                <Divider sx={{ '&::before, &::after': { borderColor: BORDER } }}>
+                  <Typography variant="caption" sx={{ color: SUBTLE }}>
+                    or paste a token manually
+                  </Typography>
+                </Divider>
+              </>
+            )}
             <Typography variant="body2" sx={{ color: SUBTLE }}>
               Enter your credentials to connect this provider. They are stored securely in your workspace.
             </Typography>
@@ -455,14 +567,13 @@ export default function IntegrationsPage() {
               value={tokenValue}
               onChange={(e) => setTokenValue(e.target.value)}
               fullWidth
-              autoFocus
               required
               type="password"
             />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setDialogEntry(null)} color="inherit" disabled={connectingProvider !== null}>
+          <Button onClick={closeDialog} color="inherit" disabled={connectingProvider !== null}>
             Cancel
           </Button>
           <Button

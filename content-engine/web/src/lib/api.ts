@@ -1212,6 +1212,12 @@ export interface IntegrationHealth {
   disconnected: number;
   providers: { provider: string; status: IntegrationStatus; last_sync_at: string | null; last_error: string | null }[];
 }
+export interface IntegrationOAuthStart {
+  provider: string;
+  authorization_url: string;
+  state: string;
+}
+
 export const Integrations = {
   list: () => api<Integration[]>('/integrations', { workspace: true }),
   catalog: () => api<IntegrationCatalogEntry[]>('/integrations/catalog', { workspace: true }),
@@ -1224,7 +1230,12 @@ export const Integrations = {
     access_token?: string;
     refresh_token?: string;
     config?: Record<string, unknown>;
-  }) => api<Integration>('/integrations/connect', { method: 'POST', body, workspace: true }),
+  }) =>
+    api<Integration | IntegrationOAuthStart>('/integrations/connect', {
+      method: 'POST',
+      body,
+      workspace: true,
+    }),
   sync: (id: string) =>
     api<Integration>(`/integrations/${id}/sync`, { method: 'POST', workspace: true }),
   disconnect: (id: string) =>
