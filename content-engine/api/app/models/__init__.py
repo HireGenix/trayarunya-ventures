@@ -58,6 +58,19 @@ from app.models.linkedin_growth import (
     LinkedInActionStatus,
     LinkedInActionPriority,
 )
+from app.models.linkedin_platform import (
+    LinkedInAccount,
+    LinkedInLead,
+    LeadStageEvent,
+    LeadObservation,
+    OutreachSequence,
+    OutreachStep,
+    LeadTask,
+    LeadStage,
+    TaskType,
+    TaskStatus,
+    AccountStatus,
+)
 
 __all__ = [
     "Base",
@@ -122,4 +135,15 @@ __all__ = [
     "LinkedInActionItem",
     "LinkedInActionStatus",
     "LinkedInActionPriority",
+    "LinkedInAccount",
+    "LinkedInLead",
+    "LeadStageEvent",
+    "LeadObservation",
+    "OutreachSequence",
+    "OutreachStep",
+    "LeadTask",
+    "LeadStage",
+    "TaskType",
+    "TaskStatus",
+    "AccountStatus",
 ]
