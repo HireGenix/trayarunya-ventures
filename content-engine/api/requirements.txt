@@ -49,3 +49,8 @@ stripe==11.4.1
 
 # --- PDF report generation ---
 reportlab==4.5.1
+
+# --- Testing (dev/CI) ---
+pytest==8.3.4
+pytest-asyncio==0.25.0
+httpx==0.28.1
