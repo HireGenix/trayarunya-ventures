@@ -30,6 +30,7 @@ from app.schemas import (
 )
 from app.models import ContentStatus
 from app.services import oauth
+from app.services.token_vault import set_account_token, set_refresh
 from app.services.publish_flow import (
     PUBLISHABLE_STATES,
     already_published,
@@ -90,9 +91,9 @@ async def connect_manual(
         platform=platform,
         external_id=data.external_id,
         display_name=data.display_name or f"{data.platform} account",
-        access_token=data.access_token,
         is_active=True,
     )
+    set_account_token(account, data.access_token)
     db.add(account)
     await db.flush()
     await db.commit()
@@ -133,13 +134,13 @@ async def oauth_callback(
         account = SocialAccount(
             workspace_id=uuid.UUID(state_data["workspace_id"]),
             platform=SocialPlatform(platform),
-            access_token=token.get("access_token"),
-            refresh_token=token.get("refresh_token"),
             token_expires_at=expires_at,
             scopes=(token.get("scope") or "").split() if token.get("scope") else None,
             display_name=f"{platform} account",
             is_active=True,
         )
+        set_account_token(account, token.get("access_token"))
+        set_refresh(account, token.get("refresh_token"))
         db.add(account)
         await db.commit()
 

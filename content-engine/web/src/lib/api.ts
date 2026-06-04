@@ -1066,9 +1066,409 @@ export const Reports = {
   delete: (token: string) =>
     api<void>(`/reports/${token}`, { method: 'DELETE', workspace: true }),
   /** Public — no auth header needed, fetched directly */
-  getPublic: (token: string) =>
-    fetch(`${API_URL}/api/v1/reports/public/${token}`).then(async (r) => {
+  getPublic: (token: string, code?: string) =>
+    fetch(
+      `${API_URL}/api/v1/reports/public/${token}${code ? `?code=${encodeURIComponent(code)}` : ''}`,
+    ).then(async (r) => {
       if (!r.ok) throw new ApiError(r.status, await r.text());
       return r.json() as Promise<PublicReport>;
+    }),
+  pdfUrl: (id: string) => `${API_URL}/api/v1/reports/${id}/pdf`,
+  publicPdfUrl: (token: string, code?: string) =>
+    `${API_URL}/api/v1/reports/public/${token}/pdf${code ? `?code=${encodeURIComponent(code)}` : ''}`,
+  shareSettings: (
+    id: string,
+    body: { expires_in_days?: number; passcode?: string | null; revoked?: boolean },
+  ) =>
+    api<ShareSettingsOut>(`/reports/${id}/share-settings`, {
+      method: 'POST',
+      body,
+      workspace: true,
+    }),
+};
+
+export interface ShareSettingsOut {
+  id: string;
+  token: string;
+  expires_at: string | null;
+  revoked: boolean;
+  passcode_set: boolean;
+}
+
+// ====================================================================
+// Platform expansion clients (experiments, integrations, watchtower,
+// ABM, creative intelligence, campaigns, collaboration, forecasting)
+// ====================================================================
+
+// ---------- Experiment Hub ----------
+export interface ExperimentVariant {
+  key: string;
+  label?: string;
+  content_item_id?: string | null;
+  notes?: string | null;
+}
+export interface Experiment {
+  id: string;
+  name: string;
+  hypothesis?: string | null;
+  context?: Record<string, unknown> | null;
+  success_metric: string;
+  variants?: ExperimentVariant[] | null;
+  status: 'draft' | 'running' | 'completed' | 'archived';
+  winner_key?: string | null;
+  result?: Record<string, unknown> | null;
+  learning?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+export const Experiments = {
+  list: () => api<Experiment[]>('/experiments', { workspace: true }),
+  create: (body: {
+    name: string;
+    hypothesis?: string;
+    success_metric?: string;
+    context?: Record<string, unknown>;
+    variants?: ExperimentVariant[];
+  }) => api<Experiment>('/experiments', { method: 'POST', body, workspace: true }),
+  get: (id: string) => api<Experiment>(`/experiments/${id}`, { workspace: true }),
+  update: (id: string, body: Partial<Experiment>) =>
+    api<Experiment>(`/experiments/${id}`, { method: 'PATCH', body, workspace: true }),
+  evaluate: (id: string) =>
+    api<Experiment>(`/experiments/${id}/evaluate`, { method: 'POST', workspace: true }),
+  remove: (id: string) =>
+    api<void>(`/experiments/${id}`, { method: 'DELETE', workspace: true }),
+};
+
+// ---------- Integrations (CRM / analytics / ecommerce) ----------
+export type IntegrationStatus = 'disconnected' | 'connected' | 'error' | 'expired';
+export interface Integration {
+  id: string;
+  provider: string;
+  category: string;
+  display_name: string | null;
+  status: IntegrationStatus;
+  config: Record<string, unknown>;
+  last_sync_at: string | null;
+  last_error: string | null;
+  expires_at: string | null;
+  created_at: string | null;
+}
+export interface IntegrationCatalogEntry {
+  provider: string;
+  label: string;
+  category: string;
+  oauth: boolean;
+  configured: boolean;
+  manual_connect: boolean;
+  token_label: string | null;
+}
+export interface IntegrationHealth {
+  total: number;
+  connected: number;
+  error: number;
+  expired: number;
+  disconnected: number;
+  providers: { provider: string; status: IntegrationStatus; last_sync_at: string | null; last_error: string | null }[];
+}
+export const Integrations = {
+  list: () => api<Integration[]>('/integrations', { workspace: true }),
+  catalog: () => api<IntegrationCatalogEntry[]>('/integrations/catalog', { workspace: true }),
+  health: () => api<IntegrationHealth>('/integrations/health', { workspace: true }),
+  connect: (body: {
+    provider: string;
+    category?: string;
+    display_name?: string;
+    api_key?: string;
+    access_token?: string;
+    refresh_token?: string;
+    config?: Record<string, unknown>;
+  }) => api<Integration>('/integrations/connect', { method: 'POST', body, workspace: true }),
+  sync: (id: string) =>
+    api<Integration>(`/integrations/${id}/sync`, { method: 'POST', workspace: true }),
+  disconnect: (id: string) =>
+    api<void>(`/integrations/${id}`, { method: 'DELETE', workspace: true }),
+};
+
+// ---------- Competitor Watchtower ----------
+export type WatchImportance = 'low' | 'medium' | 'high';
+export type WatchKind = 'messaging' | 'pricing' | 'content' | 'launch' | 'seo' | 'hiring' | 'other';
+export interface WatchEvent {
+  id: string;
+  watch_id: string;
+  kind: WatchKind;
+  title: string;
+  detail: string | null;
+  url: string | null;
+  importance: WatchImportance;
+  created_at: string;
+}
+export interface CompetitorWatch {
+  id: string;
+  name: string;
+  website: string | null;
+  social_handles: Record<string, string> | null;
+  active: boolean;
+  last_checked_at: string | null;
+  created_at: string;
+  event_count?: number;
+  last_snapshot?: Record<string, unknown> | null;
+  events?: WatchEvent[];
+}
+export const Watchtower = {
+  list: () => api<CompetitorWatch[]>('/watchtower', { workspace: true }),
+  create: (body: { name: string; website?: string; social_handles?: Record<string, string>; seed?: boolean }) =>
+    api<CompetitorWatch>('/watchtower', { method: 'POST', body, workspace: true }),
+  get: (id: string) => api<CompetitorWatch>(`/watchtower/${id}`, { workspace: true }),
+  check: (id: string) =>
+    api<{ watch_id: string; ok: boolean; events_created: number; error: string | null; events: WatchEvent[] }>(
+      `/watchtower/${id}/check`,
+      { method: 'POST', workspace: true },
+    ),
+  events: (limit = 50) => api<WatchEvent[]>(`/watchtower/events?limit=${limit}`, { workspace: true }),
+  update: (id: string, body: Partial<Pick<CompetitorWatch, 'name' | 'website' | 'social_handles' | 'active'>>) =>
+    api<CompetitorWatch>(`/watchtower/${id}`, { method: 'PATCH', body, workspace: true }),
+  remove: (id: string) => api<void>(`/watchtower/${id}`, { method: 'DELETE', workspace: true }),
+};
+
+// ---------- B2B ABM ----------
+export type AbmTier = 'tier_1' | 'tier_2' | 'tier_3';
+export type AbmStage = 'new' | 'researching' | 'engaging' | 'opportunity' | 'won' | 'lost';
+export interface Persona {
+  role: string;
+  title: string;
+  pains: string[];
+  priorities: string[];
+  objections: string[];
+  message_angle: string;
+}
+export interface AbmAccount {
+  id: string;
+  company: string;
+  website?: string | null;
+  industry?: string | null;
+  tier: AbmTier;
+  stage: AbmStage;
+  notes?: string | null;
+  firmographics?: Record<string, unknown> | null;
+  personas?: Persona[] | null;
+  assets?: Record<string, unknown> | null;
+}
+export const Abm = {
+  listAccounts: (params?: { stage?: AbmStage; tier?: AbmTier }) => {
+    const qs = new URLSearchParams();
+    if (params?.stage) qs.set('stage', params.stage);
+    if (params?.tier) qs.set('tier', params.tier);
+    const s = qs.toString();
+    return api<AbmAccount[]>(`/abm/accounts${s ? `?${s}` : ''}`, { workspace: true });
+  },
+  createAccount: (body: { company: string; website?: string; industry?: string; tier?: AbmTier; notes?: string }) =>
+    api<AbmAccount>('/abm/accounts', { method: 'POST', body, workspace: true }),
+  bulkCreateAccounts: (accounts: { company: string; website?: string; industry?: string; tier?: AbmTier }[]) =>
+    api<AbmAccount[]>('/abm/accounts/bulk', { method: 'POST', body: { accounts }, workspace: true }),
+  getAccount: (id: string) => api<AbmAccount>(`/abm/accounts/${id}`, { workspace: true }),
+  updateAccount: (id: string, body: Partial<Pick<AbmAccount, 'stage' | 'tier' | 'notes' | 'firmographics'>>) =>
+    api<AbmAccount>(`/abm/accounts/${id}`, { method: 'PATCH', body, workspace: true }),
+  deleteAccount: (id: string) => api<void>(`/abm/accounts/${id}`, { method: 'DELETE', workspace: true }),
+  generatePersonas: (id: string) =>
+    api<Persona[]>(`/abm/accounts/${id}/personas`, { method: 'POST', workspace: true }),
+  generateAssets: (id: string) =>
+    api<Record<string, unknown>>(`/abm/accounts/${id}/assets`, { method: 'POST', workspace: true }),
+};
+
+// ---------- Creative Intelligence ----------
+export interface CreativeSummary {
+  low_data: boolean;
+  post_count: number;
+  min_posts_for_signal: number;
+  generated_at: string | null;
+  overall: Record<string, number>;
+  top_posts: Record<string, unknown>[];
+  breakdowns: Record<string, Record<string, Record<string, number>>>;
+  winning_patterns: { attribute: string; value: string; avg_engagement_rate: number; lift_pct: number; sample_size: number }[];
+  fatigue_signals: { attribute: string; value: string; earlier_avg_engagement_rate: number; recent_avg_engagement_rate: number; change_pct: number; sample_size: number }[];
+}
+export type CreativeAction = 'double_down' | 'stop' | 'test';
+export interface CreativeRecommendation {
+  action: CreativeAction;
+  attribute: string;
+  value: string | boolean | null;
+  rationale: string;
+  confidence: 'low' | 'medium' | 'high';
+  lift_pct?: number | null;
+  change_pct?: number | null;
+}
+export const CreativeIntel = {
+  summary: (top = 5) => api<CreativeSummary>(`/creative-intel/summary?top=${top}`, { workspace: true }),
+  recommendations: (enrich = false) =>
+    api<{ low_data: boolean; post_count: number; recommendations: CreativeRecommendation[] }>(
+      `/creative-intel/recommendations?enrich=${enrich}`,
+      { workspace: true },
+    ),
+};
+
+// ---------- Campaign Builder ----------
+export interface CampaignPlan {
+  id: string;
+  name: string;
+  goal: string | null;
+  audience: string | null;
+  offer: string | null;
+  channels: string[] | null;
+  plan: Record<string, unknown> | null;
+  source_insight_id: string | null;
+  source_strategy_id: string | null;
+  budget: number | null;
+  status: 'draft' | 'active' | 'completed' | 'archived';
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+export const Campaigns = {
+  list: (status?: string) =>
+    api<CampaignPlan[]>(`/campaign-plans${status ? `?status=${encodeURIComponent(status)}` : ''}`, { workspace: true }),
+  build: (body: {
+    name?: string;
+    goal: string;
+    audience?: string;
+    offer?: string;
+    channels?: string[];
+    budget?: number;
+    source_insight_id?: string;
+    source_strategy_id?: string;
+    start_date?: string;
+    end_date?: string;
+  }) => api<CampaignPlan>('/campaign-plans/build', { method: 'POST', body, workspace: true }),
+  get: (id: string) => api<CampaignPlan>(`/campaign-plans/${id}`, { workspace: true }),
+  update: (id: string, body: Partial<Pick<CampaignPlan, 'name' | 'status' | 'budget' | 'start_date' | 'end_date'>>) =>
+    api<CampaignPlan>(`/campaign-plans/${id}`, { method: 'PATCH', body, workspace: true }),
+  remove: (id: string) => api<void>(`/campaign-plans/${id}`, { method: 'DELETE', workspace: true }),
+  toContent: (id: string) =>
+    api<{ created_item_ids: string[]; count: number }>(`/campaign-plans/${id}/to-content`, {
+      method: 'POST',
+      workspace: true,
+    }),
+};
+
+// ---------- Workflow Collaboration ----------
+export type CollabEntity = 'content' | 'strategy' | 'campaign' | 'abm';
+export interface CollabComment {
+  id: string;
+  entity_type: CollabEntity;
+  entity_id: string;
+  author_id: string | null;
+  author_name: string | null;
+  body: string;
+  resolved: boolean;
+  created_at: string;
+  updated_at: string;
+}
+export interface CollabApproval {
+  id: string;
+  entity_type: CollabEntity;
+  entity_id: string;
+  status: 'pending' | 'approved' | 'changes_requested' | 'rejected';
+  reviewer_id: string | null;
+  reviewer_name: string | null;
+  assignee_id: string | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface ContentVersion {
+  id: string;
+  content_item_id: string;
+  version: number;
+  title: string | null;
+  body: string | null;
+  variants: Record<string, unknown> | null;
+  author_name: string | null;
+  note: string | null;
+  created_at: string;
+}
+export interface AuditEntry {
+  id: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  meta: Record<string, unknown> | null;
+  created_at: string;
+}
+export const Collab = {
+  listComments: (entityType: CollabEntity, entityId: string) =>
+    api<CollabComment[]>(`/collab/comments?entity_type=${entityType}&entity_id=${entityId}`, { workspace: true }),
+  createComment: (body: { entity_type: CollabEntity; entity_id: string; body: string }) =>
+    api<CollabComment>('/collab/comments', { method: 'POST', body, workspace: true }),
+  resolveComment: (id: string) =>
+    api<CollabComment>(`/collab/comments/${id}/resolve`, { method: 'POST', workspace: true }),
+  deleteComment: (id: string) =>
+    api<void>(`/collab/comments/${id}`, { method: 'DELETE', workspace: true }),
+  getApprovals: (entityType: CollabEntity, entityId: string) =>
+    api<{ current: CollabApproval | null; history: CollabApproval[] }>(
+      `/collab/approvals?entity_type=${entityType}&entity_id=${entityId}`,
+      { workspace: true },
+    ),
+  createApproval: (body: {
+    entity_type: CollabEntity;
+    entity_id: string;
+    status: 'pending' | 'approved' | 'changes_requested' | 'rejected';
+    note?: string;
+    assignee_id?: string;
+  }) => api<CollabApproval>('/collab/approvals', { method: 'POST', body, workspace: true }),
+  assignContent: (contentItemId: string, assigneeId: string | null) =>
+    api<{ content_item_id: string; assignee_id: string | null }>(`/collab/content/${contentItemId}/assign`, {
+      method: 'POST',
+      body: { assignee_id: assigneeId },
+      workspace: true,
+    }),
+  listVersions: (contentItemId: string) =>
+    api<ContentVersion[]>(`/collab/content/${contentItemId}/versions`, { workspace: true }),
+  createVersion: (contentItemId: string, note?: string) =>
+    api<ContentVersion>(`/collab/content/${contentItemId}/versions`, { method: 'POST', body: { note }, workspace: true }),
+  restoreVersion: (contentItemId: string, versionId: string) =>
+    api<ContentVersion>(`/collab/content/${contentItemId}/versions/${versionId}/restore`, {
+      method: 'POST',
+      workspace: true,
+    }),
+  listAudit: (limit = 50) => api<AuditEntry[]>(`/collab/audit?limit=${limit}`, { workspace: true }),
+};
+
+// ---------- Forecasting + Benchmarks ----------
+export interface ForecastSummary {
+  horizon_days: number;
+  low_data: boolean;
+  min_points: number;
+  days_with_data: number;
+  range: { start: string; end: string };
+  historical: Record<string, { date: string; value: number }[]>;
+  projected: Record<string, { date: string; value: number; lower: number; upper: number }[]>;
+  projected_totals: Record<string, { total: number; slope_per_day: number; residual_std: number }>;
+}
+export interface BenchmarksResponse {
+  items: { id: string; industry: string | null; channel: string | null; metric: string; p50: number | null; p75: number | null; p90: number | null; sample_size: number }[];
+  note: string | null;
+  position: { computable: boolean; engagement_rate: number | null; tier: string | null; benchmark: Record<string, unknown> | null; note: string | null };
+}
+export const Forecast = {
+  summary: (horizonDays = 30, lookbackDays = 90) =>
+    api<ForecastSummary>(`/forecast/summary?horizon_days=${horizonDays}&lookback_days=${lookbackDays}`, {
+      workspace: true,
+    }),
+  benchmarks: (industry?: string, channel?: string) => {
+    const q = new URLSearchParams();
+    if (industry) q.set('industry', industry);
+    if (channel) q.set('channel', channel);
+    const qs = q.toString();
+    return api<BenchmarksResponse>(`/forecast/benchmarks${qs ? `?${qs}` : ''}`, { workspace: true });
+  },
+  narrative: (body: { summary: unknown; metric?: string }) =>
+    api<{ narrative: string; source: 'llm' | 'fallback' }>('/forecast/narrative', {
+      method: 'POST',
+      body,
+      workspace: true,
     }),
 };

@@ -16,6 +16,7 @@ import random
 import httpx
 
 from app.models import SocialAccount
+from app.services.token_vault import get_account_token
 
 log = logging.getLogger("publisher")
 
@@ -58,11 +59,12 @@ async def _linkedin_author(client: httpx.AsyncClient, account: SocialAccount) ->
     author = account.external_id
     if author:
         return author
+    token = get_account_token(account)
     ui = await _request_with_retry(
         client,
         "GET",
         "https://api.linkedin.com/v2/userinfo",
-        headers={"Authorization": f"Bearer {account.access_token}"},
+        headers={"Authorization": f"Bearer {token}"},
     )
     if ui.status_code >= 300:
         raise PublishError(f"LinkedIn userinfo {ui.status_code}: {ui.text[:200]}")
@@ -79,12 +81,13 @@ async def _linkedin_upload_image(
     image_bytes: bytes,
 ) -> str:
     """Register + upload an image and return its digital-media asset URN."""
+    token = get_account_token(account)
     reg = await _request_with_retry(
         client,
         "POST",
         "https://api.linkedin.com/v2/assets?action=registerUpload",
         headers={
-            "Authorization": f"Bearer {account.access_token}",
+            "Authorization": f"Bearer {token}",
             "X-Restli-Protocol-Version": "2.0.0",
             "Content-Type": "application/json",
         },
@@ -117,7 +120,7 @@ async def _linkedin_upload_image(
         client,
         "POST",
         upload_url,
-        headers={"Authorization": f"Bearer {account.access_token}"},
+        headers={"Authorization": f"Bearer {token}"},
         content=image_bytes,
     )
     if up.status_code >= 300:
@@ -128,7 +131,8 @@ async def _linkedin_upload_image(
 async def _publish_linkedin(
     account: SocialAccount, text: str, image_bytes: bytes | None = None
 ) -> str:
-    if not account.access_token:
+    token = get_account_token(account)
+    if not token:
         raise PublishError("LinkedIn account has no access token")
     if not text.strip():
         raise PublishError("Cannot publish an empty post")
@@ -162,7 +166,7 @@ async def _publish_linkedin(
             "POST",
             "https://api.linkedin.com/v2/ugcPosts",
             headers={
-                "Authorization": f"Bearer {account.access_token}",
+                "Authorization": f"Bearer {token}",
                 "X-Restli-Protocol-Version": "2.0.0",
                 "Content-Type": "application/json",
             },
@@ -177,7 +181,8 @@ async def _publish_linkedin(
 
 
 async def _publish_x(account: SocialAccount, text: str) -> str:
-    if not account.access_token:
+    token = get_account_token(account)
+    if not token:
         raise PublishError("X account has no access token")
     if not text.strip():
         raise PublishError("Cannot publish an empty post")
@@ -187,7 +192,7 @@ async def _publish_x(account: SocialAccount, text: str) -> str:
             "POST",
             "https://api.twitter.com/2/tweets",
             headers={
-                "Authorization": f"Bearer {account.access_token}",
+                "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
             },
             json={"text": text[:X_MAX_CHARS]},
@@ -258,6 +263,7 @@ async def _fetch_linkedin_stats(account: SocialAccount, urn: str) -> dict | None
     """
     if not account.access_token:
         return None
+    token = get_account_token(account)
     encoded = urn.replace(":", "%3A")
     try:
         async with httpx.AsyncClient(timeout=30) as client:
@@ -266,7 +272,7 @@ async def _fetch_linkedin_stats(account: SocialAccount, urn: str) -> dict | None
                 "GET",
                 f"https://api.linkedin.com/v2/socialActions/{encoded}",
                 headers={
-                    "Authorization": f"Bearer {account.access_token}",
+                    "Authorization": f"Bearer {token}",
                     "X-Restli-Protocol-Version": "2.0.0",
                 },
             )
@@ -292,13 +298,14 @@ async def _fetch_x_stats(account: SocialAccount, tweet_id: str) -> dict | None:
     """Read public_metrics (likes/replies/retweets/impressions) for a tweet."""
     if not account.access_token:
         return None
+    token = get_account_token(account)
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             res = await _request_with_retry(
                 client,
                 "GET",
                 f"https://api.twitter.com/2/tweets/{tweet_id}",
-                headers={"Authorization": f"Bearer {account.access_token}"},
+                headers={"Authorization": f"Bearer {token}"},
                 params={"tweet.fields": "public_metrics"},
             )
     except PublishError:

@@ -22,6 +22,7 @@ from app.schemas import (
     SocialBenchmarkRequest,
 )
 from app.services.research_runner import run_research_job
+from app.services.usage_guard import enforce_limit
 from app.tools.social_audit import audit_many, audit_profile
 from app.worker.queue import enqueue
 
@@ -35,6 +36,7 @@ async def create_research(
     ctx: WorkspaceContext = Depends(get_workspace_ctx),
     db: AsyncSession = Depends(get_db),
 ) -> ResearchOut:
+    await enforce_limit(db, ctx.workspace.id, "research")
     job = ResearchJob(
         workspace_id=ctx.workspace.id,
         created_by=ctx.user.id,

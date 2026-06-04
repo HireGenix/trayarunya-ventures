@@ -55,6 +55,13 @@ async def notify(
     await db.flush()
     await db.commit()
     await db.refresh(notification)
+    if level in ("error", "warning"):
+        try:
+            from app.services.notify_channels import fan_out
+
+            await fan_out(level, title, body)
+        except Exception:  # noqa: BLE001 — outbound channels must never break notify()
+            pass
     return notification
 
 

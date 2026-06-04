@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import (
+    abm,
     ads,
     analytics,
     auth,
@@ -16,11 +17,17 @@ from app.routers import (
     billing_checkout,
     brand,
     calendar,
+    campaign_plans,
+    collab,
     content,
+    creative_intel,
+    experiments,
+    forecast,
     health,
     images,
     insight_actions,
     insights,
+    integrations,
     learning,
     next_moves,
     notifications,
@@ -28,6 +35,7 @@ from app.routers import (
     research,
     social,
     strategy,
+    watchtower,
     workspaces,
 )
 
@@ -87,11 +95,15 @@ async def lifespan(app: FastAPI):
     # Plus the results loop: pulls real engagement back from published posts.
     from app.services.scheduler import metrics_refresh_loop, scheduler_loop
     from app.services.alerts_loop import alerts_loop
+    from app.services.watchtower import watchtower_loop
+    from app.services.ads_optimizer_loop import ads_optimizer_loop
 
     stop = asyncio.Event()
     scheduler_task = asyncio.create_task(scheduler_loop(stop))
     metrics_task = asyncio.create_task(metrics_refresh_loop(stop))
     alerts_task = asyncio.create_task(alerts_loop(stop))
+    watchtower_task = asyncio.create_task(watchtower_loop(stop))
+    ads_optimizer_task = asyncio.create_task(ads_optimizer_loop(stop))
     try:
         yield
     finally:
@@ -99,7 +111,15 @@ async def lifespan(app: FastAPI):
         scheduler_task.cancel()
         metrics_task.cancel()
         alerts_task.cancel()
-        for task in (scheduler_task, metrics_task, alerts_task):
+        watchtower_task.cancel()
+        ads_optimizer_task.cancel()
+        for task in (
+            scheduler_task,
+            metrics_task,
+            alerts_task,
+            watchtower_task,
+            ads_optimizer_task,
+        ):
             try:
                 await task
             except (asyncio.CancelledError, Exception):  # noqa: BLE001
@@ -142,6 +162,14 @@ def create_app() -> FastAPI:
     app.include_router(reports.router, prefix=p)
     app.include_router(billing.router, prefix=p)
     app.include_router(billing_checkout.router, prefix=p)
+    app.include_router(experiments.router, prefix=p)
+    app.include_router(integrations.router, prefix=p)
+    app.include_router(watchtower.router, prefix=p)
+    app.include_router(abm.router, prefix=p)
+    app.include_router(creative_intel.router, prefix=p)
+    app.include_router(campaign_plans.router, prefix=p)
+    app.include_router(collab.router, prefix=p)
+    app.include_router(forecast.router, prefix=p)
 
     @app.get("/")
     async def root() -> dict:

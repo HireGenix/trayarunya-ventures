@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
+import logging
 import secrets
 import time
 from dataclasses import dataclass
@@ -21,19 +23,98 @@ import httpx
 
 from app.config import settings
 
-# In-memory store for OAuth state -> {workspace_id, code_verifier, _created_at}.
-# Entries expire after 10 minutes so stale states are never usable and the dict
-# never grows unbounded. In multi-instance production back this with Redis.
-_STATE: dict[str, dict] = {}
-_STATE_TTL = 600  # seconds
+log = logging.getLogger("oauth")
+
+_STATE_TTL = 600  # seconds (~10 min); stale states are never usable.
+_STATE_PREFIX = "oauth:state:"
 
 
-def _prune_state() -> None:
-    """Remove expired state entries (called on every write + read)."""
-    now = time.time()
-    expired = [k for k, v in _STATE.items() if now - v.get("_created_at", 0) > _STATE_TTL]
-    for k in expired:
-        _STATE.pop(k, None)
+class _StateStore:
+    """Short-lived OAuth ``state`` store.
+
+    Prefers Redis (so the authorization + callback can be served by different
+    API instances) and falls back to an in-process dict when Redis is not
+    configured or unreachable. The fallback keeps single-instance deployments
+    and local dev working without Redis. Entries expire after ``_STATE_TTL``.
+
+    A synchronous Redis client is used deliberately so the public helpers stay
+    synchronous and existing callers (which call them without ``await``) keep
+    working unchanged.
+    """
+
+    def __init__(self) -> None:
+        self._mem: dict[str, dict] = {}
+        self._redis = None
+        self._redis_ready = False
+
+    def _client(self):
+        if self._redis_ready:
+            return self._redis
+        self._redis_ready = True
+        url = getattr(settings, "redis_url", None)
+        if not url:
+            return None
+        try:
+            import redis  # type: ignore
+
+            client = redis.Redis.from_url(
+                url,
+                socket_connect_timeout=0.5,
+                socket_timeout=0.5,
+                decode_responses=True,
+            )
+            client.ping()
+            self._redis = client
+            return client
+        except Exception as exc:  # noqa: BLE001
+            log.warning("OAuth state store: Redis unavailable, using in-memory fallback (%s)", exc)
+            self._redis = None
+            return None
+
+    def _prune_mem(self) -> None:
+        now = time.time()
+        expired = [k for k, v in self._mem.items() if now - v.get("_created_at", 0) > _STATE_TTL]
+        for k in expired:
+            self._mem.pop(k, None)
+
+    def set(self, state: str, payload: dict) -> None:
+        client = self._client()
+        if client is not None:
+            try:
+                client.setex(_STATE_PREFIX + state, _STATE_TTL, json.dumps(payload))
+                return
+            except Exception as exc:  # noqa: BLE001
+                log.warning("OAuth state store: Redis set failed, falling back to memory (%s)", exc)
+                self._redis = None
+        self._prune_mem()
+        self._mem[state] = payload
+
+    def pop(self, state: str) -> dict | None:
+        client = self._client()
+        if client is not None:
+            try:
+                key = _STATE_PREFIX + state
+                raw = client.get(key)
+                client.delete(key)
+                if raw is None:
+                    return None
+                entry = json.loads(raw)
+                if time.time() - entry.get("_created_at", 0) > _STATE_TTL:
+                    return None
+                return entry
+            except Exception as exc:  # noqa: BLE001
+                log.warning("OAuth state store: Redis pop failed, falling back to memory (%s)", exc)
+                self._redis = None
+        self._prune_mem()
+        entry = self._mem.pop(state, None)
+        if entry is None:
+            return None
+        if time.time() - entry.get("_created_at", 0) > _STATE_TTL:
+            return None
+        return entry
+
+
+_store = _StateStore()
 
 
 @dataclass
@@ -173,22 +254,14 @@ def build_authorization_url(platform: str, workspace_id: str) -> tuple[str, str]
     if platform in ("youtube", "google_ads"):
         params["access_type"] = "offline"
         params["prompt"] = "consent"
-    _prune_state()
-    _STATE[state] = store
+    _store.set(state, store)
     # httpx QueryParams handles encoding; build the URL cleanly:
     url = str(httpx.URL(p.auth_url, params=params))
     return url, state
 
 
 def pop_state(state: str) -> dict | None:
-    _prune_state()
-    entry = _STATE.pop(state, None)
-    if entry is None:
-        return None
-    # Reject expired states even if prune didn't catch them.
-    if time.time() - entry.get("_created_at", 0) > _STATE_TTL:
-        return None
-    return entry
+    return _store.pop(state)
 
 
 async def exchange_code(platform: str, code: str, state_data: dict) -> dict:

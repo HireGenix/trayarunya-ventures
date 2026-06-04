@@ -46,3 +46,6 @@ orjson==3.10.13
 
 # --- Stripe billing ---
 stripe==11.4.1
+
+# --- PDF report generation ---
+reportlab==4.5.1

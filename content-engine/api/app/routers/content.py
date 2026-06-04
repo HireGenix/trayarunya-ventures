@@ -22,6 +22,7 @@ from app.services.content_studio import (
     persist_content,
     produce_content,
 )
+from app.services.usage_guard import enforce_limit
 
 router = APIRouter(prefix="/content", tags=["content"])
 
@@ -110,6 +111,7 @@ async def generate(
     ctx: WorkspaceContext = Depends(get_workspace_ctx),
     db: AsyncSession = Depends(get_db),
 ) -> list[ContentOut]:
+    await enforce_limit(db, ctx.workspace.id, "content")
     brand = await _load_brand(db, ctx.workspace.id)
     strategy = await _load_strategy(db, ctx.workspace.id, data.strategy_id)
 

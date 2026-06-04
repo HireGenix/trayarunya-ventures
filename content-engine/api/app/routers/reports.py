@@ -8,10 +8,10 @@ GET   /reports/public/{token} — PUBLIC (no auth), view report + increment view
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +27,7 @@ from app.models import (
     ScheduleStatus,
     SocialAccount,
 )
+from app.services.report_pdf import render_report_pdf
 
 
 # ---------------------------------------------------------------------------
@@ -63,6 +64,64 @@ class PublicReport(BaseModel):
     views: int
     created_at: str
     data: dict[str, Any]
+
+
+class ShareSettings(BaseModel):
+    expires_in_days: int | None = None  # None = no change; 0 = clear expiry
+    passcode: str | None = None         # "" clears, None = no change
+    revoked: bool | None = None
+
+
+class ShareSettingsOut(BaseModel):
+    id: str
+    token: str
+    expires_at: str | None
+    revoked: bool
+    passcode_set: bool
+
+
+# ---------------------------------------------------------------------------
+# Share-link enforcement helpers (backward compatible — columns optional)
+# ---------------------------------------------------------------------------
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _is_revoked(report: Report) -> bool:
+    return bool(getattr(report, "revoked", False))
+
+
+def _is_expired(report: Report) -> bool:
+    exp = getattr(report, "expires_at", None)
+    if exp is None:
+        return False
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    return _now() > exp
+
+
+def _passcode(report: Report) -> str | None:
+    code = getattr(report, "passcode", None)
+    return code or None
+
+
+def _pdf_filename(report: Report) -> str:
+    base = (getattr(report, "title", None) or "report").strip().lower()
+    safe = "".join(c if c.isalnum() else "-" for c in base).strip("-") or "report"
+    return f"{safe[:60]}.pdf"
+
+
+def _enforce_share_access(report: Report, code: str | None) -> None:
+    """Raise the appropriate HTTPException if the share link is not accessible."""
+    if _is_revoked(report):
+        raise HTTPException(status_code=410, detail="This report link has been revoked")
+    if _is_expired(report):
+        raise HTTPException(status_code=410, detail="This report link has expired")
+    required = _passcode(report)
+    if required and code != required:
+        raise HTTPException(status_code=401, detail="A valid passcode is required")
 
 
 # ---------------------------------------------------------------------------
@@ -281,18 +340,101 @@ async def delete_report(
     await db.commit()
 
 
+async def _workspace_name(db: AsyncSession, workspace_id: uuid.UUID) -> str:
+    from app.models.tenant import Workspace  # local import avoids circular
+
+    ws = await db.get(Workspace, workspace_id)
+    return ws.name if ws else "Trayarunya Ventures"
+
+
+@router.get("/{report_id}/pdf")
+async def download_report_pdf(
+    report_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    """Authenticated, workspace-scoped PDF export of a report."""
+    report = (
+        await db.execute(
+            select(Report).where(
+                Report.id == report_id,
+                Report.workspace_id == ctx.workspace.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    ws_name = await _workspace_name(db, report.workspace_id)
+    pdf_bytes = await render_report_pdf(report, ws_name)
+    filename = _pdf_filename(report)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/{report_id}/share-settings", response_model=ShareSettingsOut)
+async def update_share_settings(
+    report_id: uuid.UUID,
+    settings: ShareSettings,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> ShareSettingsOut:
+    """Configure expiry, passcode and revocation for a report's public link."""
+    report = (
+        await db.execute(
+            select(Report).where(
+                Report.id == report_id,
+                Report.workspace_id == ctx.workspace.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    if settings.expires_in_days is not None:
+        if settings.expires_in_days <= 0:
+            setattr(report, "expires_at", None)
+        else:
+            setattr(report, "expires_at", _now() + timedelta(days=settings.expires_in_days))
+    if settings.passcode is not None:
+        setattr(report, "passcode", settings.passcode or None)
+    if settings.revoked is not None:
+        setattr(report, "revoked", bool(settings.revoked))
+
+    await db.commit()
+    await db.refresh(report)
+
+    exp = getattr(report, "expires_at", None)
+    return ShareSettingsOut(
+        id=str(report.id),
+        token=report.token,
+        expires_at=exp.isoformat() if exp else None,
+        revoked=bool(getattr(report, "revoked", False)),
+        passcode_set=bool(getattr(report, "passcode", None)),
+    )
+
+
 # ---------------------------------------------------------------------------
 # PUBLIC route — no auth, clients open this link
 # ---------------------------------------------------------------------------
 
 
 @router.get("/public/{token}", response_model=PublicReport)
-async def get_public_report(token: str) -> PublicReport:
+async def get_public_report(
+    token: str,
+    code: str | None = Query(default=None),
+    x_report_passcode: str | None = Header(default=None),
+) -> PublicReport:
     """Return the frozen report snapshot for a given share token.
 
     This endpoint is intentionally unauthenticated so clients can open the
     link without logging in.  The token is a random UUID so it cannot be
-    guessed.
+    guessed.  Access is additionally gated by optional expiry, revocation and
+    passcode settings (all backward compatible — links without them keep
+    working).
     """
     async with AsyncSessionLocal() as db:
         report = (
@@ -300,6 +442,8 @@ async def get_public_report(token: str) -> PublicReport:
         ).scalar_one_or_none()
         if report is None:
             raise HTTPException(status_code=404, detail="Report not found or link expired")
+
+        _enforce_share_access(report, code or x_report_passcode)
 
         # Resolve workspace name
         from app.models.tenant import Workspace  # local import avoids circular
@@ -321,4 +465,34 @@ async def get_public_report(token: str) -> PublicReport:
             views=report.views,
             created_at=report.created_at.isoformat(),
             data=report.data or {},
+        )
+
+
+@router.get("/public/{token}/pdf")
+async def get_public_report_pdf(
+    token: str,
+    code: str | None = Query(default=None),
+    x_report_passcode: str | None = Header(default=None),
+) -> Response:
+    """Public PDF export for a valid, non-revoked, non-expired share token."""
+    async with AsyncSessionLocal() as db:
+        report = (
+            await db.execute(select(Report).where(Report.token == token))
+        ).scalar_one_or_none()
+        if report is None:
+            raise HTTPException(status_code=404, detail="Report not found or link expired")
+
+        _enforce_share_access(report, code or x_report_passcode)
+
+        from app.models.tenant import Workspace  # local import avoids circular
+
+        ws = await db.get(Workspace, report.workspace_id)
+        ws_name = ws.name if ws else "Trayarunya Ventures"
+
+        pdf_bytes = await render_report_pdf(report, ws_name)
+        filename = _pdf_filename(report)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
