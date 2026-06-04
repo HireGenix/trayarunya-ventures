@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     sentry_dsn: str | None = None
     log_json: bool = Field(default=True)
 
+    # --- Background loops ---
+    # When True the API process may run the scheduler/metrics/alerts/watchtower/
+    # ads loops. A Redis leader-lock ensures only ONE process runs them even if
+    # multiple replicas have this enabled. Set False on API replicas and run a
+    # dedicated process (python -m app.worker.run_loops) for clean separation.
+    run_background_loops: bool = Field(default=True)
+    leader_lock_ttl_seconds: int = Field(default=30)
+
     # --- CORS ---
     cors_origins: str = Field(
         default="http://localhost:3000,http://localhost:3100",

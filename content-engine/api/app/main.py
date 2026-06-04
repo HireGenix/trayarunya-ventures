@@ -99,37 +99,24 @@ async def lifespan(app: FastAPI):
         async with AsyncSessionLocal() as db:
             await seed_plans(db)
 
-    # Start the publishing scheduler: fires due, approved/scheduled posts.
-    # Plus the results loop: pulls real engagement back from published posts.
-    from app.services.scheduler import metrics_refresh_loop, scheduler_loop
-    from app.services.alerts_loop import alerts_loop
-    from app.services.watchtower import watchtower_loop
-    from app.services.ads_optimizer_loop import ads_optimizer_loop
-
+    # Background loops (scheduler, metrics, alerts, watchtower, ads optimizer).
+    # A Redis leader-lock ensures only one process runs them across replicas;
+    # fails open to local execution when Redis is unavailable. Disable on API
+    # replicas via RUN_BACKGROUND_LOOPS=false and run `python -m app.worker.run_loops`.
     stop = asyncio.Event()
-    scheduler_task = asyncio.create_task(scheduler_loop(stop))
-    metrics_task = asyncio.create_task(metrics_refresh_loop(stop))
-    alerts_task = asyncio.create_task(alerts_loop(stop))
-    watchtower_task = asyncio.create_task(watchtower_loop(stop))
-    ads_optimizer_task = asyncio.create_task(ads_optimizer_loop(stop))
+    supervisor_task: asyncio.Task | None = None
+    if settings.run_background_loops:
+        from app.worker.leader import run_background_supervisor
+
+        supervisor_task = asyncio.create_task(run_background_supervisor(stop))
     try:
         yield
     finally:
         stop.set()
-        scheduler_task.cancel()
-        metrics_task.cancel()
-        alerts_task.cancel()
-        watchtower_task.cancel()
-        ads_optimizer_task.cancel()
-        for task in (
-            scheduler_task,
-            metrics_task,
-            alerts_task,
-            watchtower_task,
-            ads_optimizer_task,
-        ):
+        if supervisor_task is not None:
+            supervisor_task.cancel()
             try:
-                await task
+                await supervisor_task
             except (asyncio.CancelledError, Exception):  # noqa: BLE001
                 pass
 
