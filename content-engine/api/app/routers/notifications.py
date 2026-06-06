@@ -101,7 +101,7 @@ async def mark_all_read(
     return ReadAllOut(updated=int(res.rowcount or 0))
 
 
-@router.delete("/{notification_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{notification_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_notification(
     notification_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

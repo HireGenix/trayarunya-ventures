@@ -22,6 +22,18 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class SignupCheckoutRequest(SignupRequest):
+    interval: str = Field(default="monthly")
+
+
+class SignupCheckoutResponse(BaseModel):
+    url: str
+
+
+class CompleteSignupRequest(BaseModel):
+    session_id: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -34,6 +46,7 @@ class UserOut(BaseModel):
     email: EmailStr
     full_name: str
     is_active: bool
+    is_superuser: bool = False
 
 
 # ---------- Tenancy ----------
@@ -44,6 +57,7 @@ class OrganizationOut(BaseModel):
     slug: str
     org_type: str
     plan: str
+    client_limit: int | None = None
 
 
 class WorkspaceCreate(BaseModel):
@@ -346,6 +360,7 @@ class ContentOut(BaseModel):
     asset_kind: str | None = None
     email_html: str | None = None
     email_format: str | None = None
+    scheduled_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -388,6 +403,7 @@ class ScheduleOut(BaseModel):
     scheduled_at: datetime
     status: str
     external_post_id: str | None
+    permalink: str | None = None
     error: str | None
     created_at: datetime
 
@@ -405,6 +421,9 @@ class AdAccountOut(BaseModel):
     external_id: str | None
     name: str | None
     is_grant: bool
+    connected: bool = False
+    currency: str = "USD"
+    meta: dict[str, Any] | None = None
     created_at: datetime
 
 
@@ -415,11 +434,27 @@ class AdAccountCreate(BaseModel):
     is_grant: bool = False
 
 
+class AdAccountUpdate(BaseModel):
+    """User confirmation of a connected account: which customer id is in use and
+    whether it is a Google Ad Grants (nonprofit) account."""
+    external_id: str | None = None
+    name: str | None = None
+    is_grant: bool | None = None
+
+
+class QuickConnectRequest(BaseModel):
+    platform: str = Field(default="google_ads")
+    name: str | None = None
+    is_grant: bool = False
+
+
 class CampaignGenerateRequest(BaseModel):
     ad_account_id: uuid.UUID
     objective: str = Field(min_length=2, max_length=300)
     product: str = Field(min_length=2, max_length=300)
     daily_budget: float | None = None
+    audience: str | None = None
+    locations: list[str] | None = None
     strategy_id: uuid.UUID | None = None
 
 
@@ -427,13 +462,103 @@ class CampaignOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     ad_account_id: uuid.UUID
+    platform: str | None = None
     name: str
     objective: str | None
     status: str
     daily_budget: float | None
+    external_id: str | None = None
     plan: dict[str, Any] | None
     assets: dict[str, Any] | None
+    recommendations: dict[str, Any] | None = None
+    metrics_synced_at: datetime | None = None
+    launch_error: str | None = None
+    platform_status: str | None = None
+    launched_at: datetime | None = None
     created_at: datetime
+
+
+class CampaignRollup(BaseModel):
+    id: str
+    name: str
+    status: str
+    daily_budget: float | None
+    totals: dict[str, float]
+    kpis: dict[str, float]
+
+
+class PlatformOverview(BaseModel):
+    platform: str
+    days: int
+    connected: bool
+    live: bool
+    totals: dict[str, float]
+    kpis: dict[str, float]
+    series: list[dict[str, Any]]
+    campaigns: list[CampaignRollup]
+    campaign_count: int
+    active_count: int
+
+
+class CampaignMetricsOut(BaseModel):
+    campaign_id: str
+    days: int
+    totals: dict[str, float]
+    kpis: dict[str, float]
+    series: list[dict[str, Any]]
+
+
+class AdsProviders(BaseModel):
+    providers: dict[str, bool]
+
+
+class ConnectionStatusOut(BaseModel):
+    connected: bool
+    platform: str | None = None
+    status: str
+    message: str
+    has_credentials: bool = False
+    can_launch: bool = False
+    external_id: str | None = None
+    is_grant: bool | None = None
+
+
+class ValidationErrorItem(BaseModel):
+    field: str
+    message: str
+    severity: str = "error"
+
+
+class CampaignValidateOut(BaseModel):
+    valid: bool
+    errors: list[ValidationErrorItem] = []
+    warnings: list[ValidationErrorItem] = []
+
+
+class CampaignLaunchOut(BaseModel):
+    success: bool
+    external_id: str | None = None
+    platform_status: str | None = None
+    error: str | None = None
+    detail: str | None = None
+    validation_errors: list[ValidationErrorItem] = []
+    warnings: list[ValidationErrorItem] = []
+    campaign: CampaignOut | None = None
+
+
+class CampaignStatusSyncOut(BaseModel):
+    synced: bool
+    status: str
+    name: str | None = None
+    detail: str | None = None
+
+
+class CampaignDraftUpdateRequest(BaseModel):
+    name: str | None = None
+    objective: str | None = None
+    daily_budget: float | None = None
+    plan: dict[str, Any] | None = None
+    assets: dict[str, Any] | None = None
 
 
 # ---------- Analytics / Learning (M6) ----------
@@ -527,6 +652,37 @@ class CalendarOut(BaseModel):
     updated_at: datetime
 
 
+# ---------- Unified Calendar Feed ----------
+
+class CalendarFeedItem(BaseModel):
+    id: str
+    source_type: str  # content | social | email
+    source_id: str
+    title: str
+    channel: str
+    scheduled_at: str | None
+    status: str  # draft | scheduled | published | failed
+    meta: dict[str, Any] | None = None
+
+
+class CalendarFeedResponse(BaseModel):
+    items: list[CalendarFeedItem]
+    gaps: list[str] = []
+
+
+class CalendarRescheduleRequest(BaseModel):
+    source_type: str  # content | social | email
+    source_id: uuid.UUID
+    new_scheduled_at: datetime
+
+
+class CalendarQuickAddRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=400)
+    scheduled_at: datetime
+    platform: str | None = None
+    content_type: str = "social_post"
+
+
 # ---------- Image generation (social graphics) ----------
 class ImageGenerateRequest(BaseModel):
     prompt: str | None = None  # explicit prompt overrides topic/headline
@@ -566,3 +722,551 @@ class ImageOut(BaseModel):
     mime: str
     url: str
     created_at: datetime
+
+
+class VideoGenerateRequest(BaseModel):
+    """Generate an AI short-form video (script + b-roll + voiceover + captions)."""
+
+    topic: str | None = None
+    fmt: str = "reels"  # youtube | youtube_shorts | reels | tiktok
+    platform: str | None = None
+    seconds: int | None = Field(default=None, ge=5, le=180)
+    voice: str | None = None  # alloy|echo|fable|onyx|nova|shimmer|coral|sage
+    tone: str | None = None  # delivery instruction for gpt-4o-mini-tts
+    quality: str | None = None  # 720p | 1080p | 4k (default 1080p)
+    style: str | None = None  # clean | bold | dynamic (creative template)
+    visuals: str | None = None  # stock | ai | hybrid (imagery source, default hybrid)
+    content_item_id: uuid.UUID | None = None
+    script: str | None = None  # narrate this finished script verbatim (turn post -> video)
+    use_brand: bool = True
+    extra: str | None = None
+
+
+class VideoRegenerateRequest(BaseModel):
+    notes: str | None = Field(default=None, max_length=600)
+    voice: str | None = None
+    tone: str | None = None
+    quality: str | None = None  # 720p | 1080p | 4k
+    style: str | None = None  # clean | bold | dynamic
+    visuals: str | None = None  # stock | ai | hybrid
+
+
+class VideoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    content_item_id: uuid.UUID | None
+    topic: str | None
+    platform: str | None
+    fmt: str
+    provider: str | None
+    voice: str | None
+    status: str
+    duration_s: int | None
+    width: int | None
+    height: int | None
+    mime: str
+    url: str
+    created_at: datetime
+
+
+
+# ---------- Model registry ----------
+class ModelPublicOut(BaseModel):
+    """Safe model info for the picker — NEVER includes keys or endpoints."""
+    key: str
+    label: str
+    kind: str
+    is_default: bool
+
+
+class ModelAdminOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    key: str
+    label: str
+    kind: str
+    endpoint: str | None
+    model_name: str
+    api_version: str | None
+    enabled: bool
+    is_default: bool
+    sort_order: int
+    source: str
+    has_key: bool = False
+    created_at: datetime
+    updated_at: datetime
+
+
+class ModelCreate(BaseModel):
+    key: str = Field(min_length=1, max_length=80)
+    label: str = Field(min_length=1, max_length=120)
+    kind: str = Field(description="responses | anthropic | chat_completions")
+    model_name: str = Field(min_length=1, max_length=120)
+    endpoint: str | None = None
+    api_key: str | None = None
+    api_version: str | None = None
+    enabled: bool = True
+    is_default: bool = False
+    sort_order: int = 100
+
+
+class ModelUpdate(BaseModel):
+    key: str | None = Field(default=None, max_length=80)
+    label: str | None = Field(default=None, max_length=120)
+    kind: str | None = None
+    model_name: str | None = Field(default=None, max_length=120)
+    endpoint: str | None = None
+    api_key: str | None = None
+    api_version: str | None = None
+    enabled: bool | None = None
+    is_default: bool | None = None
+    sort_order: int | None = None
+
+
+# ---------- ICP (Ideal Customer Profile) ----------
+class ICPOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    status: str
+    segment: str | None = None
+    industry: str | None = None
+    company_name: str | None = None
+    website: str | None = None
+    company_summary: str | None = None
+    value_prop: str | None = None
+    offer: str | None = None
+    target_customer: str | None = None
+    brand_voice: str | None = None
+    personas: list[Any] | None = None
+    pains: list[Any] | None = None
+    goals: list[Any] | None = None
+    geographies: list[Any] | None = None
+    channels: list[Any] | None = None
+    keywords: list[Any] | None = None
+    competitors: list[Any] | None = None
+    b2b: dict[str, Any] | None = None
+    completeness: int = 0
+    raw: dict[str, Any] | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ICPUpdate(BaseModel):
+    """Manual edits / full upsert from the ICP panel. All fields optional."""
+    status: str | None = None
+    segment: str | None = None
+    industry: str | None = None
+    company_name: str | None = None
+    website: str | None = None
+    company_summary: str | None = None
+    value_prop: str | None = None
+    offer: str | None = None
+    target_customer: str | None = None
+    brand_voice: str | None = None
+    personas: list[Any] | None = None
+    pains: list[Any] | None = None
+    goals: list[Any] | None = None
+    geographies: list[Any] | None = None
+    channels: list[Any] | None = None
+    keywords: list[Any] | None = None
+    competitors: list[Any] | None = None
+    b2b: dict[str, Any] | None = None
+
+
+class ICPChatMessage(BaseModel):
+    role: str = Field(description="user | assistant")
+    text: str = ""
+    images: list[str] | None = None
+
+
+class ICPChatRequest(BaseModel):
+    messages: list[ICPChatMessage]
+    save: bool = False
+
+
+class ICPChatResponse(BaseModel):
+    message: str
+    icp: dict[str, Any]
+    completeness: int = 0
+    done: bool = False
+
+
+# ---------- Team Chat ----------
+class ConversationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    title: str
+    model_key: str | None = None
+    pinned: bool = False
+    archived: bool = False
+    created_at: datetime
+    updated_at: datetime
+
+
+class ConversationWithPreview(ConversationOut):
+    preview: str | None = None
+
+
+class ChatAttachment(BaseModel):
+    name: str = Field(max_length=200)
+    kind: str = Field(pattern="^(image|document)$")
+    url: str | None = None
+    # Transient (images only) — base64 data URL passed to the vision model, not persisted.
+    data_url: str | None = None
+    # Extracted text (documents only).
+    text: str | None = None
+
+
+class ConversationCreate(BaseModel):
+    title: str | None = Field(default=None, max_length=300)
+    model_key: str | None = Field(default=None, max_length=80)
+    # Optional first user message to seed the conversation.
+    message: str | None = None
+    web_search: bool = False
+    attachments: list[ChatAttachment] = []
+
+
+class ConversationUpdate(BaseModel):
+    title: str | None = Field(default=None, max_length=300)
+    model_key: str | None = Field(default=None, max_length=80)
+    pinned: bool | None = None
+    archived: bool | None = None
+
+
+class ChatMessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    role: str
+    content: str
+    meta: dict | None = None
+    created_at: datetime
+
+
+class ConversationDetail(ConversationOut):
+    messages: list[ChatMessageOut] = []
+
+
+class ChatSendRequest(BaseModel):
+    text: str = Field(min_length=1)
+    model_key: str | None = Field(default=None, max_length=80)
+    web_search: bool = False
+    attachments: list[ChatAttachment] = []
+
+
+class ChatAttachmentOut(BaseModel):
+    name: str
+    kind: str
+    url: str | None = None
+    data_url: str | None = None
+    text: str | None = None
+    chars: int | None = None
+
+
+class ChatSendResponse(BaseModel):
+    conversation_id: uuid.UUID
+    message: ChatMessageOut
+    title: str
+
+
+# ---------- Decks (branded AI presentations) ----------
+class DeckGenerateRequest(BaseModel):
+    topic: str = Field(min_length=3, max_length=4000)
+    audience: str | None = Field(default=None, max_length=300)
+    tone: str | None = Field(default=None, max_length=120)
+    style: str = Field(default="modern", max_length=40)
+    slide_count: int | None = Field(default=None, ge=4, le=16)
+    model_key: str | None = Field(default=None, max_length=80)
+    image_provider: str | None = Field(default=None, max_length=40)
+    image_source: str | None = Field(default=None, max_length=10)
+    theme_id: str | None = Field(default=None, max_length=40)
+
+
+class DeckUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, max_length=300)
+    style: str | None = Field(default=None, max_length=40)
+    theme_id: str | None = Field(default=None, max_length=40)
+
+
+class SlideUpdateRequest(BaseModel):
+    layout: str | None = Field(default=None, max_length=40)
+    data: dict | None = None
+    speaker_notes: str | None = None
+
+
+class SlideReorderRequest(BaseModel):
+    slide_ids: list[uuid.UUID]
+
+
+class SlideRegenerateRequest(BaseModel):
+    instruction: str | None = Field(default=None, max_length=2000)
+    layout: str | None = Field(default=None, max_length=40)
+    model_key: str | None = Field(default=None, max_length=80)
+    with_image: bool = True
+    rewrite_content: bool = True
+
+
+class SlideAddRequest(BaseModel):
+    after_slide_id: uuid.UUID | None = None
+    layout: str = Field(default="bullets", max_length=40)
+    instruction: str | None = Field(default=None, max_length=2000)
+    generate: bool = True
+    model_key: str | None = Field(default=None, max_length=80)
+
+
+class DeckSlideOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    position: int
+    layout: str
+    data: dict
+    speaker_notes: str | None = None
+
+
+class DeckOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    title: str
+    topic: str | None = None
+    audience: str | None = None
+    tone: str | None = None
+    style: str
+    status: str
+    error: str | None = None
+    theme: dict | None = None
+    meta: dict | None = None
+    created_at: datetime
+    updated_at: datetime
+    share_enabled: bool = False
+    share_token: str | None = None
+    require_email: bool = False
+    expires_at: datetime | None = None
+
+
+class DeckSummary(DeckOut):
+    slide_count: int = 0
+
+
+class DeckDetail(DeckOut):
+    slides: list[DeckSlideOut] = []
+
+
+# ---------- Deck collaboration ----------
+class DeckCommentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    deck_id: uuid.UUID
+    slide_index: int
+    author: str
+    body: str
+    resolved: bool
+    created_at: datetime
+
+
+class DeckCommentCreate(BaseModel):
+    slide_index: int = Field(ge=0)
+    body: str = Field(min_length=1, max_length=2000)
+
+
+class DeckVersionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    deck_id: uuid.UUID
+    version_number: int
+    label: str | None = None
+    created_at: datetime
+
+
+class DeckShareOut(BaseModel):
+    share_token: str
+    share_url: str
+    require_email: bool = False
+    has_password: bool = False
+    expires_at: datetime | None = None
+
+
+class DeckAsyncJobOut(BaseModel):
+    job_id: str
+    status: str
+
+
+class DeckThemeApplyRequest(BaseModel):
+    theme_id: str = Field(max_length=40)
+
+
+# ---------- Deck sharing & analytics ----------
+class DeckShareSettings(BaseModel):
+    require_email: bool = False
+    password: str | None = Field(default=None, max_length=128)
+    expires_at: datetime | None = None
+
+
+class DeckShareMeta(BaseModel):
+    title: str
+    slide_count: int
+    require_email: bool = False
+    require_password: bool = False
+    expired: bool = False
+
+
+class DeckUnlockRequest(BaseModel):
+    email: str | None = Field(default=None, max_length=320)
+    password: str | None = Field(default=None, max_length=128)
+
+
+class DeckViewOut(BaseModel):
+    session_id: str
+
+
+class DeckHeartbeatRequest(BaseModel):
+    session_id: str = Field(max_length=64)
+    slide_index: int = Field(ge=0)
+    delta_seconds: int = Field(ge=0, le=300)
+
+
+class DeckSlideAnalytics(BaseModel):
+    slide_index: int
+    total_seconds: int
+    view_count: int
+
+
+class DeckViewerRow(BaseModel):
+    session_id: str
+    viewer_email: str | None = None
+    started_at: datetime
+    last_seen_at: datetime
+    total_seconds: int
+
+
+class DeckAnalyticsOut(BaseModel):
+    unique_viewers: int = 0
+    total_views: int = 0
+    avg_seconds: float = 0.0
+    completion_rate: float = 0.0
+    per_slide: list[DeckSlideAnalytics] = []
+    recent_viewers: list[DeckViewerRow] = []
+
+
+class DeckOutlineSlide(BaseModel):
+    title: str = Field(max_length=300)
+    intent: str = Field(default="", max_length=1000)
+    layout: str = Field(default="bullets", max_length=40)
+
+
+class DeckOutlineRequest(BaseModel):
+    topic: str = Field(min_length=3, max_length=4000)
+    audience: str | None = Field(default=None, max_length=300)
+    tone: str | None = Field(default=None, max_length=120)
+    slide_count: int | None = Field(default=None, ge=4, le=20)
+    model_key: str | None = Field(default=None, max_length=80)
+
+
+class DeckOutlineOut(BaseModel):
+    slides: list[DeckOutlineSlide]
+
+
+class DeckGenerateFromOutlineRequest(BaseModel):
+    outline: list[DeckOutlineSlide]
+    topic: str = Field(min_length=3, max_length=4000)
+    audience: str | None = Field(default=None, max_length=300)
+    tone: str | None = Field(default=None, max_length=120)
+    style: str = Field(default="modern", max_length=40)
+    model_key: str | None = Field(default=None, max_length=80)
+    image_provider: str | None = Field(default=None, max_length=40)
+    image_source: str | None = Field(default=None, max_length=10)
+    theme_id: str | None = Field(default=None, max_length=40)
+
+
+class BrandKitOut(BaseModel):
+    logo_url: str | None = None
+    primary_color: str | None = None
+    accent_color: str | None = None
+    brand_name: str | None = None
+    mission: str | None = None
+    fonts: dict | None = None
+
+
+class DeckTemplateOut(BaseModel):
+    id: str
+    name: str
+    description: str
+    slide_count: int
+    category: str
+    outline: list[DeckOutlineSlide]
+
+
+# ---------- Platform admin (superuser) ----------
+class AdminOrgOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    name: str
+    slug: str
+    org_type: str
+    plan: str
+    client_limit: int | None = None
+    workspace_count: int = 0
+    has_subscription: bool = False
+
+
+class AdminUserOut(BaseModel):
+    id: uuid.UUID
+    email: EmailStr
+    full_name: str
+    is_active: bool
+    is_superuser: bool
+    role: str | None = None
+    created_at: datetime | None = None
+    org: AdminOrgOut | None = None
+
+
+class AdminUserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    full_name: str = Field(min_length=1, max_length=200)
+    org_name: str = Field(min_length=1, max_length=200)
+    org_type: str = Field(default="company")
+    plan_code: str = Field(default="free")
+    client_limit: int | None = Field(default=None, ge=0)
+    is_superuser: bool = False
+
+
+class AdminUserUpdate(BaseModel):
+    full_name: str | None = Field(default=None, min_length=1, max_length=200)
+    is_active: bool | None = None
+    is_superuser: bool | None = None
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+
+
+class AdminOrgUpdate(BaseModel):
+    plan_code: str | None = None
+    org_type: str | None = None
+    client_limit: int | None = Field(default=None, ge=0)
+
+
+class AdminPlanOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    code: str
+    name: str
+    price_monthly: int
+    limits: dict[str, Any] | None = None
+    features: list[str] | None = None
+    in_use: int = 0
+
+
+class AdminPlanCreate(BaseModel):
+    code: str = Field(min_length=2, max_length=50)
+    name: str = Field(min_length=1, max_length=120)
+    price_monthly: int = Field(default=0, ge=0)
+    limits: dict[str, Any] | None = None
+    features: list[str] | None = None
+
+
+class AdminPlanUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    price_monthly: int | None = Field(default=None, ge=0)
+    limits: dict[str, Any] | None = None
+    features: list[str] | None = None

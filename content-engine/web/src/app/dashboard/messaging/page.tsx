@@ -41,7 +41,7 @@ const CARD_RADIUS = '22px';
 const CARD_SHADOW = '0 1px 2px rgba(14,17,22,0.04), 0 8px 24px rgba(14,17,22,0.05)';
 
 type Channel = 'sms' | 'whatsapp';
-type Tab = 'broadcasts' | 'templates' | 'contacts' | 'overview';
+type Tab = 'broadcasts' | 'templates' | 'contacts' | 'logs' | 'overview';
 
 interface Contact {
   id: string;
@@ -72,9 +72,28 @@ interface Broadcast {
   stats: Record<string, number> | null;
   created_at: string;
 }
+interface MessageLogEntry {
+  id: string;
+  channel: string;
+  to_phone: string | null;
+  body: string | null;
+  status: string;
+  provider_message_id: string | null;
+  error: string | null;
+  sent_at: string | null;
+  delivered_at: string | null;
+  read_at: string | null;
+  created_at: string;
+}
 interface ProviderState {
   configured: boolean;
   provider: string | null;
+}
+interface ChannelStatus {
+  channel: string;
+  connected: boolean;
+  provider: string | null;
+  reason: string | null;
 }
 interface Overview {
   contacts: number;
@@ -97,6 +116,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'broadcasts', label: 'Broadcasts' },
   { key: 'templates', label: 'Templates' },
   { key: 'contacts', label: 'Contacts' },
+  { key: 'logs', label: 'Message log' },
   { key: 'overview', label: 'Overview' },
 ];
 
@@ -112,10 +132,14 @@ function fmtDate(iso: string | null): string {
 
 const STATUS_TONE: Record<string, { c: string; bg: string }> = {
   sent: { c: BRAND.tealDeep, bg: BRAND.tealSoft },
+  delivered: { c: BRAND.tealDeep, bg: BRAND.tealSoft },
+  read: { c: '#0E7C5F', bg: '#D1FAE5' },
   approved: { c: BRAND.tealDeep, bg: BRAND.tealSoft },
+  queued: { c: BRAND.amberDeep, bg: BRAND.amberSoft },
   scheduled: { c: BRAND.amberDeep, bg: BRAND.amberSoft },
   sending: { c: BRAND.amberDeep, bg: BRAND.amberSoft },
   pending: { c: BRAND.amberDeep, bg: BRAND.amberSoft },
+  skipped_not_connected: { c: BRAND.amberDeep, bg: BRAND.amberSoft },
   draft: { c: SUBTLE, bg: 'rgba(14,17,22,0.05)' },
   failed: { c: BRAND.pink, bg: BRAND.pinkSoft },
 };
@@ -173,18 +197,143 @@ const inkButton = {
   '&:hover': { background: '#1B2330' },
 };
 
+function NewTemplateDialog({
+  open,
+  onClose,
+  onCreated,
+  onToast,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+  onToast: (msg: string) => void;
+}) {
+  const [tplForm, setTplForm] = useState({
+    name: '',
+    body: '',
+    channel: 'sms' as Channel,
+    category: 'marketing',
+    variables: '',
+  });
+  const [savingTpl, setSavingTpl] = useState(false);
+
+  async function createTemplate() {
+    if (!tplForm.name.trim() || !tplForm.body.trim()) {
+      onToast('Name and body are required');
+      return;
+    }
+    setSavingTpl(true);
+    try {
+      const variables = tplForm.variables
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean);
+      await api('/messaging/templates', {
+        method: 'POST',
+        body: {
+          name: tplForm.name.trim(),
+          body: tplForm.body.trim(),
+          channel: tplForm.channel,
+          category: tplForm.category.trim() || 'marketing',
+          variables,
+        },
+        workspace: true,
+      });
+      setTplForm({ name: '', body: '', channel: 'sms', category: 'marketing', variables: '' });
+      onToast('Template created');
+      onCreated();
+      onClose();
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : 'Failed to create template');
+    } finally {
+      setSavingTpl(false);
+    }
+  }
+
+  return (
+    <PremiumDialog open={open} onClose={onClose} maxWidth="sm">
+      <DialogHero
+        icon={<AddIcon />}
+        title="New template"
+        subtitle="Create a reusable SMS or WhatsApp message template"
+        onClose={onClose}
+      />
+      <DialogBody>
+        <SectionLabel>Template details</SectionLabel>
+        <Stack spacing={2}>
+          <TextField
+            label="Name"
+            value={tplForm.name}
+            onChange={(e) => setTplForm((f) => ({ ...f, name: e.target.value }))}
+            fullWidth
+            size="small"
+            autoFocus
+          />
+          <TextField
+            label="Body"
+            value={tplForm.body}
+            onChange={(e) => setTplForm((f) => ({ ...f, body: e.target.value }))}
+            fullWidth
+            multiline
+            minRows={3}
+            size="small"
+            placeholder="Hi {{name}}, here is your update…"
+          />
+          <TextField
+            select
+            label="Channel"
+            value={tplForm.channel}
+            onChange={(e) => setTplForm((f) => ({ ...f, channel: e.target.value as Channel }))}
+            fullWidth
+            size="small"
+          >
+            <MenuItem value="sms">SMS</MenuItem>
+            <MenuItem value="whatsapp">WhatsApp</MenuItem>
+          </TextField>
+          <TextField
+            label="Category"
+            value={tplForm.category}
+            onChange={(e) => setTplForm((f) => ({ ...f, category: e.target.value }))}
+            fullWidth
+            size="small"
+          />
+          <TextField
+            label="Variables"
+            value={tplForm.variables}
+            onChange={(e) => setTplForm((f) => ({ ...f, variables: e.target.value }))}
+            fullWidth
+            size="small"
+            placeholder="name, order_id (comma separated)"
+          />
+        </Stack>
+      </DialogBody>
+      <DialogFooter>
+        <Button onClick={onClose} sx={ghostPillSx}>
+          Cancel
+        </Button>
+        <Button onClick={createTemplate} disabled={savingTpl} sx={inkPillSx}>
+          {savingTpl ? 'Creating…' : 'Create template'}
+        </Button>
+      </DialogFooter>
+    </PremiumDialog>
+  );
+}
+
 export default function MessagingPage() {
   const { activeWorkspace } = useAuth();
   const [tab, setTab] = useState<Tab>('broadcasts');
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
+  const [logs, setLogs] = useState<MessageLogEntry[]>([]);
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [channelStatus, setChannelStatus] = useState<ChannelStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [form, setForm] = useState({ name: '', channel: 'sms' as Channel, body: '', brief: '' });
@@ -192,20 +341,29 @@ export default function MessagingPage() {
   const [contactOpen, setContactOpen] = useState(false);
   const [contactForm, setContactForm] = useState({ phone: '', name: '', channel: 'sms' as Channel, tags: '' });
 
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendForm, setSendForm] = useState({ to: '', body: '', channel: 'sms' as Channel });
+  const [sending, setSending] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [b, t, c, o] = await Promise.all([
+      const [b, t, c, o, l] = await Promise.all([
         api<Broadcast[]>('/messaging/broadcasts', { workspace: true }),
         api<Template[]>('/messaging/templates', { workspace: true }),
         api<Contact[]>('/messaging/contacts', { workspace: true }),
         api<Overview>('/messaging/overview', { workspace: true }),
+        api<MessageLogEntry[]>('/messaging/logs', { workspace: true }),
       ]);
       setBroadcasts(b);
       setTemplates(t);
       setContacts(c);
       setOverview(o);
+      setLogs(l);
+      api<ChannelStatus[]>('/messaging/channels/status', { workspace: true })
+        .then(setChannelStatus)
+        .catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load messaging');
     } finally {
@@ -315,6 +473,36 @@ export default function MessagingPage() {
     }
   }
 
+  async function sendDirect() {
+    if (!sendForm.to.trim() || !sendForm.body.trim()) {
+      setToast('Recipient and message are required');
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await api<{ status: string; connected: boolean; error: string | null }>(
+        '/messaging/send',
+        {
+          method: 'POST',
+          body: { to: sendForm.to.trim(), body: sendForm.body.trim(), channel: sendForm.channel },
+          workspace: true,
+        },
+      );
+      setSendOpen(false);
+      setSendForm({ to: '', body: '', channel: 'sms' });
+      setToast(
+        res.connected
+          ? `Message ${res.status}`
+          : `Queued — provider not connected`,
+      );
+      await load();
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : 'Send failed');
+    } finally {
+      setSending(false);
+    }
+  }
+
   if (!activeWorkspace) {
     return (
       <Box>
@@ -357,9 +545,14 @@ export default function MessagingPage() {
             and grounded in your brand voice.
           </Typography>
         </Box>
-        <Button startIcon={<AddIcon />} onClick={() => setOpen(true)} sx={inkButton}>
-          New broadcast
-        </Button>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Button startIcon={<SendIcon sx={{ fontSize: 16 }} />} onClick={() => setSendOpen(true)} sx={{ ...inkButton, bgcolor: BRAND.tealDeep, '&:hover': { bgcolor: '#0D9A6E' } }}>
+            Send message
+          </Button>
+          <Button startIcon={<AddIcon />} onClick={() => setOpen(true)} sx={inkButton}>
+            New broadcast
+          </Button>
+        </Stack>
       </Stack>
 
       {/* Pill tabs */}
@@ -392,21 +585,54 @@ export default function MessagingPage() {
         </Alert>
       )}
 
-      {/* WhatsApp connect empty-state notice */}
-      {!whatsappConfigured && (
-        <Card sx={{ mb: 2.5, borderColor: '#FFE2A6', bgcolor: BRAND.amberSoft }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5}>
-            <Box>
-              <Typography sx={{ fontWeight: 700, color: INK }}>Connect WhatsApp Business</Typography>
-              <Typography sx={{ fontSize: 13.5, color: SUBTLE, mt: 0.25 }}>
-                WhatsApp Business requires a Cloud API / BSP connection. Drafting, templates and audiences work now;
-                WhatsApp sends are durably queued until you connect a provider.
-              </Typography>
-            </Box>
-            <Chip label="Provider not configured" size="small" sx={{ fontWeight: 700, color: BRAND.amberDeep, bgcolor: '#fff' }} />
-          </Stack>
-        </Card>
-      )}
+      {/* Channel connection status banners */}
+      {(channelStatus.length > 0
+        ? channelStatus
+        : [
+            { channel: 'whatsapp', connected: whatsappConfigured, provider: overview?.providers?.whatsapp?.provider ?? null, reason: null },
+            { channel: 'sms', connected: smsConfigured, provider: overview?.providers?.sms?.provider ?? null, reason: null },
+          ]
+      )
+        .filter((cs) => !cs.connected)
+        .map((cs) => {
+          const isWhatsapp = cs.channel === 'whatsapp';
+          const label = isWhatsapp ? 'WhatsApp Business' : 'SMS provider';
+          const defaultReason = isWhatsapp
+            ? 'WhatsApp Business requires a Cloud API / BSP connection. Drafting, templates and audiences work now; WhatsApp sends are durably queued until you connect a provider.'
+            : 'Configure Twilio credentials to send SMS. Messages are durably queued until a provider is connected.';
+          return (
+            <Card key={cs.channel} sx={{ mb: 2.5, borderColor: '#FFE2A6', bgcolor: BRAND.amberSoft }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5}>
+                <Box>
+                  <Typography sx={{ fontWeight: 700, color: INK }}>Connect {label}</Typography>
+                  <Typography sx={{ fontSize: 13.5, color: SUBTLE, mt: 0.25 }}>
+                    {cs.reason || defaultReason}
+                  </Typography>
+                </Box>
+                <Chip label="Not connected" size="small" sx={{ fontWeight: 700, color: BRAND.amberDeep, bgcolor: '#fff' }} />
+              </Stack>
+            </Card>
+          );
+        })}
+
+      {channelStatus
+        .filter((cs) => cs.connected)
+        .map((cs) => {
+          const label = cs.channel === 'whatsapp' ? 'WhatsApp Business' : 'SMS provider';
+          return (
+            <Card key={cs.channel} sx={{ mb: 2.5, borderColor: BRAND.tealSoft, bgcolor: BRAND.tealSoft }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5}>
+                <Box>
+                  <Typography sx={{ fontWeight: 700, color: INK }}>{label} connected</Typography>
+                  <Typography sx={{ fontSize: 13.5, color: SUBTLE, mt: 0.25 }}>
+                    {cs.provider ? `Provider: ${cs.provider}` : 'Ready to send.'}
+                  </Typography>
+                </Box>
+                <Chip label="Connected" size="small" sx={{ fontWeight: 700, color: BRAND.tealDeep, bgcolor: '#fff' }} />
+              </Stack>
+            </Card>
+          );
+        })}
 
       {/* KPI cards */}
       {overview && (
@@ -505,6 +731,12 @@ export default function MessagingPage() {
           {/* Templates */}
           {tab === 'templates' && (
             <Stack spacing={1.5}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography sx={{ fontWeight: 700, color: INK }}>{templates.length} templates</Typography>
+                <Button startIcon={<AddIcon />} onClick={() => setCreateOpen(true)} sx={{ ...inkButton, py: 0.85, px: 2 }}>
+                  New template
+                </Button>
+              </Stack>
               {templates.length === 0 ? (
                 <Card sx={{ textAlign: 'center', py: 5 }}>
                   <Typography sx={{ fontWeight: 700, color: INK }}>No templates yet</Typography>
@@ -585,6 +817,65 @@ export default function MessagingPage() {
                     </Box>
                   </Stack>
                 ))
+              )}
+            </Card>
+          )}
+
+          {/* Message log */}
+          {tab === 'logs' && (
+            <Card sx={{ p: 0, overflow: 'hidden' }}>
+              {logs.length === 0 ? (
+                <Box sx={{ p: 5, textAlign: 'center' }}>
+                  <Typography sx={{ fontWeight: 700, color: INK }}>No messages yet</Typography>
+                  <Typography sx={{ fontSize: 13.5, color: SUBTLE, mt: 0.5 }}>
+                    Send a broadcast or direct message to see delivery status here.
+                  </Typography>
+                </Box>
+              ) : (
+                <Box>
+                  <Stack
+                    direction="row"
+                    sx={{ px: 2.5, py: 1.5, borderBottom: `1px solid ${LINE}`, fontSize: 12, fontWeight: 700, color: SUBTLE, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                  >
+                    <Box sx={{ flex: 1.5 }}>Recipient</Box>
+                    <Box sx={{ flex: 1 }}>Channel</Box>
+                    <Box sx={{ flex: 1 }}>Status</Box>
+                    <Box sx={{ flex: 2 }}>Body</Box>
+                    <Box sx={{ flex: 1, textAlign: 'right' }}>Sent</Box>
+                  </Stack>
+                  {logs.map((l) => (
+                    <Stack
+                      key={l.id}
+                      direction="row"
+                      alignItems="center"
+                      sx={{ px: 2.5, py: 1.5, borderBottom: `1px solid ${LINE}`, '&:last-of-type': { borderBottom: 'none' } }}
+                    >
+                      <Box sx={{ flex: 1.5, minWidth: 0 }}>
+                        <Typography sx={{ fontWeight: 600, color: INK, fontSize: 13.5 }} noWrap>
+                          {l.to_phone || '--'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Chip
+                          label={l.channel === 'whatsapp' ? 'WhatsApp' : 'SMS'}
+                          size="small"
+                          sx={{ fontWeight: 700, fontSize: 11, color: INK, bgcolor: 'rgba(14,17,22,0.05)' }}
+                        />
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <StatusChip value={l.status} />
+                      </Box>
+                      <Box sx={{ flex: 2, minWidth: 0 }}>
+                        <Typography sx={{ fontSize: 13, color: SUBTLE }} noWrap>
+                          {l.body || l.error || ''}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1, textAlign: 'right' }}>
+                        <Typography sx={{ fontSize: 12, color: SUBTLE }}>{fmtDate(l.sent_at || l.created_at)}</Typography>
+                      </Box>
+                    </Stack>
+                  ))}
+                </Box>
               )}
             </Card>
           )}
@@ -753,6 +1044,76 @@ export default function MessagingPage() {
           </Button>
         </DialogFooter>
       </PremiumDialog>
+
+      {/* Send direct dialog */}
+      <PremiumDialog open={sendOpen} onClose={() => setSendOpen(false)} maxWidth="xs">
+        <DialogHero
+          icon={<SendIcon />}
+          title="Send message"
+          subtitle="Send a single SMS or WhatsApp message"
+          onClose={() => setSendOpen(false)}
+          tint={BRAND.tealDeep}
+          tintSoft={BRAND.tealSoft}
+        />
+        <DialogBody>
+          <SectionLabel>Message details</SectionLabel>
+          <Stack spacing={2}>
+            <TextField
+              label="Recipient phone"
+              value={sendForm.to}
+              onChange={(e) => setSendForm((f) => ({ ...f, to: e.target.value }))}
+              fullWidth
+              size="small"
+              autoFocus
+              placeholder="+1 555 010 1234"
+            />
+            <TextField
+              select
+              label="Channel"
+              value={sendForm.channel}
+              onChange={(e) => setSendForm((f) => ({ ...f, channel: e.target.value as Channel }))}
+              fullWidth
+              size="small"
+            >
+              <MenuItem value="sms">SMS</MenuItem>
+              <MenuItem value="whatsapp">WhatsApp</MenuItem>
+            </TextField>
+            {!(sendForm.channel === 'whatsapp' ? whatsappConfigured : smsConfigured) && (
+              <Alert severity="warning" sx={{ borderRadius: '12px' }}>
+                {sendForm.channel === 'whatsapp'
+                  ? 'WhatsApp is not connected. The message will be queued.'
+                  : 'SMS provider is not connected. The message will be queued.'}
+              </Alert>
+            )}
+            <TextField
+              label="Message"
+              value={sendForm.body}
+              onChange={(e) => setSendForm((f) => ({ ...f, body: e.target.value }))}
+              fullWidth
+              multiline
+              minRows={3}
+              size="small"
+              placeholder="Type your message here..."
+            />
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setSendOpen(false)} sx={ghostPillSx}>
+            Cancel
+          </Button>
+          <Button onClick={sendDirect} disabled={sending} sx={inkPillSx}>
+            {sending ? 'Sending...' : 'Send'}
+          </Button>
+        </DialogFooter>
+      </PremiumDialog>
+
+      {/* New template dialog */}
+      <NewTemplateDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={load}
+        onToast={setToast}
+      />
 
       <Snackbar
         open={!!toast}

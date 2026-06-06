@@ -18,9 +18,21 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell,
+} from 'recharts';
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
 import CardGiftcardRoundedIcon from '@mui/icons-material/CardGiftcardRounded';
 import AddIcon from '@mui/icons-material/Add';
+import BoltIcon from '@mui/icons-material/Bolt';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
@@ -43,7 +55,10 @@ const LINE = 'rgba(14,17,22,0.07)';
 const CARD_RADIUS = '22px';
 const CARD_SHADOW = '0 1px 2px rgba(14,17,22,0.04), 0 8px 24px rgba(14,17,22,0.05)';
 
-type TabKey = 'programs' | 'advocates' | 'conversions' | 'overview';
+const AMBER = '#FFAF06';
+const TEAL = '#14BB87';
+
+type TabKey = 'programs' | 'advocates' | 'conversions' | 'overview' | 'viral' | 'rewards' | 'fraud';
 
 type Program = {
   id: string;
@@ -98,11 +113,69 @@ type Design = {
   rationale?: string;
 };
 
+type ViralMetrics = {
+  k_factor: number;
+  viral_cycle_time_hours: number | null;
+  funnel: { clicks: number; signups: number; conversions: number };
+  time_series: { date: string; conversions: number; value: number }[];
+  advocate_count: number;
+  low_data: boolean;
+};
+
+type RewardTier = {
+  id: string;
+  program_id: string;
+  name: string;
+  milestone: number;
+  reward_type: string;
+  reward_value: number;
+  status: string;
+  description: string | null;
+  created_at: string;
+};
+
+type AdvocateRewardItem = {
+  id: string;
+  advocate_id: string;
+  tier_id: string | null;
+  reward_type: string;
+  reward_value: number;
+  status: string;
+  note: string | null;
+  created_at: string;
+};
+
+type FraudFlagItem = {
+  id: string;
+  advocate_id: string | null;
+  conversion_id: string | null;
+  flag_type: string;
+  risk_score: number;
+  details: Record<string, unknown> | null;
+  resolved: boolean;
+  resolved_by: string | null;
+  created_at: string;
+};
+
+type LeaderboardEntry = {
+  id: string;
+  name: string;
+  code: string;
+  conversions: number;
+  earnings: number;
+  conversion_rate: number;
+  fraud_score: number;
+  total_value: number;
+};
+
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'programs', label: 'Programs' },
   { key: 'advocates', label: 'Advocates' },
   { key: 'conversions', label: 'Conversions' },
   { key: 'overview', label: 'Overview' },
+  { key: 'viral', label: 'Viral metrics' },
+  { key: 'rewards', label: 'Rewards' },
+  { key: 'fraud', label: 'Fraud' },
 ];
 
 const PROGRAM_TYPES = ['referral', 'affiliate', 'loyalty'];
@@ -122,8 +195,48 @@ function statusChip(status: string): { bg: string; color: string } {
   }
 }
 
+function rewardStatusChip(status: string): { bg: string; color: string } {
+  switch (status) {
+    case 'paid':
+      return { bg: 'rgba(14,17,22,0.07)', color: INK };
+    case 'approved':
+      return { bg: BRAND.tealSoft, color: BRAND.tealDeep };
+    case 'pending':
+    default:
+      return { bg: BRAND.amberSoft, color: BRAND.amberDeep };
+  }
+}
+
+function nextRewardStatus(status: string): { next: string; label: string } | null {
+  if (status === 'pending') return { next: 'approved', label: 'Approve' };
+  if (status === 'approved') return { next: 'paid', label: 'Mark paid' };
+  return null;
+}
+
 function money(n: number): string {
   return `$${(n || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
+function riskChip(score: number): { bg: string; color: string } {
+  if (score > 0.7) return { bg: BRAND.pinkSoft, color: BRAND.pink };
+  if (score > 0.4) return { bg: BRAND.amberSoft, color: BRAND.amberDeep };
+  return { bg: BRAND.tealSoft, color: BRAND.tealDeep };
+}
+
+function shortDate(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function summarizeDetails(details: Record<string, unknown> | null): string {
+  if (!details) return '—';
+  const entries = Object.entries(details);
+  if (entries.length === 0) return '—';
+  return entries
+    .slice(0, 3)
+    .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+    .join(' · ');
 }
 
 function Card({ children, sx }: { children: React.ReactNode; sx?: object }) {
@@ -180,20 +293,51 @@ export default function ReferralsPage() {
   const [advOpen, setAdvOpen] = useState(false);
   const [advForm, setAdvForm] = useState({ program_id: '', name: '', email: '' });
 
+  const [viral, setViral] = useState<ViralMetrics | null>(null);
+  const [rewardTiers, setRewardTiers] = useState<RewardTier[]>([]);
+  const [fraudFlags, setFraudFlags] = useState<FraudFlagItem[]>([]);
+  const [extLeaderboard, setExtLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [tierOpen, setTierOpen] = useState(false);
+  const [tierForm, setTierForm] = useState({
+    program_id: '',
+    name: '',
+    milestone: 5,
+    reward_type: 'cash',
+    reward_value: 50,
+  });
+  const [scanning, setScanning] = useState(false);
+
+  const [rewardLedgers, setRewardLedgers] = useState<Record<string, AdvocateRewardItem[]>>({});
+  const [computingRewards, setComputingRewards] = useState<string | null>(null);
+  const [rewardBusy, setRewardBusy] = useState<string | null>(null);
+  const [outreachBusy, setOutreachBusy] = useState<string | null>(null);
+  const [outreachOpen, setOutreachOpen] = useState(false);
+  const [outreachResult, setOutreachResult] = useState<Record<string, unknown> | null>(null);
+  const [outreachName, setOutreachName] = useState('');
+  const [busy, setBusy] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [ov, progs, leaders, convs] = await Promise.all([
+      const [ov, progs, leaders, convs, vm, tiers, flags, extLb] = await Promise.all([
         api<Overview>('/referrals/overview', { workspace: true }),
         api<Program[]>('/referrals/programs', { workspace: true }),
         api<Advocate[]>('/referrals/leaderboard', { workspace: true }),
         api<Conversion[]>('/referrals/conversions', { workspace: true }),
+        api<ViralMetrics>('/referrals/viral-metrics', { workspace: true }).catch(() => null),
+        api<RewardTier[]>('/referrals/reward-tiers', { workspace: true }).catch(() => []),
+        api<FraudFlagItem[]>('/referrals/fraud/flags?resolved=false', { workspace: true }).catch(() => []),
+        api<LeaderboardEntry[]>('/referrals/leaderboard/extended', { workspace: true }).catch(() => []),
       ]);
       setOverview(ov);
       setPrograms(progs);
       setAdvocates(leaders);
       setConversions(convs);
+      setViral(vm);
+      setRewardTiers(tiers);
+      setFraudFlags(flags);
+      setExtLeaderboard(extLb);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load referrals');
     } finally {
@@ -210,6 +354,12 @@ export default function ReferralsPage() {
     advocates.forEach((a) => (m[a.id] = a.code));
     return m;
   }, [advocates]);
+
+  const programName = useMemo(() => {
+    const m: Record<string, string> = {};
+    programs.forEach((p) => (m[p.id] = p.name));
+    return m;
+  }, [programs]);
 
   async function runDesign() {
     if (!progForm.brief.trim()) {
@@ -312,6 +462,139 @@ export default function ReferralsPage() {
     }
   }
 
+  async function createTier() {
+    if (!tierForm.program_id || !tierForm.name.trim()) {
+      setError('Pick a program and enter a tier name');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await api('/referrals/reward-tiers', {
+        method: 'POST',
+        body: {
+          program_id: tierForm.program_id,
+          name: tierForm.name.trim(),
+          milestone: Number(tierForm.milestone) || 0,
+          reward_type: tierForm.reward_type,
+          reward_value: Number(tierForm.reward_value) || 0,
+        },
+        workspace: true,
+      });
+      setTierOpen(false);
+      setTierForm({ program_id: '', name: '', milestone: 5, reward_type: 'cash', reward_value: 50 });
+      setToast('Reward tier created');
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create reward tier');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function runFraudScan() {
+    setScanning(true);
+    setError(null);
+    try {
+      const res = await api<{ flags_created?: number; scanned?: number }>('/referrals/fraud/scan', {
+        method: 'POST',
+        workspace: true,
+      });
+      const created = res?.flags_created ?? 0;
+      setToast(`Fraud scan complete — ${created} new flag${created === 1 ? '' : 's'}`);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Fraud scan failed');
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  async function resolveFlag(flag: FraudFlagItem) {
+    try {
+      await api(`/referrals/fraud/flags/${flag.id}/resolve`, {
+        method: 'POST',
+        body: { resolved_by: 'admin' },
+        workspace: true,
+      });
+      setToast('Fraud flag resolved');
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to resolve flag');
+    }
+  }
+
+  async function computeRewards(advocateId: string) {
+    setComputingRewards(advocateId);
+    setError(null);
+    try {
+      await api('/referrals/advocates/' + advocateId + '/compute-rewards', { method: 'POST', workspace: true });
+      const rewards = await api<AdvocateRewardItem[]>(
+        '/referrals/advocates/' + advocateId + '/rewards',
+        { workspace: true },
+      );
+      setRewardLedgers((m) => ({ ...m, [advocateId]: rewards }));
+      setToast('Rewards computed');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to compute rewards');
+    } finally {
+      setComputingRewards(null);
+    }
+  }
+
+  async function changeRewardStatus(reward: AdvocateRewardItem, status: string) {
+    setRewardBusy(reward.id);
+    setError(null);
+    try {
+      const updated = await api<AdvocateRewardItem>(`/referrals/rewards/${reward.id}/status`, {
+        method: 'PATCH',
+        body: { status },
+        workspace: true,
+      });
+      setRewardLedgers((m) => ({
+        ...m,
+        [reward.advocate_id]: (m[reward.advocate_id] || []).map((r) => (r.id === updated.id ? updated : r)),
+      }));
+      setToast(`Reward marked ${status}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update reward');
+    } finally {
+      setRewardBusy(null);
+    }
+  }
+
+  async function runOutreach(advocate: Advocate) {
+    setOutreachBusy(advocate.id);
+    setError(null);
+    try {
+      const res = await api<Record<string, unknown>>(
+        '/referrals/advocates/' + advocate.id + '/outreach',
+        { method: 'POST', workspace: true },
+      );
+      setOutreachResult(res);
+      setOutreachName(advocate.name);
+      setOutreachOpen(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to generate outreach');
+    } finally {
+      setOutreachBusy(null);
+    }
+  }
+
+  async function runAgent() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api('/referrals/agent/run', { method: 'POST', workspace: true });
+      setToast('Referrals agent completed');
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Referrals agent failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!activeWorkspace) {
     return (
       <Box>
@@ -319,6 +602,14 @@ export default function ReferralsPage() {
       </Box>
     );
   }
+
+  const funnelData = viral
+    ? [
+        { name: 'Clicks', value: viral.funnel.clicks, fill: INK },
+        { name: 'Signups', value: viral.funnel.signups, fill: AMBER },
+        { name: 'Conversions', value: viral.funnel.conversions, fill: TEAL },
+      ]
+    : [];
 
   return (
     <Box>
@@ -354,6 +645,18 @@ export default function ReferralsPage() {
           </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
+          <Button
+            startIcon={<BoltIcon />}
+            disabled={busy}
+            onClick={runAgent}
+            sx={{
+              px: 2.5, py: 1.1, borderRadius: '999px', fontWeight: 700, textTransform: 'none',
+              color: INK, background: '#fff', backgroundImage: 'none', border: `1px solid ${LINE}`,
+              '&:hover': { background: BRAND.amberSoft, borderColor: BRAND.amber },
+            }}
+          >
+            Run agent
+          </Button>
           <Button
             startIcon={<AddIcon />}
             onClick={() => setAdvOpen(true)}
@@ -431,7 +734,47 @@ export default function ReferralsPage() {
           {tab === 'overview' && (
             <Card>
               <Typography sx={{ fontWeight: 800, fontSize: 18, color: INK, mb: 1.5 }}>Advocate leaderboard</Typography>
-              {advocates.length === 0 ? (
+              {extLeaderboard.length > 0 ? (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Rank</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Advocate</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Code</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }} align="right">Conversions</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }} align="right">Conv. rate</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }} align="right">Earnings</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }} align="right">Total value</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Risk</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {extLeaderboard.map((a, i) => {
+                      const rc = riskChip(a.fraud_score);
+                      return (
+                        <TableRow key={a.id}>
+                          <TableCell sx={{ fontWeight: 800, color: INK }}>{i + 1}</TableCell>
+                          <TableCell sx={{ fontWeight: 700, color: INK }}>{a.name}</TableCell>
+                          <TableCell>
+                            <Chip label={a.code} size="small" sx={{ fontWeight: 700, bgcolor: 'rgba(14,17,22,0.05)', color: INK }} />
+                          </TableCell>
+                          <TableCell align="right" sx={{ color: INK, fontWeight: 600 }}>{a.conversions}</TableCell>
+                          <TableCell align="right" sx={{ color: INK }}>{(a.conversion_rate * 100).toFixed(1)}%</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 800, color: BRAND.tealDeep }}>{money(a.earnings)}</TableCell>
+                          <TableCell align="right" sx={{ color: INK, fontWeight: 600 }}>{money(a.total_value)}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={a.fraud_score.toFixed(2)}
+                              size="small"
+                              sx={{ fontWeight: 700, bgcolor: rc.bg, color: rc.color }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              ) : advocates.length === 0 ? (
                 <Typography sx={{ color: SUBTLE, py: 2 }}>No advocates yet. Add one to start tracking referrals.</Typography>
               ) : (
                 <Table size="small">
@@ -516,6 +859,7 @@ export default function ReferralsPage() {
                       <TableCell sx={{ color: SUBTLE, fontWeight: 700 }} align="right">Conversions</TableCell>
                       <TableCell sx={{ color: SUBTLE, fontWeight: 700 }} align="right">Earnings</TableCell>
                       <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Status</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }} align="right">Action</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -536,6 +880,24 @@ export default function ReferralsPage() {
                           <TableCell align="right" sx={{ fontWeight: 800, color: BRAND.tealDeep }}>{money(a.earnings)}</TableCell>
                           <TableCell>
                             <Chip label={a.status} size="small" sx={{ fontWeight: 700, bgcolor: sc.bg, color: sc.color }} />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Button
+                              size="small"
+                              disabled={outreachBusy === a.id}
+                              onClick={() => runOutreach(a)}
+                              startIcon={outreachBusy === a.id ? <CircularProgress size={14} color="inherit" /> : undefined}
+                              sx={{
+                                borderRadius: '999px',
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                color: INK,
+                                border: `1px solid ${LINE}`,
+                                '&:hover': { bgcolor: 'rgba(14,17,22,0.05)' },
+                              }}
+                            >
+                              Outreach
+                            </Button>
                           </TableCell>
                         </TableRow>
                       );
@@ -595,6 +957,338 @@ export default function ReferralsPage() {
                             ) : (
                               <Typography sx={{ color: SUBTLE, fontSize: 12 }}>—</Typography>
                             )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </Card>
+          )}
+
+          {/* Viral metrics tab */}
+          {tab === 'viral' && (
+            <Stack spacing={2.5}>
+              {!viral ? (
+                <Card>
+                  <Typography sx={{ color: SUBTLE, py: 2 }}>Viral metrics are not available yet.</Typography>
+                </Card>
+              ) : (
+                <>
+                  <Stack direction="row" spacing={2} flexWrap="wrap" rowGap={2}>
+                    <Kpi label="K-factor" value={viral.k_factor.toFixed(2)} accent={BRAND.tealDeep} />
+                    <Kpi
+                      label="Viral cycle time"
+                      value={viral.viral_cycle_time_hours == null ? '—' : `${Math.round(viral.viral_cycle_time_hours)}h`}
+                      accent={BRAND.amberDeep}
+                    />
+                    <Kpi label="Advocate count" value={String(viral.advocate_count)} accent={INK} />
+                  </Stack>
+
+                  {viral.low_data && (
+                    <Alert severity="info" sx={{ borderRadius: 3 }}>
+                      Limited data available. Metrics will become more accurate as referral activity grows.
+                    </Alert>
+                  )}
+
+                  <Card>
+                    <Typography sx={{ fontWeight: 800, fontSize: 18, color: INK, mb: 1.5 }}>Conversion funnel</Typography>
+                    <Box sx={{ width: '100%', height: 240 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={funnelData} layout="vertical" margin={{ left: 24, right: 24 }}>
+                          <XAxis type="number" tick={{ fill: SUBTLE, fontSize: 12 }} axisLine={false} tickLine={false} />
+                          <YAxis
+                            type="category"
+                            dataKey="name"
+                            tick={{ fill: INK, fontSize: 13, fontWeight: 600 }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={90}
+                          />
+                          <Tooltip cursor={{ fill: 'rgba(14,17,22,0.04)' }} />
+                          <Bar dataKey="value" radius={[6, 6, 6, 6]}>
+                            {funnelData.map((d) => (
+                              <Cell key={d.name} fill={d.fill} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  </Card>
+
+                  <Card>
+                    <Typography sx={{ fontWeight: 800, fontSize: 18, color: INK, mb: 1.5 }}>Conversions over time</Typography>
+                    {viral.time_series.length === 0 ? (
+                      <Typography sx={{ color: SUBTLE, py: 2 }}>No time series data yet.</Typography>
+                    ) : (
+                      <Box sx={{ width: '100%', height: 260 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={viral.time_series} margin={{ left: 8, right: 8, top: 8 }}>
+                            <XAxis
+                              dataKey="date"
+                              tickFormatter={shortDate}
+                              tick={{ fill: SUBTLE, fontSize: 12 }}
+                              axisLine={false}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              allowDecimals={false}
+                              tick={{ fill: SUBTLE, fontSize: 12 }}
+                              axisLine={false}
+                              tickLine={false}
+                            />
+                            <Tooltip labelFormatter={(v) => shortDate(String(v))} />
+                            <Area
+                              type="monotone"
+                              dataKey="conversions"
+                              stroke={TEAL}
+                              strokeWidth={2}
+                              fill={TEAL}
+                              fillOpacity={0.15}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </Box>
+                    )}
+                  </Card>
+                </>
+              )}
+            </Stack>
+          )}
+
+          {/* Rewards tab */}
+          {tab === 'rewards' && (
+            <Stack spacing={2.5}>
+            <Card>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }} flexWrap="wrap" rowGap={1}>
+                <Typography sx={{ fontWeight: 800, fontSize: 18, color: INK }}>Reward tiers</Typography>
+                <Button
+                  startIcon={<AddIcon />}
+                  onClick={() => setTierOpen(true)}
+                  sx={{
+                    px: 2.25,
+                    py: 1,
+                    borderRadius: '999px',
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    color: '#fff',
+                    background: INK,
+                    backgroundImage: 'none',
+                    '&:hover': { background: '#1B2330' },
+                  }}
+                >
+                  New reward tier
+                </Button>
+              </Stack>
+              {rewardTiers.length === 0 ? (
+                <Typography sx={{ color: SUBTLE, py: 2 }}>No reward tiers yet. Create one to reward milestones.</Typography>
+              ) : (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Name</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Program</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }} align="right">Milestone</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }} align="right">Reward</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {rewardTiers.map((t) => {
+                      const sc = statusChip(t.status);
+                      return (
+                        <TableRow key={t.id}>
+                          <TableCell sx={{ fontWeight: 700, color: INK }}>{t.name}</TableCell>
+                          <TableCell sx={{ color: INK }}>{programName[t.program_id] || '—'}</TableCell>
+                          <TableCell align="right" sx={{ color: INK }}>{t.milestone}</TableCell>
+                          <TableCell align="right" sx={{ fontWeight: 700, color: BRAND.amberDeep }}>
+                            {t.reward_type === 'discount' ? `${t.reward_value}%` : money(t.reward_value)}
+                          </TableCell>
+                          <TableCell>
+                            <Chip label={t.status} size="small" sx={{ fontWeight: 700, bgcolor: sc.bg, color: sc.color }} />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </Card>
+
+            <Card>
+              <Typography sx={{ fontWeight: 800, fontSize: 18, color: INK, mb: 0.5 }}>Advocate reward ledger</Typography>
+              <Typography sx={{ color: SUBTLE, fontSize: 13, mb: 1.5 }}>
+                Compute milestone rewards per advocate, then approve and mark them paid.
+              </Typography>
+              {advocates.length === 0 ? (
+                <Typography sx={{ color: SUBTLE, py: 2 }}>No advocates yet.</Typography>
+              ) : (
+                <Stack spacing={1.5}>
+                  {advocates.map((a) => {
+                    const ledger = rewardLedgers[a.id];
+                    return (
+                      <Box key={a.id} sx={{ border: `1px solid ${LINE}`, borderRadius: '16px', p: 2 }}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" rowGap={1}>
+                          <Box>
+                            <Typography sx={{ fontWeight: 700, color: INK }}>{a.name}</Typography>
+                            <Typography sx={{ color: SUBTLE, fontSize: 12.5 }}>
+                              {a.conversions} conversions · {money(a.earnings)} earned
+                            </Typography>
+                          </Box>
+                          <Button
+                            size="small"
+                            disabled={computingRewards === a.id}
+                            onClick={() => computeRewards(a.id)}
+                            startIcon={computingRewards === a.id ? <CircularProgress size={14} color="inherit" /> : undefined}
+                            sx={{
+                              borderRadius: '999px',
+                              textTransform: 'none',
+                              fontWeight: 700,
+                              color: '#fff',
+                              background: INK,
+                              backgroundImage: 'none',
+                              '&:hover': { background: '#1B2330' },
+                            }}
+                          >
+                            Compute rewards
+                          </Button>
+                        </Stack>
+                        {ledger && (
+                          ledger.length === 0 ? (
+                            <Typography sx={{ color: SUBTLE, fontSize: 13, mt: 1.5 }}>
+                              No rewards for this advocate yet.
+                            </Typography>
+                          ) : (
+                            <Table size="small" sx={{ mt: 1.5 }}>
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Reward type</TableCell>
+                                  <TableCell sx={{ color: SUBTLE, fontWeight: 700 }} align="right">Value</TableCell>
+                                  <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Status</TableCell>
+                                  <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Created</TableCell>
+                                  <TableCell sx={{ color: SUBTLE, fontWeight: 700 }} align="right">Action</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {ledger.map((r) => {
+                                  const rc = rewardStatusChip(r.status);
+                                  const next = nextRewardStatus(r.status);
+                                  return (
+                                    <TableRow key={r.id}>
+                                      <TableCell sx={{ color: INK, fontWeight: 600 }}>{r.reward_type}</TableCell>
+                                      <TableCell align="right" sx={{ fontWeight: 700, color: BRAND.amberDeep }}>
+                                        {r.reward_type === 'discount' ? `${r.reward_value}%` : money(r.reward_value)}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Chip label={r.status} size="small" sx={{ fontWeight: 700, bgcolor: rc.bg, color: rc.color }} />
+                                      </TableCell>
+                                      <TableCell sx={{ color: INK }}>{shortDate(r.created_at)}</TableCell>
+                                      <TableCell align="right">
+                                        {next ? (
+                                          <Button
+                                            size="small"
+                                            disabled={rewardBusy === r.id}
+                                            onClick={() => changeRewardStatus(r, next.next)}
+                                            startIcon={rewardBusy === r.id ? <CircularProgress size={14} color="inherit" /> : undefined}
+                                            sx={{
+                                              borderRadius: '999px',
+                                              textTransform: 'none',
+                                              fontWeight: 700,
+                                              color: INK,
+                                              border: `1px solid ${LINE}`,
+                                              '&:hover': { bgcolor: 'rgba(14,17,22,0.05)' },
+                                            }}
+                                          >
+                                            {next.label}
+                                          </Button>
+                                        ) : (
+                                          <Typography sx={{ color: SUBTLE, fontSize: 12 }}>—</Typography>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          )
+                        )}
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              )}
+            </Card>
+            </Stack>
+          )}
+
+          {/* Fraud tab */}
+          {tab === 'fraud' && (
+            <Card>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }} flexWrap="wrap" rowGap={1}>
+                <Typography sx={{ fontWeight: 800, fontSize: 18, color: INK }}>Fraud flags</Typography>
+                <Button
+                  onClick={runFraudScan}
+                  disabled={scanning}
+                  startIcon={scanning ? <CircularProgress size={15} color="inherit" /> : undefined}
+                  sx={{
+                    px: 2.25,
+                    py: 1,
+                    borderRadius: '999px',
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    color: '#fff',
+                    background: INK,
+                    backgroundImage: 'none',
+                    '&:hover': { background: '#1B2330' },
+                  }}
+                >
+                  {scanning ? 'Scanning…' : 'Run fraud scan'}
+                </Button>
+              </Stack>
+              {fraudFlags.length === 0 ? (
+                <Typography sx={{ color: SUBTLE, py: 2 }}>No unresolved fraud flags. Run a scan to check for suspicious activity.</Typography>
+              ) : (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Flag type</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Risk score</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Details</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }}>Created</TableCell>
+                      <TableCell sx={{ color: SUBTLE, fontWeight: 700 }} align="right">Action</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {fraudFlags.map((f) => {
+                      const rc = riskChip(f.risk_score);
+                      return (
+                        <TableRow key={f.id}>
+                          <TableCell sx={{ fontWeight: 700, color: INK }}>{f.flag_type}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={f.risk_score.toFixed(2)}
+                              size="small"
+                              sx={{ fontWeight: 700, bgcolor: rc.bg, color: rc.color }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ color: SUBTLE, fontSize: 12.5, maxWidth: 320 }}>{summarizeDetails(f.details)}</TableCell>
+                          <TableCell sx={{ color: INK }}>{shortDate(f.created_at)}</TableCell>
+                          <TableCell align="right">
+                            <Button
+                              size="small"
+                              onClick={() => resolveFlag(f)}
+                              sx={{
+                                borderRadius: '999px',
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                color: INK,
+                                border: `1px solid ${LINE}`,
+                                '&:hover': { bgcolor: 'rgba(14,17,22,0.05)' },
+                              }}
+                            >
+                              Resolve
+                            </Button>
                           </TableCell>
                         </TableRow>
                       );
@@ -776,6 +1470,142 @@ export default function ReferralsPage() {
             sx={inkPillSx}
           >
             {saving ? 'Saving…' : 'Add advocate'}
+          </Button>
+        </DialogFooter>
+      </PremiumDialog>
+
+      {/* New reward tier dialog */}
+      <PremiumDialog open={tierOpen} onClose={() => setTierOpen(false)} maxWidth="xs">
+        <DialogHero
+          icon={<CardGiftcardRoundedIcon />}
+          title="New reward tier"
+          subtitle="Reward advocates when they hit a milestone"
+          onClose={() => setTierOpen(false)}
+          tint={BRAND.amberDeep}
+          tintSoft={BRAND.amberSoft}
+        />
+        <DialogBody>
+          <SectionLabel>Tier details</SectionLabel>
+          <Stack spacing={1.75}>
+            <TextField
+              select
+              label="Program"
+              value={tierForm.program_id}
+              onChange={(e) => setTierForm((f) => ({ ...f, program_id: e.target.value }))}
+              fullWidth
+              size="small"
+            >
+              {programs.length === 0 ? (
+                <MenuItem value="" disabled>
+                  Create a program first
+                </MenuItem>
+              ) : (
+                programs.map((p) => (
+                  <MenuItem key={p.id} value={p.id}>
+                    {p.name}
+                  </MenuItem>
+                ))
+              )}
+            </TextField>
+            <TextField
+              label="Name"
+              value={tierForm.name}
+              onChange={(e) => setTierForm((f) => ({ ...f, name: e.target.value }))}
+              fullWidth
+              size="small"
+            />
+            <TextField
+              label="Milestone (conversions)"
+              type="number"
+              value={tierForm.milestone}
+              onChange={(e) => setTierForm((f) => ({ ...f, milestone: Number(e.target.value) }))}
+              fullWidth
+              size="small"
+            />
+            <TextField
+              select
+              label="Reward type"
+              value={tierForm.reward_type}
+              onChange={(e) => setTierForm((f) => ({ ...f, reward_type: e.target.value }))}
+              fullWidth
+              size="small"
+            >
+              {REWARD_TYPES.map((t) => (
+                <MenuItem key={t} value={t}>
+                  {t}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Reward value"
+              type="number"
+              value={tierForm.reward_value}
+              onChange={(e) => setTierForm((f) => ({ ...f, reward_value: Number(e.target.value) }))}
+              fullWidth
+              size="small"
+            />
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setTierOpen(false)} sx={ghostPillSx}>
+            Cancel
+          </Button>
+          <Button
+            onClick={createTier}
+            disabled={saving}
+            startIcon={saving ? <CircularProgress size={15} color="inherit" /> : undefined}
+            sx={inkPillSx}
+          >
+            {saving ? 'Saving…' : 'Create tier'}
+          </Button>
+        </DialogFooter>
+      </PremiumDialog>
+
+      {/* Outreach result dialog */}
+      <PremiumDialog open={outreachOpen} onClose={() => setOutreachOpen(false)} maxWidth="sm">
+        <DialogHero
+          icon={<GroupsRoundedIcon />}
+          title="Advocate outreach"
+          subtitle={outreachName ? `AI-generated outreach for ${outreachName}` : 'AI-generated outreach'}
+          onClose={() => setOutreachOpen(false)}
+          tint={BRAND.tealDeep}
+          tintSoft={BRAND.tealSoft}
+        />
+        <DialogBody>
+          {!outreachResult ? (
+            <Typography sx={{ color: SUBTLE }}>No outreach generated.</Typography>
+          ) : (
+            <Stack spacing={1.75}>
+              {Object.entries(outreachResult).map(([key, value]) => (
+                <Box key={key}>
+                  <SectionLabel>{key.replace(/_/g, ' ')}</SectionLabel>
+                  {Array.isArray(value) ? (
+                    <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                      {value.map((v, i) => (
+                        <Typography key={i} sx={{ color: INK, fontSize: 13.5 }}>
+                          {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                        </Typography>
+                      ))}
+                    </Stack>
+                  ) : typeof value === 'object' && value !== null ? (
+                    <Typography
+                      sx={{ color: INK, fontSize: 12.5, mt: 0.5, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}
+                    >
+                      {JSON.stringify(value, null, 2)}
+                    </Typography>
+                  ) : (
+                    <Typography sx={{ color: INK, fontSize: 13.5, mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                      {String(value)}
+                    </Typography>
+                  )}
+                </Box>
+              ))}
+            </Stack>
+          )}
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setOutreachOpen(false)} sx={ghostPillSx}>
+            Close
           </Button>
         </DialogFooter>
       </PremiumDialog>

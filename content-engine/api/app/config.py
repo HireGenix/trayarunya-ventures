@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     environment: str = Field(default="development")
     debug: bool = Field(default=False)
     api_v1_prefix: str = "/api/v1"
+    public_api_url: str = Field(
+        default="http://localhost:8099",
+        description="Public base URL of this API, used for email tracking pixels and click links.",
+    )
 
     # --- Rate limiting (per client IP, sliding window in Redis; falls back to
     # in-process when Redis is unavailable) ---
@@ -55,6 +59,16 @@ class Settings(BaseSettings):
     research_max_iterations: int = Field(default=2, ge=1, le=5)
     research_time_budget_seconds: int = Field(default=360, ge=60, le=1800)
 
+    # Queue durability under KEDA scale-in. A running worker refreshes a per-job
+    # heartbeat every `worker_heartbeat_interval_seconds`; a reaper (running on
+    # every replica) requeues any in-flight job whose heartbeat is older than
+    # `worker_visibility_timeout_seconds`, so a job orphaned by a killed replica
+    # is retried instead of stranded in the processing list. The timeout must sit
+    # safely above the heartbeat interval so a healthy long job is never reaped.
+    worker_heartbeat_interval_seconds: int = Field(default=30, ge=5, le=300)
+    worker_visibility_timeout_seconds: int = Field(default=180, ge=30, le=3600)
+    worker_reaper_interval_seconds: int = Field(default=60, ge=10, le=600)
+
     # LLM provider for the research pipeline. GPT-5.5 is markedly faster than
     # Claude Opus for the many sequential reasoning calls a research run makes,
     # so it is the default; set to "claude-opus" to prioritise depth over speed.
@@ -64,6 +78,10 @@ class Settings(BaseSettings):
     # Tried in order; DuckDuckGo's keyless HTML scrape is always the final
     # fallback. Adding any of these makes search reliable when DDG rate-limits
     # (HTTP 403), which is the usual cause of a research run stalling at "search".
+    # SearXNG (self-hosted, free) is tried FIRST when configured; if it is slow
+    # (> searxng_timeout_seconds) or errors, we fall back to the keyed providers.
+    searxng_url: str | None = None
+    searxng_timeout_seconds: float = Field(default=5.0, ge=1.0, le=15.0)
     tavily_api_key: str | None = None
     brave_search_api_key: str | None = None
     langsearch_api_key: str | None = None
@@ -94,12 +112,32 @@ class Settings(BaseSettings):
     azure_gpt5_deployment: str = "gpt-5.5"
     azure_gpt5_api_version: str = "2025-04-01-preview"
 
-    # --- Azure Anthropic (Claude Opus, Messages API) ---
+    # --- Azure OpenAI (gpt-chat-latest, Responses API) ---
+    # Conversational chat model used for the team assistant / chat surfaces.
+    # Falls back to the GPT-5.5 endpoint+key when its own values are unset so a
+    # single Azure OpenAI resource can power both.
+    azure_gptchat_endpoint: str | None = None
+    azure_gptchat_key: str | None = None
+    azure_gptchat_deployment: str = "gpt-chat-latest"
+    azure_gptchat_api_version: str = "2025-04-01-preview"
+
+    # --- Azure Anthropic (Claude Opus + Sonnet, Messages API) ---
     azure_anthropic_endpoint: str = (
         "https://hiregenix-resource.services.ai.azure.com/anthropic/v1/messages"
     )
     azure_anthropic_key: str | None = None
     azure_anthropic_model: str = "claude-opus-4-7"
+    # Claude Sonnet 4.6 shares the same Anthropic endpoint + key; only the model
+    # name differs. Used as a faster/cheaper alternative to Opus.
+    azure_anthropic_sonnet_model: str = "claude-sonnet-4-6"
+
+    # --- Azure AI model inference (Grok, chat/completions API) ---
+    # Falls back to the Anthropic resource key when its own key is unset (same
+    # Azure AI resource hosts the model-inference endpoint).
+    azure_grok_endpoint: str | None = None
+    azure_grok_key: str | None = None
+    azure_grok_model: str = "grok-4.3"
+    azure_grok_api_version: str = "2024-05-01-preview"
 
     # --- Azure Blob (asset storage) ---
     azure_blob_connection_string: str | None = None
@@ -109,14 +147,22 @@ class Settings(BaseSettings):
     azure_image_endpoint: str | None = None  # gpt-image base, e.g. https://<res>.cognitiveservices.azure.com
     azure_image_key: str | None = None
     azure_image_deployment: str = "gpt-image-2-1"
+    azure_image_15_deployment: str = "gpt-image-1.5"  # shares same endpoint + key
     azure_image_api_version: str = "2024-02-01"
-    # Optional alternative image models (graceful fallback to gpt-image when unset/erroring)
+    image_rpm: int = 10       # gpt-image 2.1 requests/minute limit
+    image_15_rpm: int = 60    # gpt-image-1.5 requests/minute limit
+    # MAI-Image-2.5 — text-free, on-brand imagery (graceful fallback to gpt-image
+    # when unset/erroring). One of the four supported image models.
     azure_mai_image_endpoint: str | None = None
     azure_mai_image_key: str | None = None
     azure_mai_image_deployment: str = "MAI-Image-2.5"
+    mai_image_rpm: int = 10   # MAI-Image-2.5 requests/minute limit
+    # Default image provider for social posts / content-calendar / deck imagery.
+    default_post_image_provider: str = "mai"
     azure_flux_endpoint: str | None = None  # full BFL provider URL incl ?api-version=preview
     azure_flux_key: str | None = None
     azure_flux_model: str = "flux-2-pro"
+    flux_rpm: int = 4         # FLUX.2 Pro requests/minute limit
 
     # --- AI video (Content Studio): voiceover + captions + Pexels b-roll ---
     # Voiceover via Azure OpenAI gpt-4o-mini-tts (steerable TTS). Falls back to
@@ -215,17 +261,61 @@ class Settings(BaseSettings):
     stripe_cancel_url: str = Field(
         default="http://localhost:3100/dashboard/billing?checkout=cancel"
     )
+    # Public web origin used to build payment-first signup success/cancel URLs.
+    public_web_url: str = Field(default="http://localhost:3100")
+    # Single-seat plan pricing (USD). Yearly bills at a 25% discount.
+    pro_price_monthly_usd: int = Field(default=499)
+
+    @property
+    def pro_price_yearly_usd(self) -> int:
+        """Annual total for the Pro seat with a 25% discount applied."""
+        return round(self.pro_price_monthly_usd * 12 * 0.75)
 
     @property
     def stripe_configured(self) -> bool:
         return bool(self.stripe_secret_key)
+
+    # --- Platform superadmin bootstrap ---
+    # When set, the app ensures a superadmin user exists on startup. If the user
+    # does not yet exist, it is created with ``superadmin_password`` (+ a personal
+    # org/workspace) so the admin can log in immediately; if it already exists it
+    # is promoted to ``is_superuser=True``. This is the ONLY way a superadmin is
+    # minted, so paying customers can never self-elevate.
+    superadmin_email: str | None = None
+    superadmin_password: str | None = None
+    superadmin_name: str = Field(default="Platform Admin")
 
     # --- Security: token encryption at rest ---
     # Fernet key (urlsafe base64, 32 bytes). When unset, the crypto service
     # derives a dev key from jwt_secret so local dev still works.
     encryption_key: str | None = None
 
-    # --- Outbound notifications: email (SMTP) + Slack ---
+    # --- Messaging: SMS (Twilio) + WhatsApp (Meta Cloud API) ---
+    twilio_sid: str | None = None
+    twilio_auth_token: str | None = None
+    twilio_from_number: str | None = None
+    whatsapp_token: str | None = None
+    whatsapp_phone_id: str | None = None
+    whatsapp_verify_token: str | None = None
+
+    @property
+    def twilio_configured(self) -> bool:
+        return bool(self.twilio_sid and self.twilio_auth_token and self.twilio_from_number)
+
+    @property
+    def whatsapp_configured(self) -> bool:
+        return bool(self.whatsapp_token and self.whatsapp_phone_id)
+
+    # --- Outbound notifications: email (ACS / SMTP) + Slack ---
+    # Azure Communication Services email (preferred). When set, email is sent
+    # via ACS; SMTP is used only as a fallback.
+    acs_connection_string: str | None = None
+    # Sender address; for ACS this must belong to a verified/linked domain,
+    # e.g. "DoNotReply@<guid>.azurecomm.net".
+    email_from: str | None = None
+    email_from_name: str = Field(default="MarketiQ AI")
+    email_reply_to: str | None = None
+
     smtp_host: str | None = None
     smtp_port: int = 587
     smtp_user: str | None = None
@@ -234,8 +324,21 @@ class Settings(BaseSettings):
     slack_webhook_url: str | None = None
 
     @property
-    def email_configured(self) -> bool:
+    def acs_email_configured(self) -> bool:
+        return bool(self.acs_connection_string and self.email_sender)
+
+    @property
+    def smtp_configured(self) -> bool:
         return bool(self.smtp_host and self.smtp_user and self.smtp_password)
+
+    @property
+    def email_sender(self) -> str | None:
+        """Effective from-address (ACS sender takes precedence over SMTP from)."""
+        return self.email_from or self.smtp_from
+
+    @property
+    def email_configured(self) -> bool:
+        return self.acs_email_configured or self.smtp_configured
 
     @property
     def slack_configured(self) -> bool:
@@ -279,8 +382,37 @@ class Settings(BaseSettings):
         return bool(self.azure_gpt5_endpoint and self.azure_gpt5_key)
 
     @property
+    def gptchat_endpoint(self) -> str | None:
+        return self.azure_gptchat_endpoint or self.azure_gpt5_endpoint
+
+    @property
+    def gptchat_key(self) -> str | None:
+        return self.azure_gptchat_key or self.azure_gpt5_key
+
+    @property
+    def gptchat_configured(self) -> bool:
+        return bool(self.gptchat_endpoint and self.gptchat_key)
+
+    @property
+    def grok_key(self) -> str | None:
+        return self.azure_grok_key or self.azure_anthropic_key
+
+    @property
+    def grok_configured(self) -> bool:
+        return bool(self.azure_grok_endpoint and self.grok_key)
+
+    @property
+    def claude_sonnet_configured(self) -> bool:
+        return bool(self.azure_anthropic_endpoint and self.azure_anthropic_key)
+
+    @property
     def image_configured(self) -> bool:
         return bool(self.azure_image_endpoint and self.azure_image_key)
+
+    @property
+    def mai_image_configured(self) -> bool:
+        """True when the MAI-Image-2.5 endpoint is usable."""
+        return bool(self.azure_mai_image_endpoint and self.azure_mai_image_key)
 
     @property
     def claude_configured(self) -> bool:

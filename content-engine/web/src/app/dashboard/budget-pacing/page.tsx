@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ComponentType } from 'react';
 import {
   Alert,
   Box,
@@ -11,10 +12,12 @@ import {
   Snackbar,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
+import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
@@ -29,6 +32,17 @@ import {
   inkPillSx,
   ghostPillSx,
 } from '@/components/PremiumDialog';
+
+import dynamic from 'next/dynamic';
+const RechartsLine = dynamic(() => import('recharts').then((m) => m.LineChart), { ssr: false });
+const RechartsXAxis = dynamic(() => import('recharts').then((m) => m.XAxis as unknown as ComponentType<any>), { ssr: false });
+const RechartsYAxis = dynamic(() => import('recharts').then((m) => m.YAxis as unknown as ComponentType<any>), { ssr: false });
+const RechartsTooltipC = dynamic(() => import('recharts').then((m) => m.Tooltip as unknown as ComponentType<any>), { ssr: false });
+const RechartsLegend = dynamic(() => import('recharts').then((m) => m.Legend as unknown as ComponentType<any>), { ssr: false });
+const RechartsLineSeries = dynamic(() => import('recharts').then((m) => m.Line as unknown as ComponentType<any>), { ssr: false });
+const ResponsiveContainer = dynamic(() => import('recharts').then((m) => m.ResponsiveContainer), { ssr: false });
+const RechartsBar = dynamic(() => import('recharts').then((m) => m.BarChart), { ssr: false });
+const RechartsBarSeries = dynamic(() => import('recharts').then((m) => m.Bar as unknown as ComponentType<any>), { ssr: false });
 
 const INK = BRAND.ink;
 const SUBTLE = '#6B7280';
@@ -55,6 +69,13 @@ type ChannelPace = {
   pace_ratio: number;
 };
 
+type PacingPoint = {
+  date: string;
+  actual: number;
+  seasonal_target: number;
+  linear_target: number;
+};
+
 type Pacing = {
   budget_id: string;
   total_amount: number;
@@ -67,12 +88,23 @@ type Pacing = {
   projected_total: number;
   projected_variance: number;
   channels: ChannelPace[];
+  pacing_series?: PacingPoint[];
+  dow_weights?: number[];
+};
+
+type ChannelEff = {
+  roas: number;
+  roas_type?: string;
+  cpa: number | null;
+  spend: number;
+  revenue?: number | null;
+  conversions?: number;
 };
 
 type BudgetDetail = {
   budget: Budget;
   pacing: Pacing;
-  efficiency: Record<string, { roas: number; cpa: number | null; spend: number }>;
+  efficiency: Record<string, ChannelEff>;
 };
 
 type Proposal = {
@@ -153,6 +185,61 @@ function KpiCard({ label, value, sub, accent }: { label: string; value: string; 
   );
 }
 
+function PacingChart({ series }: { series: PacingPoint[] }) {
+  if (!series || series.length < 2) return null;
+  const fmt = (d: string) => d.slice(5);
+  return (
+    <Box sx={{ mt: 2, mb: 1 }}>
+      <Typography sx={{ fontSize: 13, fontWeight: 800, color: INK, mb: 1 }}>Pacing: Actual vs Seasonal Target</Typography>
+      <ResponsiveContainer width="100%" height={220}>
+        <RechartsLine data={series}>
+          <RechartsXAxis dataKey="date" tickFormatter={fmt} tick={{ fontSize: 11, fill: SUBTLE }} />
+          <RechartsYAxis tick={{ fontSize: 11, fill: SUBTLE }} />
+          <RechartsTooltipC />
+          <RechartsLegend wrapperStyle={{ fontSize: 12 }} />
+          <RechartsLineSeries type="monotone" dataKey="actual" stroke={BRAND.tealDeep} strokeWidth={2.5} dot={false} name="Actual spend" />
+          <RechartsLineSeries type="monotone" dataKey="seasonal_target" stroke={BRAND.amberDeep} strokeWidth={2} strokeDasharray="6 3" dot={false} name="Seasonal target" />
+          <RechartsLineSeries type="monotone" dataKey="linear_target" stroke={SUBTLE} strokeWidth={1} strokeDasharray="3 3" dot={false} name="Linear target" />
+        </RechartsLine>
+      </ResponsiveContainer>
+    </Box>
+  );
+}
+
+function RoasChart({ efficiency }: { efficiency: Record<string, ChannelEff> }) {
+  const data = Object.entries(efficiency).map(([ch, e]) => ({
+    channel: ch.charAt(0).toUpperCase() + ch.slice(1),
+    roas: e.roas,
+    roas_type: e.roas_type || 'conversion_proxy',
+  }));
+  if (data.length === 0) return null;
+  const isProxy = data.some((d) => d.roas_type === 'conversion_proxy');
+  return (
+    <Box sx={{ mt: 2, mb: 1 }}>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 800, color: INK }}>ROAS by Channel</Typography>
+        <Chip
+          label={isProxy ? 'Conversion proxy' : 'Revenue-based'}
+          sx={{ fontWeight: 700, fontSize: 11, bgcolor: isProxy ? BRAND.amberSoft : BRAND.tealSoft, color: isProxy ? BRAND.amberDeep : BRAND.tealDeep }}
+        />
+      </Stack>
+      <ResponsiveContainer width="100%" height={180}>
+        <RechartsBar data={data}>
+          <RechartsXAxis dataKey="channel" tick={{ fontSize: 11, fill: SUBTLE }} />
+          <RechartsYAxis tick={{ fontSize: 11, fill: SUBTLE }} />
+          <RechartsTooltipC />
+          <RechartsBarSeries dataKey="roas" fill={BRAND.tealDeep} radius={[6, 6, 0, 0]} name="ROAS" />
+        </RechartsBar>
+      </ResponsiveContainer>
+      {isProxy && (
+        <Typography sx={{ fontSize: 11.5, color: SUBTLE, fontWeight: 600, mt: 0.5 }}>
+          ROAS shown as conversions/spend (no revenue data available). Label: conversion proxy.
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
 export default function BudgetPacingPage() {
   const { activeWorkspace } = useAuth();
   const [tab, setTab] = useState<Tab>('Budgets');
@@ -169,6 +256,8 @@ export default function BudgetPacingPage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [openSpend, setOpenSpend] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [agentBusy, setAgentBusy] = useState(false);
+  const [agentResult, setAgentResult] = useState<any>(null);
   const [form, setForm] = useState({ name: '', period: 'monthly', total_amount: '', start_date: '', end_date: '', google: '', meta: '', linkedin: '', other: '' });
   const [spendForm, setSpendForm] = useState({ budget_id: '', channel: 'google', amount: '', date: '' });
 
@@ -280,7 +369,7 @@ export default function BudgetPacingPage() {
     setBusy(`realloc-${id}`);
     try {
       await api(`/budget-pacing/budgets/${id}/reallocate`, { method: 'POST', workspace: true, body: { autonomy: 'suggest' } });
-      setToast('AI reallocation proposed');
+      setToast('Marginal-ROI reallocation proposed');
       setTab('Reallocation');
       await load();
     } catch (e) {
@@ -300,6 +389,21 @@ export default function BudgetPacingPage() {
       setToast(e instanceof Error ? e.message : 'Apply failed');
     } finally {
       setBusy(null);
+    }
+  };
+
+  const runPacingAgent = async () => {
+    setAgentBusy(true);
+    setAgentResult(null);
+    try {
+      const res = await api<any>('/budget-pacing/agent/run', { method: 'POST', workspace: true, body: { autonomy: 'suggest' } });
+      setAgentResult(res);
+      setToast('Pacing agent completed');
+      await load();
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : 'Agent run failed');
+    } finally {
+      setAgentBusy(false);
     }
   };
 
@@ -325,10 +429,19 @@ export default function BudgetPacingPage() {
             </Box>
           </Typography>
           <Typography sx={{ color: SUBTLE, fontWeight: 600, fontSize: 14, mt: 0.25 }}>
-            Cross-channel spend pacing and an agentic reallocation optimizer.
+            Seasonality-aware pacing, true-revenue ROAS and marginal-ROI reallocation.
           </Typography>
         </Box>
         <Stack direction="row" spacing={1.5}>
+          <Button
+            onClick={runPacingAgent}
+            disabled={agentBusy}
+            variant="outlined"
+            startIcon={agentBusy ? <CircularProgress size={16} sx={{ color: INK }} /> : <AutoAwesomeRoundedIcon />}
+            sx={{ borderRadius: '999px', textTransform: 'none', fontWeight: 700, borderColor: LINE, color: INK }}
+          >
+            Run pacing agent
+          </Button>
           <Button
             onClick={() => setOpenSpend(true)}
             variant="outlined"
@@ -345,6 +458,14 @@ export default function BudgetPacingPage() {
           </Button>
         </Stack>
       </Stack>
+
+      {agentResult && (
+        <Alert severity="info" onClose={() => setAgentResult(null)} sx={{ borderRadius: '16px', mb: 2.5 }}>
+          Pacing agent ran successfully.{' '}
+          {agentResult.proposals_created ? `${agentResult.proposals_created} proposal(s) created.` : ''}
+          {agentResult.alerts_created ? ` ${agentResult.alerts_created} alert(s) raised.` : ''}
+        </Alert>
+      )}
 
       {overview && (
         <Stack direction="row" spacing={2} sx={{ mb: 2.5, flexWrap: 'wrap' }}>
@@ -416,6 +537,7 @@ export default function BudgetPacingPage() {
               {budgets.map((b) => {
                 const det = details[b.id];
                 const pacing = det?.pacing;
+                const eff = det?.efficiency;
                 const alloc = b.channels || {};
                 return (
                   <Box key={b.id} sx={{ bgcolor: '#fff', border: `1px solid ${LINE}`, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, p: 2.5 }}>
@@ -447,7 +569,7 @@ export default function BudgetPacingPage() {
                           size="small"
                           sx={{ background: INK, backgroundImage: 'none', borderRadius: '999px', textTransform: 'none', fontWeight: 700, '&:hover': { background: '#000' } }}
                         >
-                          {busy === `realloc-${b.id}` ? 'Thinking' : 'AI reallocate'}
+                          {busy === `realloc-${b.id}` ? 'Thinking' : 'Marginal-ROI reallocate'}
                         </Button>
                       </Stack>
                     </Stack>
@@ -458,23 +580,36 @@ export default function BudgetPacingPage() {
                           <Typography sx={{ fontSize: 13.5, color: INK, fontWeight: 700 }}>
                             {money(pacing.spent_to_date)} <Box component="span" sx={{ color: SUBTLE, fontWeight: 600 }}>of {money(pacing.total_amount)}</Box>
                           </Typography>
-                          <Typography sx={{ fontSize: 13.5, color: SUBTLE, fontWeight: 600 }}>Ideal to date {money(pacing.ideal_to_date)}</Typography>
+                          <Typography sx={{ fontSize: 13.5, color: SUBTLE, fontWeight: 600 }}>Seasonal ideal {money(pacing.ideal_to_date)}</Typography>
                           <Typography sx={{ fontSize: 13.5, color: SUBTLE, fontWeight: 600 }}>Projected {money(pacing.projected_total)}</Typography>
                         </Stack>
                         <PaceBar pacing={pacing} />
+
+                        {pacing.pacing_series && pacing.pacing_series.length >= 2 && (
+                          <PacingChart series={pacing.pacing_series} />
+                        )}
+
+                        {eff && <RoasChart efficiency={eff} />}
+
                         <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mt: 0.5 }}>
                           {Object.keys(alloc).length === 0 && pacing.channels.length === 0 && (
                             <Typography sx={{ fontSize: 12.5, color: SUBTLE }}>No channel allocation set.</Typography>
                           )}
                           {pacing.channels.map((c) => {
                             const cp = paceColor(c.pace_ratio > 1.1 ? 'overspend' : c.pace_ratio < 0.9 && pacing.elapsed_fraction > 0.1 ? 'underspend' : 'on_pace');
+                            const chEff = eff?.[c.channel];
                             return (
-                              <Box key={c.channel} sx={{ px: 1.25, py: 0.75, borderRadius: '12px', bgcolor: cp.soft, border: `1px solid ${LINE}` }}>
-                                <Typography sx={{ fontSize: 12, fontWeight: 800, color: cp.c, textTransform: 'capitalize' }}>{c.channel}</Typography>
-                                <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: SUBTLE }}>
-                                  {money(c.spent)} / {money(c.allocated)}
-                                </Typography>
-                              </Box>
+                              <Tooltip
+                                key={c.channel}
+                                title={chEff ? `ROAS ${chEff.roas.toFixed(4)} (${chEff.roas_type || 'proxy'})${chEff.revenue != null ? ` | Rev ${money(chEff.revenue)}` : ''}` : ''}
+                              >
+                                <Box sx={{ px: 1.25, py: 0.75, borderRadius: '12px', bgcolor: cp.soft, border: `1px solid ${LINE}` }}>
+                                  <Typography sx={{ fontSize: 12, fontWeight: 800, color: cp.c, textTransform: 'capitalize' }}>{c.channel}</Typography>
+                                  <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: SUBTLE }}>
+                                    {money(c.spent)} / {money(c.allocated)}
+                                  </Typography>
+                                </Box>
+                              </Tooltip>
                             );
                           })}
                         </Stack>
@@ -490,7 +625,7 @@ export default function BudgetPacingPage() {
             <Stack spacing={2}>
               {suggested.length === 0 && (
                 <Box sx={{ border: `1.5px dashed ${LINE}`, borderRadius: CARD_RADIUS, py: 6, textAlign: 'center', color: SUBTLE, fontWeight: 600 }}>
-                  No reallocation proposals. Run AI reallocate on a budget to generate one.
+                  No reallocation proposals. Run marginal-ROI reallocate on a budget to generate one.
                 </Box>
               )}
               {suggested.map((p) => {
@@ -506,7 +641,7 @@ export default function BudgetPacingPage() {
                             sx={{ fontWeight: 700, fontSize: 12, bgcolor: p.status === 'approved' ? BRAND.tealSoft : BRAND.amberSoft, color: p.status === 'approved' ? BRAND.tealDeep : BRAND.amberDeep }}
                           />
                           {typeof p.projected_lift === 'number' && (
-                            <Chip label={`Projected lift ${p.projected_lift}`} sx={{ fontWeight: 700, fontSize: 12, bgcolor: BRAND.tealSoft, color: BRAND.tealDeep }} />
+                            <Chip label={`Projected lift ${p.projected_lift}%`} sx={{ fontWeight: 700, fontSize: 12, bgcolor: BRAND.tealSoft, color: BRAND.tealDeep }} />
                           )}
                         </Stack>
                         {p.rationale && <Typography sx={{ color: SUBTLE, fontSize: 13, fontWeight: 600, mt: 0.75 }}>{p.rationale}</Typography>}

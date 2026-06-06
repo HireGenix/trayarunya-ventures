@@ -64,6 +64,49 @@ class ForecastSummary(BaseModel):
     projected_totals: dict[str, ProjectedTotal]
 
 
+class AccuracyInfo(BaseModel):
+    mape: float | None = None
+    mae: float | None = None
+    rmse: float | None = None
+    holdout: int | None = None
+    model: str | None = None
+    insufficient_history: bool = True
+
+
+class SeasonalityInfo(BaseModel):
+    detected_period: int | None = None
+    period_used: int | None = None
+    mode: str | None = None
+    seasonal: bool = False
+
+
+class AdvancedForecastSummary(BaseModel):
+    horizon_days: int
+    low_data: bool
+    min_points: int
+    days_with_data: int
+    range: ForecastRange
+    historical: dict[str, list[SeriesPoint]]
+    projected: dict[str, list[ProjectedPoint]]
+    projected_totals: dict[str, ProjectedTotal]
+    model_used: dict[str, str] = {}
+    accuracy: dict[str, AccuracyInfo] = {}
+    seasonality: dict[str, SeasonalityInfo] = {}
+
+
+class ModelComparison(BaseModel):
+    holt_winters: dict
+    linear: dict
+    recommendation: str
+
+
+class DriverForecast(BaseModel):
+    metric: str
+    driver: str
+    points: list[ProjectedPoint]
+    total: float
+
+
 class BenchmarkRow(BaseModel):
     id: str
     industry: str | None
@@ -112,6 +155,65 @@ async def get_summary(
     history = await svc.daily_series(db, ctx.workspace.id, lookback_days)
     summary = svc.summarize(history, horizon_days)
     return ForecastSummary(**summary)
+
+
+@router.get("/summary/advanced", response_model=AdvancedForecastSummary)
+async def get_advanced_summary(
+    horizon_days: int = Query(30, ge=1, le=365),
+    lookback_days: int = Query(90, ge=14, le=365),
+    model: str = Query("auto", pattern="^(auto|linear|holt_winters)$"),
+    period: int | None = Query(None, ge=2, le=365),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> AdvancedForecastSummary:
+    """Advanced forecast with model selection, accuracy metrics, and seasonality."""
+    history = await svc.daily_series(db, ctx.workspace.id, lookback_days)
+    summary = svc.summarize_advanced(history, horizon_days, model=model, period=period)
+    return AdvancedForecastSummary(**summary)
+
+
+@router.get("/compare")
+async def compare_models(
+    lookback_days: int = Query(90, ge=14, le=365),
+    horizon_days: int = Query(30, ge=1, le=365),
+    metric: str = Query("conversions"),
+    period: int | None = Query(None, ge=2, le=365),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> ModelComparison:
+    """Compare Linear vs Holt-Winters accuracy via backtesting."""
+    history = await svc.daily_series(db, ctx.workspace.id, lookback_days)
+    series = history["series"].get(metric, [])
+    if not series:
+        return ModelComparison(
+            holt_winters={"insufficient_history": True},
+            linear={"insufficient_history": True},
+            recommendation="insufficient_data",
+        )
+    comparison = svc.compare_models(series, horizon_days, period)
+    return ModelComparison(**comparison)
+
+
+@router.get("/driver")
+async def get_driver_forecast(
+    horizon_days: int = Query(30, ge=1, le=365),
+    lookback_days: int = Query(90, ge=14, le=365),
+    target: str = Query("conversions"),
+    driver: str = Query("impressions"),
+    period: int | None = Query(None, ge=2, le=365),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> DriverForecast | dict:
+    """Driver-adjusted forecast — scale target by correlated driver series."""
+    history = await svc.daily_series(db, ctx.workspace.id, lookback_days)
+    result = svc.driver_adjusted_forecast(
+        history, horizon_days,
+        target_metric=target, driver_metric=driver, period=period,
+    )
+    if result is None:
+        return {"metric": target, "driver": driver, "points": [], "total": 0.0,
+                "note": "Not enough correlated data for driver adjustment."}
+    return DriverForecast(**result)
 
 
 @router.get("/benchmarks", response_model=BenchmarksResponse)

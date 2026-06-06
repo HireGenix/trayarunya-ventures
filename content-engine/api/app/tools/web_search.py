@@ -80,6 +80,53 @@ async def _post(client: httpx.AsyncClient, url: str, query: str) -> str:
 # Keyed providers (preferred — reliable, no scraping/403). Each returns [] when
 # unconfigured or on error so the caller can fall through to the next provider.
 # --------------------------------------------------------------------------- #
+async def _searxng_search(query: str, limit: int) -> list[SearchResult]:
+    """Self-hosted SearXNG meta-search (free, primary).
+
+    Aggregates Google/Bing/DDG/Brave behind one JSON endpoint. A tight timeout
+    (settings.searxng_timeout_seconds) ensures a slow instance falls through to
+    the keyed providers rather than stalling research.
+    """
+    from app.config import settings
+
+    if not settings.searxng_url:
+        return []
+    base = settings.searxng_url.rstrip("/")
+    try:
+        async with httpx.AsyncClient(
+            timeout=settings.searxng_timeout_seconds, follow_redirects=True
+        ) as client:
+            res = await client.get(
+                f"{base}/search",
+                params={
+                    "q": query,
+                    "format": "json",
+                    "language": "en",
+                    "safesearch": 0,
+                },
+                headers={"Accept": "application/json", "User-Agent": UA},
+            )
+            res.raise_for_status()
+            data = res.json()
+        out: list[SearchResult] = []
+        for r in (data.get("results") or []):
+            url = r.get("url") or ""
+            if not url.startswith("http"):
+                continue
+            out.append(
+                SearchResult(
+                    title=r.get("title") or url,
+                    url=url,
+                    snippet=r.get("content") or "",
+                )
+            )
+            if len(out) >= limit:
+                break
+        return out
+    except Exception:
+        return []
+
+
 async def _tavily_search(query: str, limit: int) -> list[SearchResult]:
     from app.config import settings
 
@@ -206,11 +253,18 @@ async def _ddg_search(query: str, limit: int) -> list[SearchResult]:
 async def web_search(query: str, limit: int = 8) -> list[SearchResult]:
     """Return up to ``limit`` web results, trying reliable keyed providers first.
 
-    Order: Tavily -> Brave -> LangSearch -> DuckDuckGo. The first provider that
-    returns results wins; unconfigured/failing providers are skipped. This keeps
-    research from stalling when DuckDuckGo returns HTTP 403.
+    Order: SearXNG (self-hosted, free) -> Tavily -> Brave -> LangSearch ->
+    DuckDuckGo. The first provider that returns results wins; unconfigured or
+    slow/failing providers are skipped. SearXNG has a tight timeout so a slow
+    instance can't stall the run — it just falls through to the paid providers.
     """
-    for provider in (_tavily_search, _brave_search, _langsearch_search, _ddg_search):
+    for provider in (
+        _searxng_search,
+        _tavily_search,
+        _brave_search,
+        _langsearch_search,
+        _ddg_search,
+    ):
         results = await provider(query, limit)
         if results:
             return results
@@ -249,8 +303,12 @@ async def _ddg_vqd(client: httpx.AsyncClient, query: str) -> str | None:
 
 
 async def news_search(query: str, limit: int = 6) -> list[SearchResult]:
-    """Fresh news results via DuckDuckGo's news JSON endpoint (no API key)."""
-    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+    """Fresh news results via DuckDuckGo's news JSON endpoint (no API key).
+
+    DDG is frequently rate-limited (HTTP 403) in cloud environments, so this is
+    strictly best-effort with a tight timeout — it must never stall research.
+    """
+    async with httpx.AsyncClient(timeout=6, follow_redirects=True) as client:
         try:
             vqd = await _ddg_vqd(client, query)
             if not vqd:
@@ -307,13 +365,27 @@ async def multi_search(
                 d["platform"] = platform
             out.append(d)
 
-    _add(await web_search(query, limit=limit), "web")
+    # Run web, news and platform-scoped searches concurrently so a slow/blocked
+    # provider (e.g. DuckDuckGo news) can't serialise the whole fan-out.
+    import asyncio
+
+    plats = [p.lower() for p in (platforms or []) if PLATFORM_SITES.get(p.lower())]
+    tasks: list = [web_search(query, limit=limit)]
     if include_news:
-        _add(await news_search(query, limit=4), "news")
-    for p in (platforms or []):
-        site = PLATFORM_SITES.get(p.lower())
-        if not site:
-            continue
-        _add(await web_search(f"{query} site:{site}", limit=3), "platform", p.lower())
+        tasks.append(news_search(query, limit=4))
+    for p in plats:
+        tasks.append(web_search(f"{query} site:{PLATFORM_SITES[p]}", limit=3))
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    idx = 0
+    web_res = results[idx]; idx += 1
+    _add(web_res if not isinstance(web_res, BaseException) else [], "web")
+    if include_news:
+        news_res = results[idx]; idx += 1
+        _add(news_res if not isinstance(news_res, BaseException) else [], "news")
+    for p in plats:
+        pr = results[idx]; idx += 1
+        _add(pr if not isinstance(pr, BaseException) else [], "platform", p)
     return out
 

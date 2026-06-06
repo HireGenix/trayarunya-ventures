@@ -35,11 +35,26 @@ from app.services.publish_flow import (
     PUBLISHABLE_STATES,
     already_published,
     execute_publish,
+    is_account_connected,
 )
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/social", tags=["social"])
 
-SUPPORTED = {"linkedin", "x", "facebook", "youtube"}
+SUPPORTED = {"linkedin", "x", "facebook", "youtube", "instagram"}
+
+
+class LinkedInTargetRequest(BaseModel):
+    """Select a LinkedIn posting target: org URN for a company page, or null for personal."""
+    urn: str | None = None
+    name: str | None = None
+
+
+class ChannelStatus(BaseModel):
+    platform: str
+    connected: bool
+    account_id: str | None = None
+    display_name: str | None = None
 
 
 @router.get("/accounts", response_model=list[SocialAccountOut])
@@ -107,11 +122,28 @@ async def oauth_callback(
     code: str | None = Query(default=None),
     state: str | None = Query(default=None),
     error: str | None = Query(default=None),
+    error_description: str | None = Query(default=None),
 ) -> HTMLResponse:
     """OAuth redirect target. Exchanges the code and stores the account, then
     shows a small page that closes the popup."""
     if error:
-        return HTMLResponse(f"<p>Authorization failed: {error}</p>", status_code=400)
+        hint = ""
+        if "scope" in (error or "").lower() or "scope" in (error_description or "").lower():
+            hint = (
+                "<p style='color:#475569;font-size:14px'>This usually means a requested "
+                "permission isn't approved for your LinkedIn app. Company-page posting needs "
+                "the <b>Community Management API</b> product approved, then set "
+                "<code>LINKEDIN_ORG_POSTING=true</code>.</p>"
+            )
+        detail = error_description or error
+        return HTMLResponse(
+            "<html><body style='font-family:sans-serif;padding:2rem'>"
+            f"<h3>Authorization failed</h3><p>{detail}</p>{hint}"
+            "<p>You can close this window and try again.</p>"
+            "<script>setTimeout(()=>window.close(),4000)</script>"
+            "</body></html>",
+            status_code=400,
+        )
     if not code or not state:
         return HTMLResponse("<p>Missing code/state</p>", status_code=400)
     state_data = oauth.pop_state(state)
@@ -153,7 +185,7 @@ async def oauth_callback(
     )
 
 
-@router.delete("/accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def disconnect(
     account_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),
@@ -164,6 +196,61 @@ async def disconnect(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Account not found")
     await db.delete(account)
     await db.commit()
+
+
+# ---------------- LinkedIn company pages ----------------
+@router.get("/accounts/{account_id}/linkedin/pages")
+async def linkedin_pages(
+    account_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """List the LinkedIn company pages this connected account can administer."""
+    account = await db.get(SocialAccount, account_id)
+    if account is None or account.workspace_id != ctx.workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Account not found")
+    if account.platform != SocialPlatform.linkedin:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Not a LinkedIn account")
+    from app.services.publisher import PublishError, list_linkedin_pages
+
+    try:
+        pages = await list_linkedin_pages(account)
+    except PublishError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+    # The currently selected target (an org URN stored on external_id, else personal).
+    selected = account.external_id if (account.external_id or "").startswith("urn:li:organization:") else None
+    return {"pages": pages, "selected": selected}
+
+
+@router.post("/accounts/{account_id}/linkedin/target", response_model=SocialAccountOut)
+async def set_linkedin_target(
+    account_id: uuid.UUID,
+    body: LinkedInTargetRequest,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> SocialAccountOut:
+    """Choose where this LinkedIn account posts: a company page or the personal profile.
+
+    Passing an organization URN routes posts to that page (publisher uses
+    ``external_id`` as the author). Passing ``null`` resets to the personal profile.
+    """
+    account = await db.get(SocialAccount, account_id)
+    if account is None or account.workspace_id != ctx.workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Account not found")
+    if account.platform != SocialPlatform.linkedin:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Not a LinkedIn account")
+
+    urn = (body.urn or "").strip() or None
+    if urn is not None and not urn.startswith("urn:li:organization:"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid organization URN")
+    account.external_id = urn
+    if urn is None:
+        account.display_name = "LinkedIn (personal profile)"
+    elif body.name:
+        account.display_name = body.name.strip()
+    await db.commit()
+    await db.refresh(account)
+    return SocialAccountOut.model_validate(account)
 
 
 # ---------------- Scheduling ----------------
@@ -213,7 +300,7 @@ async def create_schedule(
     return ScheduleOut.model_validate(sched)
 
 
-@router.delete("/schedules/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/schedules/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def cancel_schedule(
     schedule_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),
@@ -264,3 +351,134 @@ async def publish_now(
     await db.commit()
     await db.refresh(sched)
     return ScheduleOut.model_validate(sched)
+
+
+# ---------------- Channel connection status ----------------
+@router.get("/channels/status", response_model=list[ChannelStatus])
+async def channel_status(
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> list[ChannelStatus]:
+    """Return per-channel connection status for the workspace.
+
+    Checks SocialAccount rows first, then falls back to the integrations
+    catalog (provider ``meta`` covers facebook and instagram).
+    """
+    ALL_CHANNELS = ["instagram", "facebook", "linkedin", "x", "youtube", "tiktok"]
+    res = await db.execute(
+        select(SocialAccount)
+        .where(
+            SocialAccount.workspace_id == ctx.workspace.id,
+            SocialAccount.is_active.is_(True),
+        )
+    )
+    accs = res.scalars().all()
+    acc_by_platform: dict[str, SocialAccount] = {}
+    for a in accs:
+        plat = a.platform.value if hasattr(a.platform, "value") else str(a.platform)
+        if plat not in acc_by_platform:
+            acc_by_platform[plat] = a
+
+    # Pre-fetch whether a "meta" integration row exists in the catalog.
+    from app.models import Integration as _Integration
+
+    meta_row = (
+        await db.execute(
+            select(_Integration).where(
+                _Integration.workspace_id == ctx.workspace.id,
+                _Integration.provider == "meta",
+                _Integration.status == "connected",
+            )
+        )
+    ).scalar_one_or_none()
+
+    _META_CHANNELS = {"facebook", "instagram"}
+
+    out: list[ChannelStatus] = []
+    for ch in ALL_CHANNELS:
+        acc = acc_by_platform.get(ch)
+        if acc and is_account_connected(acc):
+            out.append(ChannelStatus(
+                platform=ch,
+                connected=True,
+                account_id=str(acc.id),
+                display_name=acc.display_name,
+            ))
+        elif ch in _META_CHANNELS and meta_row is not None:
+            out.append(ChannelStatus(
+                platform=ch,
+                connected=True,
+                display_name="Meta (catalog)",
+            ))
+        else:
+            out.append(ChannelStatus(platform=ch, connected=False))
+    return out
+
+
+# ---------------- Post status sync ----------------
+@router.get("/schedules/{schedule_id}/status")
+async def post_status_sync(
+    schedule_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return the latest status for a scheduled/published post.
+
+    When connected and published, fetches the real permalink from the platform
+    and stores it. When not connected, returns the stored draft/scheduled state
+    honestly.
+    """
+    sched = await db.get(Schedule, schedule_id)
+    if sched is None or sched.workspace_id != ctx.workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Schedule not found")
+
+    account = await db.get(SocialAccount, sched.social_account_id)
+    platform = "unknown"
+    connected = False
+    if account:
+        platform = getattr(account.platform, "value", str(account.platform))
+        connected = is_account_connected(account)
+
+    result: dict = {
+        "id": str(sched.id),
+        "status": sched.status.value if hasattr(sched.status, "value") else str(sched.status),
+        "external_post_id": sched.external_post_id,
+        "permalink": sched.permalink,
+        "error": sched.error,
+        "platform": platform,
+        "connected": connected,
+    }
+
+    # If published and connected, try to fetch real permalink if missing
+    if (
+        sched.status == ScheduleStatus.published
+        and sched.external_post_id
+        and connected
+        and account
+        and not sched.permalink
+    ):
+        from app.services.token_vault import get_account_token as _get_token
+        token = _get_token(account)
+        if token and platform == "facebook" and "_" in sched.external_post_id:
+            parts = sched.external_post_id.split("_")
+            sched.permalink = f"https://www.facebook.com/{parts[0]}/posts/{parts[1]}"
+            result["permalink"] = sched.permalink
+            await db.commit()
+        elif token and platform == "instagram":
+            import httpx
+            try:
+                async with httpx.AsyncClient(timeout=15) as client:
+                    r = await client.get(
+                        f"https://graph.facebook.com/v21.0/{sched.external_post_id}",
+                        params={"fields": "permalink", "access_token": token},
+                    )
+                    if r.status_code < 300:
+                        perm = r.json().get("permalink")
+                        if perm:
+                            sched.permalink = perm
+                            result["permalink"] = perm
+                            await db.commit()
+            except Exception:  # noqa: BLE001
+                pass
+
+    return result

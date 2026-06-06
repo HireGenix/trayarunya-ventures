@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
-from app.models import AuditSnapshot, Competitor, Insight, ResearchJob
+from app.models import AuditSnapshot, Competitor, Insight, JobStatus, ResearchJob
 from app.schemas import (
     AuditSnapshotOut,
     CompetitorOut,
@@ -125,7 +125,28 @@ async def update_research(
     return ResearchOut.model_validate(job)
 
 
-@router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/{job_id}/cancel", response_model=ResearchOut)
+async def cancel_research(
+    job_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> ResearchOut:
+    """Cancel an in-flight research job.
+
+    Marks a ``queued``/``running`` job as ``failed`` so the UI stops tracking it
+    and the worker (which checks status cooperatively at each step) aborts. Safe
+    to call on already-finished jobs — returns the job unchanged (idempotent).
+    """
+    job = await _get_job(db, ctx, job_id)
+    if job.status in (JobStatus.queued, JobStatus.running):
+        job.status = JobStatus.failed
+        job.error = "Cancelled by user"
+        await db.commit()
+        await db.refresh(job)
+    return ResearchOut.model_validate(job)
+
+
+@router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_research(
     job_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

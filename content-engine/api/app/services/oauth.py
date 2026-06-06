@@ -134,7 +134,20 @@ def _providers() -> dict[str, ProviderConfig]:
             name="linkedin",
             auth_url="https://www.linkedin.com/oauth/v2/authorization",
             token_url="https://www.linkedin.com/oauth/v2/accessToken",
-            scopes=["openid", "profile", "email", "w_member_social"],
+            scopes=[
+                "openid",
+                "profile",
+                "email",
+                "w_member_social",
+                # Company-page (organization) posting. These require the LinkedIn app to be
+                # approved for the "Community Management API" product, otherwise authorization
+                # fails with unauthorized_scope_error. Gated behind LINKEDIN_ORG_POSTING.
+                *(
+                    ["r_organization_social", "w_organization_social", "rw_organization_admin"]
+                    if settings.linkedin_org_posting
+                    else []
+                ),
+            ],
             client_id=settings.linkedin_client_id,
             client_secret=settings.linkedin_client_secret,
         ),

@@ -74,6 +74,67 @@ async def _linkedin_author(client: httpx.AsyncClient, account: SocialAccount) ->
     return f"urn:li:person:{sub}"
 
 
+async def list_linkedin_pages(account: SocialAccount) -> list[dict]:
+    """Return the company pages (organizations) this member can administer.
+
+    Calls LinkedIn's organizationAcls to find ADMINISTRATOR roles, then resolves
+    each organization's display name. Returns ``[{urn, id, name}]``. Requires the
+    ``rw_organization_admin`` / ``r_organization_social`` scopes — if the token
+    lacks them LinkedIn returns 403 and we surface a clear error.
+    """
+    token = get_account_token(account)
+    if not token:
+        raise PublishError("LinkedIn account has no access token")
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "X-Restli-Protocol-Version": "2.0.0",
+    }
+    async with httpx.AsyncClient(timeout=30) as client:
+        acl = await _request_with_retry(
+            client,
+            "GET",
+            "https://api.linkedin.com/v2/organizationAcls"
+            "?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED"
+            "&projection=(elements*(organization~(id,localizedName)))",
+            headers=headers,
+        )
+        if acl.status_code == 403:
+            raise PublishError(
+                "LinkedIn denied access to your company pages. Your app needs the "
+                "Community Management API product approved (rw_organization_admin)."
+            )
+        if acl.status_code >= 300:
+            raise PublishError(f"LinkedIn organizationAcls {acl.status_code}: {acl.text[:200]}")
+
+        elements = acl.json().get("elements", []) or []
+        pages: list[dict] = []
+        for el in elements:
+            org_urn = el.get("organization")
+            resolved = el.get("organization~") or {}
+            org_id = resolved.get("id")
+            name = resolved.get("localizedName")
+            if org_id is None and isinstance(org_urn, str) and org_urn.startswith("urn:li:organization:"):
+                org_id = org_urn.rsplit(":", 1)[-1]
+            if org_id is None:
+                continue
+            urn = org_urn if isinstance(org_urn, str) else f"urn:li:organization:{org_id}"
+            if not name:
+                # Fallback lookup if the projection didn't inline the name.
+                try:
+                    one = await _request_with_retry(
+                        client,
+                        "GET",
+                        f"https://api.linkedin.com/v2/organizations/{org_id}",
+                        headers=headers,
+                    )
+                    if one.status_code < 300:
+                        name = one.json().get("localizedName")
+                except PublishError:
+                    name = None
+            pages.append({"urn": urn, "id": str(org_id), "name": name or f"Organization {org_id}"})
+    return pages
+
+
 async def _linkedin_upload_image(
     client: httpx.AsyncClient,
     account: SocialAccount,
@@ -205,23 +266,161 @@ async def _publish_x(account: SocialAccount, text: str) -> str:
     return external_id
 
 
-async def publish(
+FACEBOOK_MAX_CHARS = 63206
+INSTAGRAM_MAX_CAPTION = 2200
+
+
+async def _publish_facebook(
     account: SocialAccount, text: str, image_bytes: bytes | None = None
-) -> str:
+) -> tuple[str, str | None]:
+    """Publish a post to a Facebook Page via the Graph API.
+
+    Requires a Page Access Token stored on the account. Returns
+    ``(post_id, permalink)`` on success.
+    """
+    token = get_account_token(account)
+    if not token:
+        raise PublishError("Facebook account has no access token")
+    if not text.strip() and not image_bytes:
+        raise PublishError("Cannot publish an empty post")
+    page_id = account.external_id or "me"
+    if len(text) > FACEBOOK_MAX_CHARS:
+        text = text[: FACEBOOK_MAX_CHARS - 1] + "…"
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        if image_bytes:
+            # Photo post: upload image with caption
+            res = await _request_with_retry(
+                client,
+                "POST",
+                f"https://graph.facebook.com/v21.0/{page_id}/photos",
+                data={"message": text, "access_token": token},
+                files={"source": ("image.jpg", image_bytes, "image/jpeg")},
+            )
+        else:
+            # Text-only post
+            res = await _request_with_retry(
+                client,
+                "POST",
+                f"https://graph.facebook.com/v21.0/{page_id}/feed",
+                json={"message": text, "access_token": token},
+            )
+    if res.status_code >= 300:
+        body = res.text[:300]
+        raise PublishError(f"Facebook API {res.status_code}: {body}")
+    data = res.json()
+    post_id = data.get("id") or data.get("post_id") or ""
+    if not post_id:
+        raise PublishError("Facebook accepted the post but returned no post id")
+    permalink: str | None = None
+    if post_id and "_" in post_id:
+        parts = post_id.split("_")
+        permalink = f"https://www.facebook.com/{parts[0]}/posts/{parts[1]}"
+    return post_id, permalink
+
+
+async def _publish_instagram(
+    account: SocialAccount, text: str, image_url: str | None = None
+) -> tuple[str, str | None]:
+    """Publish to Instagram via the Graph API container→publish flow.
+
+    Instagram requires a publicly-accessible image URL (not raw bytes). If
+    ``image_url`` is None, we raise — IG requires media for every post.
+
+    Returns ``(media_id, permalink)`` on success.
+    """
+    token = get_account_token(account)
+    if not token:
+        raise PublishError("Instagram account has no access token")
+    ig_user_id = account.external_id
+    if not ig_user_id:
+        raise PublishError("Instagram account has no user id (external_id)")
+    if not image_url:
+        raise PublishError(
+            "Instagram requires an image for every post. "
+            "Please attach a publicly-accessible image URL."
+        )
+    if len(text) > INSTAGRAM_MAX_CAPTION:
+        text = text[: INSTAGRAM_MAX_CAPTION - 1] + "…"
+
+    async with httpx.AsyncClient(timeout=90) as client:
+        # Step 1: create media container
+        create_res = await _request_with_retry(
+            client,
+            "POST",
+            f"https://graph.facebook.com/v21.0/{ig_user_id}/media",
+            json={
+                "image_url": image_url,
+                "caption": text,
+                "access_token": token,
+            },
+        )
+        if create_res.status_code >= 300:
+            raise PublishError(
+                f"Instagram container create {create_res.status_code}: "
+                f"{create_res.text[:300]}"
+            )
+        container_id = create_res.json().get("id")
+        if not container_id:
+            raise PublishError("Instagram did not return a container id")
+
+        # Step 2: publish the container
+        pub_res = await _request_with_retry(
+            client,
+            "POST",
+            f"https://graph.facebook.com/v21.0/{ig_user_id}/media_publish",
+            json={
+                "creation_id": container_id,
+                "access_token": token,
+            },
+        )
+        if pub_res.status_code >= 300:
+            raise PublishError(
+                f"Instagram publish {pub_res.status_code}: {pub_res.text[:300]}"
+            )
+        media_id = pub_res.json().get("id") or ""
+        if not media_id:
+            raise PublishError("Instagram accepted the post but returned no media id")
+
+        # Step 3: fetch permalink
+        permalink: str | None = None
+        try:
+            perm_res = await _request_with_retry(
+                client,
+                "GET",
+                f"https://graph.facebook.com/v21.0/{media_id}",
+                params={"fields": "permalink", "access_token": token},
+            )
+            if perm_res.status_code < 300:
+                permalink = perm_res.json().get("permalink")
+        except PublishError:
+            pass  # permalink is best-effort
+
+    return media_id, permalink
+
+
+async def publish(
+    account: SocialAccount, text: str, image_bytes: bytes | None = None,
+    *, image_url: str | None = None,
+) -> tuple[str, str | None]:
     """Publish ``text`` (with an optional image) to the account's platform.
 
-    Returns the external post id on success; raises :class:`PublishError`
-    otherwise. Never returns an empty string for success.
+    Returns ``(external_post_id, permalink)`` on success; raises
+    :class:`PublishError` otherwise. Never returns an empty id for success.
     """
     platform = (
         account.platform.value if hasattr(account.platform, "value") else str(account.platform)
     )
     if platform == "linkedin":
-        return await _publish_linkedin(account, text, image_bytes)
+        ext_id = await _publish_linkedin(account, text, image_bytes)
+        return ext_id, None
     if platform == "x":
-        # X image upload requires the OAuth1.0a media endpoint; not available with
-        # our OAuth2 bearer tokens, so we post text-only for now.
-        return await _publish_x(account, text)
+        ext_id = await _publish_x(account, text)
+        return ext_id, None
+    if platform == "facebook":
+        return await _publish_facebook(account, text, image_bytes)
+    if platform == "instagram":
+        return await _publish_instagram(account, text, image_url=image_url)
     raise PublishError(f"Publishing to {platform} is not yet supported")
 
 
@@ -324,6 +523,73 @@ async def _fetch_x_stats(account: SocialAccount, tweet_id: str) -> dict | None:
     }
 
 
+async def _fetch_facebook_stats(account: SocialAccount, post_id: str) -> dict | None:
+    """Read engagement metrics for a Facebook post via the Graph API."""
+    if not account.access_token:
+        return None
+    token = get_account_token(account)
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            res = await _request_with_retry(
+                client,
+                "GET",
+                f"https://graph.facebook.com/v21.0/{post_id}",
+                params={
+                    "fields": "likes.summary(true),comments.summary(true),shares",
+                    "access_token": token,
+                },
+            )
+    except PublishError:
+        return None
+    if res.status_code >= 300:
+        log.info("Facebook post lookup %s: %s", res.status_code, res.text[:160])
+        return None
+    data = res.json()
+    likes = int((data.get("likes", {}).get("summary", {}) or {}).get("total_count", 0) or 0)
+    comments = int((data.get("comments", {}).get("summary", {}) or {}).get("total_count", 0) or 0)
+    shares = int((data.get("shares", {}) or {}).get("count", 0) or 0)
+    return {
+        "likes": likes,
+        "comments": comments,
+        "shares": shares,
+        "impressions": 0,
+        "clicks": 0,
+        "simulated": False,
+    }
+
+
+async def _fetch_instagram_stats(account: SocialAccount, media_id: str) -> dict | None:
+    """Read engagement metrics for an Instagram media object via the Graph API."""
+    if not account.access_token:
+        return None
+    token = get_account_token(account)
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            res = await _request_with_retry(
+                client,
+                "GET",
+                f"https://graph.facebook.com/v21.0/{media_id}",
+                params={
+                    "fields": "like_count,comments_count,permalink",
+                    "access_token": token,
+                },
+            )
+    except PublishError:
+        return None
+    if res.status_code >= 300:
+        log.info("Instagram media lookup %s: %s", res.status_code, res.text[:160])
+        return None
+    data = res.json()
+    return {
+        "likes": int(data.get("like_count", 0) or 0),
+        "comments": int(data.get("comments_count", 0) or 0),
+        "shares": 0,
+        "impressions": 0,
+        "clicks": 0,
+        "simulated": False,
+    }
+
+
 async def fetch_post_stats(
     account: SocialAccount, external_post_id: str, days_since: int = 0
 ) -> dict:
@@ -342,6 +608,10 @@ async def fetch_post_stats(
         live = await _fetch_linkedin_stats(account, external_post_id)
     elif platform == "x":
         live = await _fetch_x_stats(account, external_post_id)
+    elif platform == "facebook":
+        live = await _fetch_facebook_stats(account, external_post_id)
+    elif platform == "instagram":
+        live = await _fetch_instagram_stats(account, external_post_id)
 
     sim = _simulate_stats(external_post_id, days_since)
     has_real = bool(live) and any(

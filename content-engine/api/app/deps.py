@@ -93,6 +93,17 @@ def require_role(*allowed: Role):
     return _guard
 
 
+async def require_superuser(user: User = Depends(get_current_user)) -> User:
+    """Guard: only a platform superadmin (``is_superuser``) may proceed.
+
+    Used for platform-wide settings such as the model registry, which are not
+    scoped to any workspace.
+    """
+    if not user.is_superuser:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Requires superadmin")
+    return user
+
+
 # --------------------------------------------------------------------------- #
 # Client portal context
 # --------------------------------------------------------------------------- #

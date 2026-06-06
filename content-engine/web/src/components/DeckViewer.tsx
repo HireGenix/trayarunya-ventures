@@ -31,6 +31,11 @@ import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
 import type { SvgIconComponent } from '@mui/icons-material';
+import {
+  BarChart, Bar, LineChart, Line, AreaChart, Area,
+  PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer,
+} from 'recharts';
 import type { DeckSlide, DeckTheme } from '@/lib/api';
 /* Controlled icon vocabulary — keep in sync with deck_designer.ICON_VOCAB. */
 const ICONS: Record<string, SvgIconComponent> = {
@@ -125,11 +130,17 @@ export function Slide({
   theme,
   index,
   total,
+  editable = false,
+  onPatch,
 }: {
   slide: DeckSlide;
   theme?: DeckTheme | null;
   index?: number;
   total?: number;
+  /** When true, prominent text fields become click-to-edit on the slide. */
+  editable?: boolean;
+  /** Receives a dot-path (e.g. "title", "bullets.0.heading") and the new value. */
+  onPatch?: (path: string, value: string) => void;
 }) {
   const t = resolveTheme(theme);
   const d = slide.data || {};
@@ -138,6 +149,52 @@ export function Slide({
   const imageUrl = S((d as Record<string, unknown>).image_url);
   const onDark = dark || Boolean(imageUrl);
   const sources = A((d as Record<string, unknown>).sources) as Array<Record<string, unknown>>;
+
+  /* Inline click-to-edit text. Renders a plain Typography in read mode; in edit
+     mode it becomes a contentEditable that commits on blur / Enter via onPatch.
+     Edits never fire mid-keystroke, so focus and caret are preserved. */
+  const et = (
+    path: string,
+    value: string,
+    sx?: Record<string, unknown>,
+    component: React.ElementType = 'div',
+  ): React.ReactNode => {
+    if (!editable || !onPatch) {
+      return <Typography component={component} sx={sx}>{value}</Typography>;
+    }
+    return (
+      <Typography
+        component={component}
+        contentEditable
+        suppressContentEditableWarning
+        spellCheck={false}
+        data-ce="1"
+        onClick={(e: React.MouseEvent<HTMLElement>) => e.stopPropagation()}
+        onKeyDown={(e: React.KeyboardEvent<HTMLElement>) => {
+          e.stopPropagation();
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            (e.currentTarget as HTMLElement).blur();
+          }
+        }}
+        onBlur={(e: React.FocusEvent<HTMLElement>) => {
+          const txt = (e.currentTarget.textContent || '').replace(/\u00a0/g, ' ').trim();
+          if (txt !== value) onPatch(path, txt);
+        }}
+        sx={{
+          ...sx,
+          cursor: 'text',
+          outline: 'none',
+          borderRadius: '4px',
+          transition: 'box-shadow .12s ease, background-color .12s ease',
+          '&:hover': { boxShadow: `inset 0 0 0 1.5px ${t.accent}55` },
+          '&:focus': { boxShadow: `inset 0 0 0 1.5px ${t.accent}`, backgroundColor: `${t.accent}14` },
+        }}
+      >
+        {value}
+      </Typography>
+    );
+  };
 
   const brandMark = t.logoUrl ? (
     <Box
@@ -219,45 +276,29 @@ export function Slide({
           color: '#fff',
         }}
       >
-        {eyebrow && (
-          <Typography
-            sx={{
-              fontSize: '1.6cqw',
-              fontWeight: 800,
-              letterSpacing: 2,
-              textTransform: 'uppercase',
-              color: 'rgba(255,255,255,0.92)',
-              mb: '1.6cqw',
-            }}
-          >
-            {eyebrow}
-          </Typography>
-        )}
-        <Typography
-          sx={{
-            fontSize: layout === 'cover' ? '5.4cqw' : '4.6cqw',
-            fontWeight: 900,
-            lineHeight: 1.04,
-            letterSpacing: '-0.02em',
-            maxWidth: '92%',
-          }}
-        >
-          {S(d.title)}
-        </Typography>
-        {Boolean(d.subtitle || d.body) && (
-          <Typography
-            sx={{
-              fontSize: '2.2cqw',
-              fontWeight: 400,
-              mt: '2.4cqw',
-              maxWidth: '82%',
-              color: 'rgba(255,255,255,0.92)',
-              lineHeight: 1.4,
-            }}
-          >
-            {S(d.subtitle || d.body)}
-          </Typography>
-        )}
+        {eyebrow && et('eyebrow', eyebrow, {
+          fontSize: '1.6cqw',
+          fontWeight: 800,
+          letterSpacing: 2,
+          textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.92)',
+          mb: '1.6cqw',
+        })}
+        {et('title', S(d.title), {
+          fontSize: layout === 'cover' ? '5.4cqw' : '4.6cqw',
+          fontWeight: 900,
+          lineHeight: 1.04,
+          letterSpacing: '-0.02em',
+          maxWidth: '92%',
+        })}
+        {Boolean(d.subtitle || d.body) && et('subtitle', S(d.subtitle || d.body), {
+          fontSize: '2.2cqw',
+          fontWeight: 400,
+          mt: '2.4cqw',
+          maxWidth: '82%',
+          color: 'rgba(255,255,255,0.92)',
+          lineHeight: 1.4,
+        })}
         {layout === 'cta' && Boolean(d.cta) && (
           <Box
             sx={{
@@ -273,7 +314,7 @@ export function Slide({
               boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
             }}
           >
-            {S(d.cta)} →
+            {et('cta', S(d.cta), { display: 'inline' }, 'span')} →
           </Box>
         )}
       </Box>
@@ -282,24 +323,16 @@ export function Slide({
     /* Light content slide: accent rail + title header + layout body */
     const header = (
       <Box sx={{ px: '7%', pt: '6.5%' }}>
-        {Boolean(d.title) && (
-          <Typography
-            sx={{
-              fontSize: '3.4cqw',
-              fontWeight: 900,
-              color: t.ink,
-              lineHeight: 1.08,
-              letterSpacing: '-0.015em',
-            }}
-          >
-            {S(d.title)}
-          </Typography>
-        )}
-        {Boolean(d.subtitle) && (
-          <Typography sx={{ fontSize: '1.9cqw', color: 'rgba(0,0,0,0.55)', mt: '1cqw' }}>
-            {S(d.subtitle)}
-          </Typography>
-        )}
+        {Boolean(d.title) && et('title', S(d.title), {
+          fontSize: '3.4cqw',
+          fontWeight: 900,
+          color: t.ink,
+          lineHeight: 1.08,
+          letterSpacing: '-0.015em',
+        })}
+        {Boolean(d.subtitle) && et('subtitle', S(d.subtitle), {
+          fontSize: '1.9cqw', color: 'rgba(0,0,0,0.55)', mt: '1cqw',
+        })}
       </Box>
     );
 
@@ -346,9 +379,7 @@ export function Slide({
               >
                 {i + 1}
               </Box>
-              <Typography sx={{ fontSize: u(2.3), fontWeight: 600, color: t.ink, lineHeight: 1.25 }}>
-                {S(it)}
-              </Typography>
+              {et(`items.${i}`, S(it), { fontSize: u(2.3), fontWeight: 600, color: t.ink, lineHeight: 1.25 })}
             </Stack>
           ))}
         </Stack>
@@ -371,14 +402,8 @@ export function Slide({
                   }}
                 />
                 <Box>
-                  <Typography sx={{ fontSize: u(2.2), fontWeight: 800, color: t.ink, lineHeight: 1.2 }}>
-                    {S(obj.heading)}
-                  </Typography>
-                  {obj.body ? (
-                    <Typography sx={{ fontSize: u(1.75), color: 'rgba(0,0,0,0.6)', mt: '0.4cqw', lineHeight: 1.4 }}>
-                      {S(obj.body)}
-                    </Typography>
-                  ) : null}
+                  {et(`bullets.${i}.heading`, S(obj.heading), { fontSize: u(2.2), fontWeight: 800, color: t.ink, lineHeight: 1.2 })}
+                  {obj.body ? et(`bullets.${i}.body`, S(obj.body), { fontSize: u(1.75), color: 'rgba(0,0,0,0.6)', mt: '0.4cqw', lineHeight: 1.4 }) : null}
                 </Box>
               </Stack>
             );
@@ -406,21 +431,13 @@ export function Slide({
                   boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
                 }}
               >
-                <Typography sx={{ fontSize: u(2.2), fontWeight: 800, color: t.ink, mb: u(1) }}>
-                  {S(col.heading)}
-                </Typography>
-                {col.body ? (
-                  <Typography sx={{ fontSize: u(1.7), color: 'rgba(0,0,0,0.62)', lineHeight: 1.45, mb: u(1) }}>
-                    {S(col.body)}
-                  </Typography>
-                ) : null}
+                {et(`${key}.heading`, S(col.heading), { fontSize: u(2.2), fontWeight: 800, color: t.ink, mb: u(1) })}
+                {col.body ? et(`${key}.body`, S(col.body), { fontSize: u(1.7), color: 'rgba(0,0,0,0.62)', lineHeight: 1.45, mb: u(1) }) : null}
                 <Stack spacing={u(0.9)}>
                   {A(col.items).map((it, i) => (
                     <Stack key={i} direction="row" spacing="1cqw" alignItems="flex-start">
                       <Box sx={{ color, fontWeight: 900, fontSize: u(1.7), lineHeight: 1.3 }}>•</Box>
-                      <Typography sx={{ fontSize: u(1.7), color: t.ink, lineHeight: 1.35 }}>
-                        {S(it)}
-                      </Typography>
+                      {et(`${key}.items.${i}`, S(it), { fontSize: u(1.7), color: t.ink, lineHeight: 1.35 })}
                     </Stack>
                   ))}
                 </Stack>
@@ -499,9 +516,7 @@ export function Slide({
                     opacity: 0.8,
                   }}
                 />
-                <Typography sx={{ fontSize: '1.55cqw', fontWeight: 600, color: 'rgba(0,0,0,0.62)', lineHeight: 1.35 }}>
-                  {S(obj.label)}
-                </Typography>
+                {et(`stats.${i}.label`, S(obj.label), { fontSize: '1.55cqw', fontWeight: 600, color: 'rgba(0,0,0,0.62)', lineHeight: 1.35 })}
               </Box>
             );
           })}
@@ -740,6 +755,119 @@ export function Slide({
           </Box>
         </Box>
       );
+    } else if (layout === 'chart') {
+      const chartType = S(d.chart_type || 'bar').toLowerCase();
+      const seriesData = A(d.series) as Array<Record<string, unknown>>;
+      const labels = A(d.labels);
+
+      const chartData = labels.map((label, i) => {
+        const point: Record<string, unknown> = { name: S(label) };
+        seriesData.forEach((s, si) => {
+          const key = S(s.name) || `s${si}`;
+          point[key] = A(s.values)[i] ?? 0;
+        });
+        return point;
+      });
+
+      const CHART_COLORS = [
+        t.primary,
+        t.accent,
+        '#6B7280',
+        '#3B82F6',
+        '#F59E0B',
+        '#EF4444',
+      ];
+
+      inner = (
+        <Box sx={{ px: '7%', mt: u(2), flex: 1, minHeight: 0, height: '38cqw' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            {chartType === 'pie' ? (
+              <PieChart>
+                <Pie
+                  data={chartData.map((pt, i) => ({
+                    name: pt.name,
+                    value: A(seriesData[0]?.values)[i] ?? 0,
+                  }))}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius="70%"
+                  dataKey="value"
+                  label={({ name, percent }: { name?: string; percent?: number }) =>
+                    `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
+                  }
+                >
+                  {chartData.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            ) : chartType === 'line' ? (
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke={t.ink + '22'} />
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: t.ink }} />
+                <YAxis tick={{ fontSize: 12, fill: t.ink }} />
+                <Tooltip />
+                {seriesData.length > 1 && <Legend />}
+                {seriesData.map((s, i) => {
+                  const key = S(s.name) || `s${i}`;
+                  return (
+                    <Line
+                      key={key}
+                      type="monotone"
+                      dataKey={key}
+                      stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                    />
+                  );
+                })}
+              </LineChart>
+            ) : chartType === 'area' ? (
+              <AreaChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke={t.ink + '22'} />
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: t.ink }} />
+                <YAxis tick={{ fontSize: 12, fill: t.ink }} />
+                <Tooltip />
+                {seriesData.length > 1 && <Legend />}
+                {seriesData.map((s, i) => {
+                  const key = S(s.name) || `s${i}`;
+                  return (
+                    <Area
+                      key={key}
+                      type="monotone"
+                      dataKey={key}
+                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                      stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                      fillOpacity={0.3}
+                    />
+                  );
+                })}
+              </AreaChart>
+            ) : (
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke={t.ink + '22'} />
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: t.ink }} />
+                <YAxis tick={{ fontSize: 12, fill: t.ink }} />
+                <Tooltip />
+                {seriesData.length > 1 && <Legend />}
+                {seriesData.map((s, i) => {
+                  const key = S(s.name) || `s${i}`;
+                  return (
+                    <Bar
+                      key={key}
+                      dataKey={key}
+                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                      radius={[4, 4, 0, 0]}
+                    />
+                  );
+                })}
+              </BarChart>
+            )}
+          </ResponsiveContainer>
+        </Box>
+      );
     } else if (layout === 'references') {
       const items = A(d.items);
       inner = (
@@ -814,20 +942,16 @@ export function Slide({
             <Typography sx={{ fontSize: '9cqw', lineHeight: 0.6, color: t.accent, fontWeight: 900 }}>
               “
             </Typography>
-            <Typography
-              sx={{
-                fontSize: '3.2cqw',
-                fontWeight: 800,
-                color: onImg ? '#fff' : t.ink,
-                lineHeight: 1.3,
-                letterSpacing: '-0.01em',
-              }}
-            >
-              {S(d.quote)}
-            </Typography>
+            {et('quote', S(d.quote), {
+              fontSize: '3.2cqw',
+              fontWeight: 800,
+              color: onImg ? '#fff' : t.ink,
+              lineHeight: 1.3,
+              letterSpacing: '-0.01em',
+            })}
             {Boolean(d.attribution) && (
               <Typography sx={{ fontSize: '1.9cqw', fontWeight: 700, color: onImg ? 'rgba(255,255,255,0.92)' : t.accent, mt: '2.4cqw' }}>
-                — {S(d.attribution)}
+                — {et('attribution', S(d.attribution), { display: 'inline' }, 'span')}
               </Typography>
             )}
           </Box>
@@ -1109,6 +1233,164 @@ export function PresentMode({
       >
         {i + 1} / {total} · ← → to navigate · Esc to exit
       </Typography>
+    </Box>
+  );
+}
+
+export function PresenterView({
+  slides,
+  theme,
+  startIndex = 0,
+  onClose,
+}: {
+  slides: DeckSlide[];
+  theme?: DeckTheme | null;
+  startIndex?: number;
+  onClose: () => void;
+}) {
+  const [i, setI] = useState(startIndex);
+  const [elapsed, setElapsed] = useState(0);
+  const total = slides.length;
+
+  const go = useCallback(
+    (delta: number) => setI((prev) => Math.max(0, Math.min(total - 1, prev + delta))),
+    [total],
+  );
+
+  // Keyboard navigation
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        go(1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        go(-1);
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [go, onClose]);
+
+  // Timer
+  useEffect(() => {
+    const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!total) return null;
+
+  const currentSlide = slides[i];
+  const nextSlide = i < total - 1 ? slides[i + 1] : null;
+  const notes = currentSlide?.speaker_notes || '';
+
+  const formatTime = (s: number) => {
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  return (
+    <Box
+      sx={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1500,
+        bgcolor: '#111',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Top bar */}
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ px: 2, py: 1, borderBottom: '1px solid rgba(255,255,255,0.1)' }}
+      >
+        <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>
+          Presenter View
+        </Typography>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <Typography sx={{ color: '#14BB87', fontWeight: 800, fontSize: 20, fontFamily: 'monospace' }}>
+            {formatTime(elapsed)}
+          </Typography>
+          <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: 600 }}>
+            {i + 1} / {total}
+          </Typography>
+          <IconButton onClick={onClose} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+            <CloseIcon />
+          </IconButton>
+        </Stack>
+      </Stack>
+
+      {/* Main content */}
+      <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', p: 2, gap: 2 }}>
+        {/* Left: Current slide */}
+        <Box sx={{ flex: 3, display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
+          <Box sx={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: '100%', maxWidth: 960 }}>
+              <Slide slide={currentSlide} theme={theme} index={i} total={total} />
+            </Box>
+          </Box>
+
+          {/* Navigation buttons */}
+          <Stack direction="row" justifyContent="center" spacing={2}>
+            <IconButton
+              onClick={() => go(-1)}
+              disabled={i === 0}
+              sx={{ color: 'rgba(255,255,255,0.6)', '&.Mui-disabled': { color: 'rgba(255,255,255,0.15)' } }}
+            >
+              <ChevronLeftIcon sx={{ fontSize: 32 }} />
+            </IconButton>
+            <IconButton
+              onClick={() => go(1)}
+              disabled={i === total - 1}
+              sx={{ color: 'rgba(255,255,255,0.6)', '&.Mui-disabled': { color: 'rgba(255,255,255,0.15)' } }}
+            >
+              <ChevronRightIcon sx={{ fontSize: 32 }} />
+            </IconButton>
+          </Stack>
+        </Box>
+
+        {/* Right: Next slide preview + Notes */}
+        <Box sx={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
+          {/* Next slide preview */}
+          <Box sx={{ flex: 1, minHeight: 0 }}>
+            <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700, mb: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>
+              Next slide
+            </Typography>
+            {nextSlide ? (
+              <Box sx={{ opacity: 0.7, borderRadius: 1, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <Slide slide={nextSlide} theme={theme} index={i + 1} total={total} />
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, borderRadius: 1, border: '1px dashed rgba(255,255,255,0.15)' }}>
+                <Typography sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>End of deck</Typography>
+              </Box>
+            )}
+          </Box>
+
+          {/* Speaker notes */}
+          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+            <Typography sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: 700, mb: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>
+              Speaker notes
+            </Typography>
+            {notes ? (
+              <Typography sx={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                {notes}
+              </Typography>
+            ) : (
+              <Typography sx={{ color: 'rgba(255,255,255,0.25)', fontSize: 13, fontStyle: 'italic' }}>
+                No notes for this slide.
+              </Typography>
+            )}
+          </Box>
+        </Box>
+      </Box>
     </Box>
   );
 }

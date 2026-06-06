@@ -28,8 +28,10 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarTodayOutlined';
 import BoltIcon from '@mui/icons-material/BoltOutlined';
 import ShareIcon from '@mui/icons-material/ShareOutlined';
 import DescriptionIcon from '@mui/icons-material/DescriptionOutlined';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import { useAuth } from '@/lib/auth';
-import { Reports, type ReportOut } from '@/lib/api';
+import { Reports, type ReportOut, type ShareSettingsOut } from '@/lib/api';
 import { useConfirm } from '@/components/ConfirmDialog';
 import {
   PremiumDialog,
@@ -69,6 +71,12 @@ export default function ReportsPage() {
   const [clientName, setClientName] = useState('');
   const [days, setDays] = useState(30);
   const [toast, setToast] = useState<string | null>(null);
+
+  const [shareSettingsOpen, setShareSettingsOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<ReportOut | null>(null);
+  const [passcode, setPasscode] = useState('');
+  const [expiryDays, setExpiryDays] = useState<number | ''>('');
+  const [shareSettingsSaving, setShareSettingsSaving] = useState(false);
 
   const load = () => {
     if (!activeWorkspace) return;
@@ -228,6 +236,16 @@ export default function ReportsPage() {
                       Copy link
                     </Button>
                     <Stack direction="row" gap={0.5}>
+                      <Tooltip title="Share settings">
+                        <IconButton size="small" onClick={() => { setShareTarget(r); setPasscode(''); setExpiryDays(''); setShareSettingsOpen(true); }} sx={{ borderRadius: 2 }}>
+                          <LockOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Download PDF">
+                        <IconButton size="small" component="a" href={Reports.pdfUrl(r.id)} target="_blank" rel="noopener" sx={{ borderRadius: 2 }}>
+                          <PictureAsPdfIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="Open report">
                         <IconButton size="small" href={shareUrl(r.token)} target="_blank" rel="noopener noreferrer" component="a" sx={{ borderRadius: 2 }}>
                           <OpenInNewIcon fontSize="small" />
@@ -277,6 +295,65 @@ export default function ReportsPage() {
             startIcon={creating ? <CircularProgress size={14} color="inherit" /> : undefined}
             sx={inkPillSx}>
             {creating ? 'Generating…' : 'Generate & share'}
+          </Button>
+        </DialogFooter>
+      </PremiumDialog>
+
+      {/* ── Share settings dialog ── */}
+      <PremiumDialog open={shareSettingsOpen} onClose={() => setShareSettingsOpen(false)} maxWidth="xs">
+        <DialogHero
+          icon={<LockOutlinedIcon />}
+          title="Share settings"
+          subtitle={shareTarget ? `Protect "${shareTarget.title}"` : ''}
+          onClose={() => setShareSettingsOpen(false)}
+        />
+        <DialogBody>
+          <SectionLabel>Access controls</SectionLabel>
+          <Stack spacing={2}>
+            <TextField
+              label="Passcode (optional)"
+              type="password"
+              value={passcode}
+              onChange={(e) => setPasscode(e.target.value)}
+              fullWidth
+              size="small"
+              placeholder="Leave blank to remove passcode"
+            />
+            <TextField
+              label="Expires in (days)"
+              type="number"
+              value={expiryDays}
+              onChange={(e) => setExpiryDays(e.target.value ? Number(e.target.value) : '')}
+              fullWidth
+              size="small"
+              placeholder="Leave blank for no expiry"
+              inputProps={{ min: 1, max: 365 }}
+            />
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <Button sx={ghostPillSx} onClick={() => setShareSettingsOpen(false)}>Cancel</Button>
+          <Button
+            sx={inkPillSx}
+            disabled={shareSettingsSaving}
+            onClick={async () => {
+              if (!shareTarget) return;
+              setShareSettingsSaving(true);
+              try {
+                const res: ShareSettingsOut = await Reports.shareSettings(shareTarget.id, {
+                  passcode: passcode || null,
+                  expires_in_days: typeof expiryDays === 'number' && expiryDays > 0 ? expiryDays : undefined,
+                });
+                setToast(res.revoked ? 'Share link revoked' : 'Share settings updated');
+                setShareSettingsOpen(false);
+              } catch {
+                setToast('Failed to update share settings');
+              } finally {
+                setShareSettingsSaving(false);
+              }
+            }}
+          >
+            {shareSettingsSaving ? 'Saving...' : 'Save settings'}
           </Button>
         </DialogFooter>
       </PremiumDialog>

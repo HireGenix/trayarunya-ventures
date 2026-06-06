@@ -1,8 +1,9 @@
 """Content Calendar routes.
 
 Generate a date-aware, multi-platform content calendar (anchored to today),
-list/get/delete calendars, and generate the actual content for a single calendar
-entry — which creates a real ContentItem and links it back to the entry.
+list/get/delete calendars, generate the actual content for a single calendar
+entry, and serve a unified calendar feed aggregating all real scheduled items
+across sources (social, email, content).
 """
 from __future__ import annotations
 
@@ -10,28 +11,44 @@ import asyncio
 import calendar as _calmod
 import copy
 import uuid
-from datetime import date
+from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.agents.calendar_agent import DEFAULT_PLATFORMS, generate_calendar
+from app.agents.calendar_agent import (
+    DEFAULT_PLATFORMS,
+    generate_calendar,
+    platforms_for_segment,
+)
 from app.db import get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
 from app.models import BrandBrain, ContentCalendar, Strategy
+from app.services import icp_service
+from app.services.usage_guard import enforce_limit
 from app.schemas import (
     CalendarDayGenerateRequest,
     CalendarEntryGenerateRequest,
+    CalendarFeedItem,
+    CalendarFeedResponse,
     CalendarGenerateRequest,
     CalendarOut,
+    CalendarQuickAddRequest,
+    CalendarRescheduleRequest,
 )
 from app.services.content_studio import (
     load_brand_logo_b64,
     persist_content,
     produce_content,
     provider_for,
+)
+from app.services.calendar_feed import (
+    detect_gaps,
+    get_unified_feed,
+    quick_add_item,
+    reschedule_item,
 )
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
@@ -92,6 +109,7 @@ async def generate(
     ctx: WorkspaceContext = Depends(get_workspace_ctx),
     db: AsyncSession = Depends(get_db),
 ) -> CalendarOut:
+    await enforce_limit(db, ctx.workspace.id, "calendar")
     today = date.today()
     start = data.start_date or today
     if start < today:
@@ -100,10 +118,19 @@ async def generate(
     if end < start:
         end = _end_of_month(start)
 
-    platforms = data.platforms or DEFAULT_PLATFORMS
-
     brand = await _load_brand(db, ctx.workspace.id)
     strategy, _ = await _load_strategy(db, ctx.workspace.id, data.strategy_id)
+
+    icp_row = await icp_service.get_icp(db, ctx.workspace.id)
+    icp_brief = icp_service.to_brief(icp_row) if icp_row else None
+
+    # Segment decides the default channel mix when the caller doesn't pass one.
+    if data.platforms:
+        platforms = data.platforms
+    elif icp_row and icp_row.segment:
+        platforms = platforms_for_segment(icp_row.segment)
+    else:
+        platforms = DEFAULT_PLATFORMS
 
     client = data.client_name or ctx.workspace.name
 
@@ -118,6 +145,7 @@ async def generate(
             strategy=strategy,
             goal=data.goal,
             provider=_provider(data.provider),
+            icp=icp_brief,
         )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Calendar generation failed: {exc}")
@@ -160,6 +188,77 @@ async def list_calendars(
     return [CalendarOut.model_validate(c) for c in res.scalars().all()]
 
 
+# ------------------------------------------------------------------ #
+#  Unified calendar feed endpoints (real data only)
+# ------------------------------------------------------------------ #
+
+
+@router.get("/feed", response_model=CalendarFeedResponse)
+async def calendar_feed(
+    start: date = Query(..., description="Feed start date (YYYY-MM-DD)"),
+    end: date = Query(..., description="Feed end date (YYYY-MM-DD)"),
+    channels: str | None = Query(None, description="Comma-separated channel filter"),
+    source_types: str | None = Query(None, description="Comma-separated: content,social,email"),
+    statuses: str | None = Query(None, description="Comma-separated: draft,scheduled,published,failed"),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> CalendarFeedResponse:
+    """Unified calendar feed: all real scheduled items across content, social
+    and email sources for the given date range."""
+    if end < start:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "end must be >= start")
+
+    ch = [c.strip() for c in channels.split(",") if c.strip()] if channels else None
+    st = [s.strip() for s in source_types.split(",") if s.strip()] if source_types else None
+    ss = [s.strip() for s in statuses.split(",") if s.strip()] if statuses else None
+
+    items = await get_unified_feed(
+        db, ctx.workspace.id, start, end,
+        channels=ch, source_types=st, statuses=ss,
+    )
+    gaps = detect_gaps(items, start, end)
+    return CalendarFeedResponse(
+        items=[CalendarFeedItem(**i) for i in items],
+        gaps=gaps,
+    )
+
+
+@router.post("/feed/reschedule", response_model=CalendarFeedItem)
+async def calendar_reschedule(
+    data: CalendarRescheduleRequest,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> CalendarFeedItem:
+    """Move a real scheduled item to a new date/time. Rejects published items."""
+    try:
+        result = await reschedule_item(
+            db, ctx.workspace.id, data.source_type, data.source_id,
+            data.new_scheduled_at,
+        )
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
+    await db.commit()
+    return CalendarFeedItem(**result)
+
+
+@router.post("/feed/quick-add", response_model=CalendarFeedItem, status_code=status.HTTP_201_CREATED)
+async def calendar_quick_add(
+    data: CalendarQuickAddRequest,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> CalendarFeedItem:
+    """Create a real content item draft from a calendar day cell."""
+    result = await quick_add_item(
+        db, ctx.workspace.id, ctx.user.id,
+        title=data.title,
+        scheduled_at=data.scheduled_at,
+        platform=data.platform,
+        content_type=data.content_type,
+    )
+    await db.commit()
+    return CalendarFeedItem(**result)
+
+
 @router.get("/{calendar_id}", response_model=CalendarOut)
 async def get_calendar(
     calendar_id: uuid.UUID,
@@ -172,7 +271,7 @@ async def get_calendar(
     return CalendarOut.model_validate(cal)
 
 
-@router.delete("/{calendar_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{calendar_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_calendar(
     calendar_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

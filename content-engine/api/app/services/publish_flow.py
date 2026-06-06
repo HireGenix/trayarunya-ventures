@@ -23,6 +23,7 @@ from app.models import (
     SocialPlatform,
 )
 from app.services.publisher import PublishError, publish
+from app.services.token_vault import get_account_token
 
 log = logging.getLogger("publish_flow")
 
@@ -86,6 +87,12 @@ async def already_published(
     ).scalar_one_or_none()
 
 
+def is_account_connected(account: SocialAccount) -> bool:
+    """Check whether the account has a usable token stored."""
+    token = get_account_token(account)
+    return bool(token and account.is_active)
+
+
 async def execute_publish(
     db: AsyncSession,
     item: ContentItem,
@@ -94,16 +101,42 @@ async def execute_publish(
 ) -> None:
     """Publish ``item`` via ``account`` and update ``sched``/``item`` status.
 
-    Does not commit — the caller owns the transaction. Sets the schedule to
-    ``published`` (with external id) or ``failed`` (with error).
+    Does not commit -- the caller owns the transaction. Sets the schedule to
+    ``published`` (with external id) or ``failed`` (with error), or
+    ``skipped_not_connected`` when the channel lacks credentials.
     """
+    if not is_account_connected(account):
+        sched.status = ScheduleStatus.skipped_not_connected
+        sched.error = (
+            f"Channel {getattr(account.platform, 'value', str(account.platform))} "
+            "is not connected -- no access token. Connect the account and retry."
+        )
+        return
+
     text = compose_text(item, account)
     image_bytes = await load_primary_image(db, item)
     platform = getattr(account.platform, "value", str(account.platform))
+
+    # Instagram needs a public image URL, not raw bytes
+    image_url: str | None = None
+    if platform == "instagram" and not image_bytes:
+        # Try to use the item's image_url if it's a public URL
+        raw_url = getattr(item, "image_url", None)
+        if raw_url and str(raw_url).startswith("http"):
+            image_url = str(raw_url)
+
     try:
-        external_id = await publish(account, text, image_bytes)
+        result = await publish(
+            account, text, image_bytes, image_url=image_url,
+        )
+        if isinstance(result, tuple):
+            external_id, permalink = result
+        else:
+            external_id = result
+            permalink = None
         sched.status = ScheduleStatus.published
         sched.external_post_id = external_id
+        sched.permalink = permalink
         sched.error = None
         item.status = ContentStatus.published
         try:

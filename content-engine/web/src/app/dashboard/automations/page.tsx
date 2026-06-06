@@ -32,6 +32,7 @@ import {
   type WorkflowCondition,
   type WorkflowAction,
   type WorkflowRun,
+  type AutomationEventItem,
 } from '@/lib/api';
 import {
   PremiumDialog,
@@ -98,6 +99,7 @@ export default function AutomationsPage() {
   const [catalog, setCatalog] = useState<AutomationCatalog | null>(null);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
+  const [events, setEvents] = useState<AutomationEventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState(0);
   const [err, setErr] = useState<string | null>(null);
@@ -108,6 +110,7 @@ export default function AutomationsPage() {
   const [saving, setSaving] = useState(false);
 
   const [runDialog, setRunDialog] = useState<WorkflowRun | null>(null);
+  const [runsWorkflow, setRunsWorkflow] = useState<Workflow | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -121,6 +124,7 @@ export default function AutomationsPage() {
       setCatalog(cat);
       setWorkflows(wfs);
       setRuns(rns);
+      Automation.listEvents(100).then(setEvents).catch(() => {});
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to load automations');
     } finally {
@@ -323,7 +327,7 @@ export default function AutomationsPage() {
       )}
 
       <Stack direction="row" spacing={0.5} sx={{ mb: 2.5, px: 0.5 }}>
-        {[`Workflows (${workflows.length})`, 'Run History'].map((label, i) => (
+        {[`Workflows (${workflows.length})`, 'Run History', `Events (${events.length})`].map((label, i) => (
           <Button
             key={label}
             disableRipple
@@ -483,6 +487,11 @@ export default function AutomationsPage() {
                         <PlayArrowIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
+                    <Tooltip title="View runs">
+                      <IconButton onClick={() => setRunsWorkflow(wf)} size="small" sx={{ color: SUBTLE }}>
+                        <HistoryIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Edit">
                       <IconButton onClick={() => openEdit(wf)} size="small" sx={{ color: SUBTLE }}>
                         <EditIcon fontSize="small" />
@@ -499,8 +508,10 @@ export default function AutomationsPage() {
             ))}
           </Stack>
         )
-      ) : (
+      ) : tab === 1 ? (
         <RunsTable runs={runs} triggerLabel={triggerLabel} onOpen={setRunDialog} />
+      ) : (
+        <EventsTab events={events} onRefresh={load} onToast={(m) => setToast(m)} />
       )}
 
       {/* Builder dialog */}
@@ -785,6 +796,17 @@ export default function AutomationsPage() {
         </DialogFooter>
       </PremiumDialog>
 
+      {/* Per-workflow runs */}
+      {runsWorkflow && (
+        <WorkflowRunsDialog
+          workflow={runsWorkflow}
+          triggerLabel={triggerLabel}
+          onOpenRun={setRunDialog}
+          onClose={() => setRunsWorkflow(null)}
+          onToast={(m) => setToast(m)}
+        />
+      )}
+
       <Snackbar
         open={!!toast}
         autoHideDuration={3000}
@@ -875,5 +897,208 @@ function RunsTable({
         </Box>
       ))}
     </Stack>
+  );
+}
+
+function EventsTab({
+  events,
+  onRefresh,
+  onToast,
+}: {
+  events: AutomationEventItem[];
+  onRefresh: () => void;
+  onToast: (m: string) => void;
+}) {
+  const [emitType, setEmitType] = useState('');
+  const [emitPayload, setEmitPayload] = useState('{}');
+  const [emitting, setEmitting] = useState(false);
+
+  const doEmit = async () => {
+    if (!emitType.trim()) {
+      onToast('Event type is required');
+      return;
+    }
+    setEmitting(true);
+    try {
+      let parsed: Record<string, unknown> = {};
+      try {
+        parsed = JSON.parse(emitPayload);
+      } catch {
+        /* keep empty */
+      }
+      await Automation.emit(emitType.trim(), parsed);
+      onToast('Event emitted');
+      setEmitType('');
+      setEmitPayload('{}');
+      onRefresh();
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : 'Emit failed');
+    } finally {
+      setEmitting(false);
+    }
+  };
+
+  const cardSx = {
+    bgcolor: '#fff',
+    border: `1px solid ${LINE}`,
+    borderRadius: '18px',
+    boxShadow: CARD_SHADOW,
+  };
+
+  return (
+    <Box>
+      {/* Manual emit */}
+      <Box sx={{ ...cardSx, p: 2.5, mb: 2 }}>
+        <SectionLabel>Manual event emit</SectionLabel>
+        <Stack direction={{ xs: 'column', sm: 'row' }} gap={1.5} alignItems="flex-start">
+          <TextField
+            label="Event type"
+            value={emitType}
+            onChange={(e) => setEmitType(e.target.value)}
+            size="small"
+            sx={{ minWidth: 180 }}
+          />
+          <TextField
+            label="Payload (JSON)"
+            value={emitPayload}
+            onChange={(e) => setEmitPayload(e.target.value)}
+            size="small"
+            fullWidth
+            multiline
+            minRows={1}
+          />
+          <Button sx={inkPillSx} onClick={doEmit} disabled={emitting}>
+            {emitting ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : 'Emit'}
+          </Button>
+        </Stack>
+      </Box>
+
+      {/* Events table */}
+      {events.length === 0 ? (
+        <Box sx={{ ...cardSx, p: 2.5 }}>
+          <Typography sx={{ color: SUBTLE }}>No events recorded yet.</Typography>
+        </Box>
+      ) : (
+        <Box sx={{ ...cardSx, p: 0, overflow: 'auto' }}>
+          <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <Box component="thead">
+              <Box component="tr" sx={{ borderBottom: `1px solid ${LINE}` }}>
+                {['Type', 'Status', 'Source', 'Attempts', 'Error', 'Created'].map((h) => (
+                  <Box
+                    component="th"
+                    key={h}
+                    sx={{ p: 1.5, textAlign: 'left', fontWeight: 700, color: SUBTLE, fontSize: 12 }}
+                  >
+                    {h}
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+            <Box component="tbody">
+              {events.map((ev) => (
+                <Box
+                  component="tr"
+                  key={ev.id}
+                  sx={{ borderBottom: `1px solid ${LINE}`, '&:hover': { bgcolor: 'rgba(14,17,22,0.02)' } }}
+                >
+                  <Box component="td" sx={{ p: 1.5, fontWeight: 600, color: INK }}>{ev.event_type}</Box>
+                  <Box component="td" sx={{ p: 1.5 }}>
+                    <Chip
+                      label={ev.status}
+                      size="small"
+                      sx={{
+                        fontWeight: 700,
+                        borderRadius: '999px',
+                        bgcolor:
+                          ev.status === 'processed'
+                            ? '#D1FAE5'
+                            : ev.status === 'failed'
+                            ? '#FEE2E2'
+                            : 'rgba(14,17,22,0.05)',
+                        color:
+                          ev.status === 'processed'
+                            ? '#065F46'
+                            : ev.status === 'failed'
+                            ? '#991B1B'
+                            : SUBTLE,
+                      }}
+                    />
+                  </Box>
+                  <Box component="td" sx={{ p: 1.5, color: SUBTLE }}>{ev.source || '--'}</Box>
+                  <Box component="td" sx={{ p: 1.5, color: INK }}>{ev.attempts}</Box>
+                  <Box component="td" sx={{ p: 1.5, color: BRAND.pink, fontSize: 12 }}>{ev.error || '--'}</Box>
+                  <Box component="td" sx={{ p: 1.5, color: SUBTLE, fontSize: 12 }}>
+                    {ev.created_at ? new Date(ev.created_at).toLocaleString() : '--'}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function WorkflowRunsDialog({
+  workflow,
+  triggerLabel,
+  onOpenRun,
+  onClose,
+  onToast,
+}: {
+  workflow: Workflow;
+  triggerLabel: Record<string, string>;
+  onOpenRun: (r: WorkflowRun) => void;
+  onClose: () => void;
+  onToast: (m: string) => void;
+}) {
+  const [runs, setRuns] = useState<WorkflowRun[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    Automation.workflowRuns(workflow.id, 50)
+      .then((d) => {
+        if (alive) setRuns(d);
+      })
+      .catch((e) => {
+        if (alive) onToast(e instanceof Error ? e.message : 'Failed to load runs');
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [workflow.id, onToast]);
+
+  return (
+    <PremiumDialog open onClose={onClose} maxWidth="md">
+      <DialogHero
+        icon={<HistoryRoundedIcon />}
+        title={`Runs: ${workflow.name}`}
+        subtitle="Recent execution history for this workflow"
+        onClose={onClose}
+        tint={BRAND.tealDeep}
+        tintSoft={BRAND.tealSoft}
+      />
+      <DialogBody>
+        {loading ? (
+          <Stack alignItems="center" py={5}>
+            <CircularProgress sx={{ color: INK }} />
+          </Stack>
+        ) : runs.length === 0 ? (
+          <Typography sx={{ color: SUBTLE }}>No runs recorded for this workflow.</Typography>
+        ) : (
+          <RunsTable runs={runs} triggerLabel={triggerLabel} onOpen={onOpenRun} />
+        )}
+      </DialogBody>
+      <DialogFooter>
+        <Button sx={ghostPillSx} onClick={onClose}>
+          Close
+        </Button>
+      </DialogFooter>
+    </PremiumDialog>
   );
 }

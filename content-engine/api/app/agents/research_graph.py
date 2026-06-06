@@ -26,18 +26,40 @@ provided, persists progress mid-run so the frontend shows it in real time.
 """
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any, Awaitable, Callable, TypedDict
 
 from langgraph.graph import END, StateGraph
 
+from app.config import settings
 from app.llm.adapters import complete, complete_json
-from app.tools.crawler import deep_crawl
+from app.tools.crawler import deep_crawl_many
 from app.tools.web_search import multi_search
 
 StepCb = Callable[[list[dict[str, Any]]], Awaitable[None]]
 
-MAX_ITERATIONS = 3  # plan + up to 2 reflect-driven deepening passes
+# Upper safety bound; the effective cap comes from settings.research_max_iterations
+# (and a wall-clock budget) so a job never loops on reflect indefinitely.
+MAX_ITERATIONS = 5
+
+
+def _max_iterations() -> int:
+    return max(1, min(settings.research_max_iterations, MAX_ITERATIONS))
+
+
+def _provider() -> str:
+    # Speed-first: GPT-5.5 by default (configurable). complete()/complete_json()
+    # still fall back to the other provider if this one fails at call time.
+    return settings.research_llm_provider or "gpt-5.5"
+
+
+def _budget_exhausted(state: "ResearchState") -> bool:
+    """True once the job has spent its wall-clock research budget."""
+    started = state.get("started_at")
+    if not started:
+        return False
+    return (time.monotonic() - started) >= settings.research_time_budget_seconds
 
 
 class ResearchState(TypedDict, total=False):
@@ -46,11 +68,13 @@ class ResearchState(TypedDict, total=False):
     competitor_urls: list[str]
     countries: list[str]
     platforms: list[str]
+    icp: dict | None
     # agent working memory
     queries: list[str]
     research_questions: list[str]
     open_questions: list[str]
     iteration: int
+    started_at: float
     search_results: list[dict[str, Any]]
     pages: list[dict[str, Any]]
     crawled_urls: list[str]
@@ -101,6 +125,45 @@ async def _emit(
 # --------------------------------------------------------------------------- #
 # Prompts                                                                      #
 # --------------------------------------------------------------------------- #
+def _icp_context(icp: dict | None) -> str:
+    """Render a compact ICP brief to ground the research plan (segment-aware)."""
+    if not icp:
+        return ""
+    parts: list[str] = []
+    seg = icp.get("segment")
+    if seg:
+        parts.append(f"Segment: {seg}")
+    for label, key in (
+        ("Industry", "industry"), ("Company", "company"),
+        ("What they sell", "value_prop"), ("Offer", "offer"),
+        ("Target customer", "target_customer"),
+    ):
+        if icp.get(key):
+            parts.append(f"{label}: {icp[key]}")
+    for label, key in (
+        ("Personas", "personas"), ("Pains", "pains"), ("Goals", "goals"),
+        ("Geographies", "geographies"), ("Competitors", "competitors"),
+        ("Keywords", "keywords"),
+    ):
+        val = icp.get(key)
+        if val:
+            joined = ", ".join(str(v) for v in val) if isinstance(val, list) else str(val)
+            parts.append(f"{label}: {joined}")
+    if not parts:
+        return ""
+    guidance = ""
+    if seg == "B2B":
+        guidance = (
+            "\nThis is B2B: prioritise buyer-committee pains, ABM/LinkedIn signals, "
+            "and how outreach pairs a PERSONAL founder/SDR profile with the COMPANY offer."
+        )
+    elif seg == "B2C":
+        guidance = "\nThis is B2C: prioritise broad audience trends and social-first demand."
+    elif seg == "D2C":
+        guidance = "\nThis is D2C: prioritise shopping behaviour, paid social, email/SMS, UGC."
+    return "\n\nIDEAL CUSTOMER PROFILE (ground every query in this):\n" + "\n".join(parts) + guidance
+
+
 PLAN_SYSTEM = (
     "You are a senior B2B/B2C/D2C market-research lead. Given a topic and an "
     "optional brand website, design a research plan.\n"
@@ -165,6 +228,7 @@ REFLECT_SYSTEM = (
 # --------------------------------------------------------------------------- #
 async def _plan(state: ResearchState) -> ResearchState:
     state.setdefault("iteration", 0)
+    state.setdefault("started_at", time.monotonic())
     state.setdefault("steps", [])
     state.setdefault("search_results", [])
     state.setdefault("pages", [])
@@ -180,11 +244,12 @@ async def _plan(state: ResearchState) -> ResearchState:
         )
     platforms = [p for p in (state.get("platforms") or []) if p]
     plat = f"\nFocus social platforms: {', '.join(platforms)}." if platforms else ""
+    icp_ctx = _icp_context(state.get("icp"))
     user = (
         f"Topic: {state['topic']}\nBrand website: {state.get('target_url') or 'n/a'}"
-        f"{geo}{plat}"
+        f"{geo}{plat}{icp_ctx}"
     )
-    data = await complete_json([{"role": "user", "content": user}], PLAN_SYSTEM)
+    data = await complete_json([{"role": "user", "content": user}], PLAN_SYSTEM, provider=_provider())
     queries = data.get("queries") if isinstance(data, dict) else None
     questions = data.get("research_questions") if isinstance(data, dict) else None
     if not queries:
@@ -222,8 +287,19 @@ async def _search(state: ResearchState) -> ResearchState:
     )
     existing = {r["url"] for r in state.get("search_results", [])}
     new_results: list[dict[str, Any]] = []
-    for q in queries:
-        for r in await multi_search(q, limit=6, include_news=True, platforms=platforms):
+    # Fan out all queries concurrently — sequential search was the live
+    # bottleneck (each query ~20s when DuckDuckGo news stalls).
+    batches = await asyncio.gather(
+        *(
+            multi_search(q, limit=6, include_news=True, platforms=platforms)
+            for q in queries
+        ),
+        return_exceptions=True,
+    )
+    for q, batch in zip(queries, batches):
+        if isinstance(batch, BaseException):
+            continue
+        for r in batch:
             if r["url"] in existing:
                 continue
             existing.add(r["url"])
@@ -280,12 +356,13 @@ async def _crawl(state: ResearchState) -> ResearchState:
     )
     pages = state.get("pages", [])
     crawled = 0
-    for url in targets:
-        res = await deep_crawl(url)
-        already.add(url)
+    results = await deep_crawl_many(targets)
+    for res in results:
+        already.add(res.url)
         if res.ok and res.text:
             pages.append({"url": res.url, "title": res.title, "text": res.text[:6000]})
             crawled += 1
+    already.update(targets)
     state["pages"] = pages
     state["crawled_urls"] = list(already)
     await _emit(
@@ -333,11 +410,12 @@ async def _synthesize(state: ResearchState) -> ResearchState:
         f"Topic: {state['topic']}\nBrand website: {state.get('target_url') or 'n/a'}\n"
         f"{geo}{qblock}\n\nEvidence:\n{_evidence_block(state)}"
     )
-    data = await complete_json([{"role": "user", "content": user}], SYNTH_SYSTEM)
+    data = await complete_json([{"role": "user", "content": user}], SYNTH_SYSTEM, provider=_provider())
     if not isinstance(data, dict) or data.get("_parse_error"):
         retry = await complete(
             [{"role": "user", "content": user + "\n\nReturn ONLY valid JSON."}],
             SYNTH_SYSTEM,
+            provider=_provider(),
         )
         from app.llm.adapters import _extract_json
         import json
@@ -362,10 +440,16 @@ async def _synthesize(state: ResearchState) -> ResearchState:
 
 async def _reflect(state: ResearchState) -> ResearchState:
     state["iteration"] = state.get("iteration", 0) + 1
-    if state["iteration"] >= MAX_ITERATIONS:
+    if state["iteration"] >= _max_iterations() or _budget_exhausted(state):
         state["open_questions"] = []
         state["coverage"] = state.get("coverage", 0.85)
-        await _emit(state, "reflect", "Research depth budget reached", "finalising the brief")
+        state["queries"] = []
+        reason = (
+            "time budget reached"
+            if _budget_exhausted(state)
+            else "research depth budget reached"
+        )
+        await _emit(state, "reflect", f"Wrapping up — {reason}", "finalising the brief")
         return state
 
     await _emit(state, "reflect", "Checking for gaps", "what's still unanswered?", status="active")
@@ -382,7 +466,7 @@ async def _reflect(state: ResearchState) -> ResearchState:
         "Research questions:\n" + "\n".join(f"- {q}" for q in questions)
         + "\n\nBrief so far (JSON):\n" + json.dumps(brief)[:8000]
     )
-    data = await complete_json([{"role": "user", "content": user}], REFLECT_SYSTEM)
+    data = await complete_json([{"role": "user", "content": user}], REFLECT_SYSTEM, provider=_provider())
     coverage = 0.0
     follow_ups: list[str] = []
     unanswered: list[str] = []
@@ -415,7 +499,11 @@ async def _reflect(state: ResearchState) -> ResearchState:
 
 
 def _route_after_reflect(state: ResearchState) -> str:
-    if state.get("queries") and state.get("iteration", 0) < MAX_ITERATIONS:
+    if (
+        state.get("queries")
+        and state.get("iteration", 0) < _max_iterations()
+        and not _budget_exhausted(state)
+    ):
         return "search"
     return "verify"
 
@@ -505,6 +593,7 @@ async def run_research(
     countries: list[str] | None = None,
     platforms: list[str] | None = None,
     on_step: StepCb | None = None,
+    icp: dict | None = None,
 ) -> ResearchState:
     app = build_research_graph()
     initial: ResearchState = {
@@ -513,8 +602,10 @@ async def run_research(
         "competitor_urls": competitor_urls or [],
         "countries": countries or [],
         "platforms": platforms or [],
+        "icp": icp,
         "on_step": on_step,
         "steps": [],
         "iteration": 0,
+        "started_at": time.monotonic(),
     }
     return await app.ainvoke(initial, {"recursion_limit": 50})

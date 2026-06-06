@@ -107,6 +107,24 @@ TRIGGER_CATALOG: list[dict[str, Any]] = [
         "description": "Engagement falls materially week over week.",
         "fields": ["drop_pct", "recent", "prior"],
     },
+    {
+        "type": "cro.leak_detected",
+        "label": "CRO leak detected",
+        "description": "The CRO agent finds a significant funnel drop-off.",
+        "fields": ["from", "to", "drop", "drop_pct", "revenue_left"],
+    },
+    {
+        "type": "cro.experiment_concluded",
+        "label": "CRO experiment concluded",
+        "description": "A CRO experiment reaches a statistically significant result.",
+        "fields": ["experiment_id", "name", "winner_key", "verdict", "rel_lift_pct"],
+    },
+    {
+        "type": "cro.winner_shipped",
+        "label": "CRO winner shipped",
+        "description": "A proven winning variant is rolled out.",
+        "fields": ["experiment_id", "name", "winner_key", "surface"],
+    },
 ]
 
 ACTION_CATALOG: list[dict[str, Any]] = [

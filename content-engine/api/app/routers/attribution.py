@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
 from app.models.attribution import CHANNELS, STAGES, RevenueEvent
-from app.services.attribution import compute_attribution
+from app.services.attribution import compute_attribution, compute_model_comparison, compute_path_explorer
 from app.services.automation import emit_event
 
 router = APIRouter(prefix="/attribution", tags=["attribution"])
@@ -184,15 +184,45 @@ async def attribution_summary(
     ctx: WorkspaceContext = Depends(get_workspace_ctx),
     db: AsyncSession = Depends(get_db),
     since: datetime | None = None,
+    half_life_days: float = Query(default=7.0, ge=0.1, le=365),
 ) -> dict:
     q = select(RevenueEvent).where(RevenueEvent.workspace_id == ctx.workspace.id)
     if since:
         q = q.where(RevenueEvent.occurred_at >= since)
     rows = (await db.execute(q)).scalars().all()
-    return compute_attribution(list(rows))
+    return compute_attribution(list(rows), half_life_days=half_life_days)
 
 
-@router.delete("/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.get("/paths")
+async def attribution_paths(
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+    since: datetime | None = None,
+) -> dict:
+    """Top conversion paths, path-length and time-to-convert distributions."""
+    q = select(RevenueEvent).where(RevenueEvent.workspace_id == ctx.workspace.id)
+    if since:
+        q = q.where(RevenueEvent.occurred_at >= since)
+    rows = (await db.execute(q)).scalars().all()
+    return compute_path_explorer(list(rows))
+
+
+@router.get("/comparison")
+async def attribution_comparison(
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+    since: datetime | None = None,
+    half_life_days: float = Query(default=7.0, ge=0.1, le=365),
+) -> dict:
+    """Side-by-side credit per channel across all seven models."""
+    q = select(RevenueEvent).where(RevenueEvent.workspace_id == ctx.workspace.id)
+    if since:
+        q = q.where(RevenueEvent.occurred_at >= since)
+    rows = (await db.execute(q)).scalars().all()
+    return compute_model_comparison(list(rows), half_life_days=half_life_days)
+
+
+@router.delete("/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_event(
     event_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

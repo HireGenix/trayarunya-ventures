@@ -1,0 +1,150 @@
+name: Build & Deploy to Azure
+
+# Auto build + deploy on every push to main, optimized for speed:
+#  - API uses a pre-baked base image (ce-api-base) holding the slow layers
+#    (system deps + pip packages + Chromium). It's rebuilt only when
+#    requirements.txt changes (tagged with a hash), so per-commit API builds
+#    just copy source and finish in seconds.
+#  - API and Web build in PARALLEL jobs.
+#  - Both use BuildKit + GitHub Actions layer cache (type=gha), so unchanged
+#    layers (e.g. npm ci) are reused across runs.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC login to Azure (no stored secret)
+  contents: read
+
+env:
+  RESOURCE_GROUP: trayarunya
+  ACR_NAME: trayarunyaacr
+  ACR_SERVER: trayarunyaacr.azurecr.io
+  API_APP: trayce-api
+  WORKER_APP: trayce-worker
+  WEB_APP: trayce-web
+  # Public API URL baked into the web image (custom domain) so deploys don't
+  # revert the frontend to the raw azurecontainerapps.io FQDN.
+  PUBLIC_API_URL: https://api.mymarketiq.online
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Ensure the API base image exists for this requirements.txt. Builds it only
+  # when missing (i.e. deps changed). Cheap no-op on most pushes.
+  # ---------------------------------------------------------------------------
+  api-base:
+    runs-on: ubuntu-latest
+    outputs:
+      base_tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Compute base tag from requirements.txt
+        id: tag
+        run: |
+          HASH=$(sha256sum api/requirements.txt | cut -c1-16)
+          echo "tag=base-$HASH" >> "$GITHUB_OUTPUT"
+          echo "Base tag: base-$HASH"
+
+      - name: Build base image if missing
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          if az acr repository show -n "$ACR_NAME" --image "ce-api-base:$TAG" >/dev/null 2>&1; then
+            echo "Base image ce-api-base:$TAG already exists — skipping build."
+          else
+            echo "Building base image ce-api-base:$TAG ..."
+            az acr build -r "$ACR_NAME" \
+              -t "ce-api-base:$TAG" -t ce-api-base:latest \
+              -f api/Dockerfile.base api
+          fi
+
+  # ---------------------------------------------------------------------------
+  # API app image (used by api + worker). Builds FROM the base, so this is just
+  # "copy source" — fast. Runs after api-base resolves the tag.
+  # ---------------------------------------------------------------------------
+  api:
+    needs: api-base
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR login
+        run: az acr login -n "$ACR_NAME"
+
+      - name: Build & push API app image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          build-args: |
+            BASE_IMAGE=${{ env.ACR_SERVER }}/ce-api-base:${{ needs.api-base.outputs.base_tag }}
+          tags: |
+            ${{ env.ACR_SERVER }}/ce-api:${{ github.sha }}
+            ${{ env.ACR_SERVER }}/ce-api:latest
+          push: true
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Deploy API
+        run: |
+          az containerapp update -g "$RESOURCE_GROUP" -n "$API_APP" \
+            --image "$ACR_SERVER/ce-api:${{ github.sha }}"
+
+      - name: Deploy Worker
+        run: |
+          az containerapp update -g "$RESOURCE_GROUP" -n "$WORKER_APP" \
+            --image "$ACR_SERVER/ce-api:${{ github.sha }}"
+
+  # ---------------------------------------------------------------------------
+  # Web image — builds in PARALLEL with the API. Bakes the custom API URL.
+  # ---------------------------------------------------------------------------
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR login
+        run: az acr login -n "$ACR_NAME"
+
+      - name: Build & push Web image (bakes API URL)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ env.PUBLIC_API_URL }}
+          tags: |
+            ${{ env.ACR_SERVER }}/ce-web:${{ github.sha }}
+            ${{ env.ACR_SERVER }}/ce-web:latest
+          push: true
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      - name: Deploy Web
+        run: |
+          az containerapp update -g "$RESOURCE_GROUP" -n "$WEB_APP" \
+            --image "$ACR_SERVER/ce-web:${{ github.sha }}"

@@ -2,12 +2,24 @@
 social graphic prompt, then generates the image."""
 from __future__ import annotations
 
+import base64
 import logging
 
 from app.agents.logo_overlay import composite_logo, crop_to_banner
-from app.llm.image_adapters import generate_image
+from app.llm.image_adapters import edit_image, generate_image
 
 logger = logging.getLogger(__name__)
+
+
+def _logo_bytes(brand: dict | None) -> bytes | None:
+    """Decode the brand's uploaded logo (base64 PNG) to raw bytes, or None."""
+    logo_b64 = (brand or {}).get("logo_b64")
+    if not isinstance(logo_b64, str) or not logo_b64:
+        return None
+    try:
+        return base64.b64decode(logo_b64)
+    except Exception:  # noqa: BLE001
+        return None
 
 # Visual styles the user can pick in Content Studio.
 STYLE_PRESETS: dict[str, str] = {
@@ -65,6 +77,7 @@ def build_image_prompt(
     style: str = "modern_gradient",
     brand: dict | None = None,
     extra: str | None = None,
+    logo_reference: bool = False,
 ) -> str:
     parts: list[str] = []
     style_desc = STYLE_PRESETS.get(style, STYLE_PRESETS["modern_gradient"])
@@ -97,8 +110,25 @@ def build_image_prompt(
     parts.append(
         "Composition must be balanced and platform-ready, with a clear focal point, "
         "high visual hierarchy, and absolutely no gibberish or misspelled text. "
-        "Avoid stock-photo clichés and watermarks."
+        "Avoid stock-photo clichés."
     )
+    # Hard constraint: the AI must NOT invent any branding. The real uploaded brand
+    # logo is composited onto the image afterwards into the cleanest corner, so the
+    # model must keep some corner margin clear and never draw a competing mark.
+    parts.append(
+        "CRITICAL BRANDING RULE: Do NOT draw, invent, render, or imagine any logo, "
+        "brand mark, wordmark, monogram, app icon, badge, emblem, watermark, company "
+        "name, or signature anywhere in the image. No logos of any kind. "
+        "Reserve a clean, uncluttered CORNER with empty margin space (ideally the "
+        "top-left) — keep at least one corner free of headline text, faces, or busy "
+        "graphics. That clear corner is reserved for the real brand logo added later."
+    )
+    if logo_reference:
+        parts.append(
+            "A brand logo image is attached as a REFERENCE ONLY, to help you match the "
+            "brand's colours and visual style — do NOT copy, redraw, trace, or place the "
+            "logo anywhere in the design. Leave a clean corner free for it."
+        )
     return " ".join(parts)
 
 
@@ -128,6 +158,7 @@ async def create_social_image(
     always appears on the finished graphic, with a contrasting backing chip.
     """
     is_newsletter = (platform or "").lower() == "newsletter"
+    logo_png = _logo_bytes(brand)
     prompt = build_image_prompt(
         topic=topic,
         headline=headline,
@@ -135,9 +166,13 @@ async def create_social_image(
         style=style,
         brand=brand,
         extra=extra,
+        logo_reference=logo_png is not None,
     )
     final_size = size_for_platform(platform, size)
-    png, used = await generate_image(prompt, size=final_size, provider=provider)
+    if logo_png is not None:
+        png, used = await edit_image(prompt, [logo_png], size=final_size, provider=provider)
+    else:
+        png, used = await generate_image(prompt, size=final_size, provider=provider)
 
     # Crop the newsletter graphic to a wide email banner BEFORE placing the logo,
     # so the logo lands inside the visible banner area.
@@ -146,7 +181,7 @@ async def create_social_image(
 
     logo_b64 = (brand or {}).get("logo_b64")
     if logo_b64:
-        png = composite_logo(png, logo_b64=logo_b64, corner="bottom-right")
+        png = composite_logo(png, logo_b64=logo_b64, corner="auto")
 
     return png, used, prompt
 
@@ -166,7 +201,7 @@ def _slide_roles(count: int) -> list[str]:
     roles = ["the COVER slide: big bold title + subtle subtitle"]
     for i in range(1, count - 1):
         roles.append(f"key point #{i}: one idea, a short headline and a tight supporting line")
-    roles.append("the final CTA slide: a clear call-to-action and the brand mark")
+    roles.append("the final CTA slide: a clear, compelling call-to-action")
     return roles[:count]
 
 
@@ -237,6 +272,7 @@ async def create_slide_deck(
     # Validate logo_b64 is a non-empty string before using it.
     if logo_b64 and not isinstance(logo_b64, str):
         logo_b64 = None
+    logo_png = _logo_bytes(brand)
     for idx in range(1, total + 1):
         if specs is not None:
             spec = specs[idx - 1]
@@ -248,6 +284,7 @@ async def create_slide_deck(
                 style=style,
                 brand=brand,
                 extra=f"{series} {directive} " + (extra or ""),
+                logo_reference=logo_png is not None,
             )
         else:
             role = roles[idx - 1]
@@ -259,12 +296,16 @@ async def create_slide_deck(
                 style=style,
                 brand=brand,
                 extra=f"{series} This is slide {idx} of {total}: {role}. " + (extra or ""),
+                logo_reference=logo_png is not None,
             )
         try:
-            png, used = await generate_image(prompt, size=size, provider=provider)
+            if logo_png is not None:
+                png, used = await edit_image(prompt, [logo_png], size=size, provider=provider)
+            else:
+                png, used = await generate_image(prompt, size=size, provider=provider)
             if logo_b64:
                 try:
-                    png = composite_logo(png, logo_b64=logo_b64, corner="bottom-right")
+                    png = composite_logo(png, logo_b64=logo_b64, corner="auto")
                 except Exception as logo_exc:  # noqa: BLE001
                     logger.warning("Logo overlay failed on slide %d/%d: %s", idx, total, logo_exc)
             out.append((idx - 1, png, used, prompt))  # idx-1 = 0-based original index

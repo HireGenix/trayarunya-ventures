@@ -51,7 +51,7 @@ const navLinks = [
 
 export default function Header() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
   const pathname = usePathname();
   const scrolled = useScrollTrigger({ disableHysteresis: true, threshold: 20 });
 
@@ -223,6 +223,8 @@ export default function Header() {
                     ml: 1,
                     px: 2.5,
                     py: 1,
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
                     borderRadius: '50px',
                     fontWeight: 700,
                     color: '#0a0a0a',
@@ -348,6 +350,8 @@ export default function Header() {
 
 const navBtnSx = (active: boolean) => ({
   px: 1.6,
+  flexShrink: 0,
+  whiteSpace: 'nowrap' as const,
   color: active ? '#ffaf06' : TEXT.body,
   fontWeight: 600,
   fontSize: '0.92rem',

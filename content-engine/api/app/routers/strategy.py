@@ -12,6 +12,8 @@ from app.db import get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
 from app.models import JobStatus, ResearchJob, Strategy
 from app.schemas import StrategyCreate, StrategyOut, StrategyUpdate
+from app.services import icp_service
+from app.services.usage_guard import enforce_limit
 
 router = APIRouter(prefix="/strategies", tags=["strategy"])
 
@@ -22,6 +24,7 @@ async def create_strategy(
     ctx: WorkspaceContext = Depends(get_workspace_ctx),
     db: AsyncSession = Depends(get_db),
 ) -> StrategyOut:
+    await enforce_limit(db, ctx.workspace.id, "strategy")
     job = await db.get(ResearchJob, data.research_job_id)
     if job is None or job.workspace_id != ctx.workspace.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Research job not found")
@@ -36,7 +39,11 @@ async def create_strategy(
         "summary": job.summary,
         "findings": job.findings,
     }
-    result = await run_strategy(brief, data.objective)
+    icp_row = await icp_service.get_icp(db, ctx.workspace.id)
+    icp_brief = icp_service.to_brief(icp_row) if icp_row else None
+    if icp_brief:
+        brief["icp"] = icp_brief
+    result = await run_strategy(brief, data.objective, icp_brief)
 
     strategy = Strategy(
         workspace_id=ctx.workspace.id,
@@ -107,7 +114,7 @@ async def update_strategy(
     return StrategyOut.model_validate(strategy)
 
 
-@router.delete("/{strategy_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{strategy_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_strategy(
     strategy_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

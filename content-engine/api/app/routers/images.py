@@ -101,7 +101,7 @@ async def generate(
             if brand and brand.get("logo_b64"):
                 from app.agents.logo_overlay import composite_logo
 
-                png = composite_logo(png, logo_b64=brand["logo_b64"], corner="bottom-right")
+                png = composite_logo(png, logo_b64=brand["logo_b64"], corner="auto")
         else:
             png, used, final_prompt = await create_social_image(
                 topic=topic or "brand social post",
@@ -143,35 +143,49 @@ async def regenerate(
     ctx: WorkspaceContext = Depends(get_workspace_ctx),
     db: AsyncSession = Depends(get_db),
 ) -> ImageOut:
-    """Re-render an existing image from its original prompt + a change instruction.
+    """Re-render an existing image by EDITING the actual source pixels.
 
-    The providers are text-to-image only, so rather than pixel-editing the source
-    we re-generate guided by the source prompt with the requested change appended,
-    preserving the brand palette, style and size. If ``replace`` is set and the
-    source image belongs to a content item's deck, the new image takes its slot.
+    Uses image-to-image: the stored source PNG is passed to the model as the
+    canvas, with the requested change applied, so the result keeps the same
+    composition instead of a brand-new render. The brand logo is also passed as a
+    reference image. If ``replace`` is set and the source belongs to a content
+    item's deck, the new image takes its slot.
     """
     source = await db.get(ContentImage, image_id)
     if source is None or source.workspace_id != ctx.workspace.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Image not found")
 
-    from app.llm.image_adapters import generate_image
+    from app.llm.image_adapters import edit_image
 
     base_prompt = source.prompt or "a professional, brand-aligned social media graphic"
     final_prompt = (
-        f"{base_prompt}\n\nIMPORTANT — APPLY THIS CHANGE while keeping the same overall "
-        f"composition, brand colours and style: {data.instruction.strip()}. "
-        f"Keep all on-image text perfectly spelled."
+        f"Edit THIS image. Keep the same overall composition, layout, brand colours "
+        f"and style, and apply ONLY this change: {data.instruction.strip()}. "
+        f"Keep all on-image text perfectly spelled. "
+        f"Do NOT draw any logo, brand mark, wordmark, watermark or company name; keep "
+        f"at least one corner clear of headline text and busy graphics for the real "
+        f"brand logo added afterwards. "
+        f"(Original brief for context: {base_prompt})"
     )
     size = source.size or "1024x1024"
-    provider = data.provider or source.meta and source.meta.get("requested_provider")
+    provider = data.provider or (source.meta and source.meta.get("requested_provider"))
+
+    brand = await _load_brand(db, ctx.workspace.id)
+    logo_b64 = brand.get("logo_b64") if brand else None
 
     try:
-        png, used = await generate_image(final_prompt, size=size, provider=provider)
-        brand = await _load_brand(db, ctx.workspace.id)
-        if brand and brand.get("logo_b64"):
+        source_png = base64.b64decode(source.data_b64)
+        refs: list[bytes] = [source_png]
+        if logo_b64:
+            try:
+                refs.append(base64.b64decode(logo_b64))
+            except Exception:  # noqa: BLE001
+                pass
+        png, used = await edit_image(final_prompt, refs, size=size, provider=provider)
+        if logo_b64:
             from app.agents.logo_overlay import composite_logo
 
-            png = composite_logo(png, logo_b64=brand["logo_b64"], corner="bottom-right")
+            png = composite_logo(png, logo_b64=logo_b64, corner="auto")
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Image regeneration failed: {exc}")
 
@@ -254,7 +268,7 @@ async def raw_image(image_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> 
     )
 
 
-@router.delete("/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{image_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_image(
     image_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

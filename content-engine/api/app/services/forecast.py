@@ -3,21 +3,25 @@
 Numbers are honest and deterministic: historical series come straight from the
 workspace's daily ``Metric`` rows, projections use a simple ordinary
 least-squares linear trend (with a moving-average fallback), and the confidence
-band is derived from the residual standard deviation of the fit. numpy is not a
-hard dependency — everything here is implemented in pure Python so it works in
-any environment. The only optional/non-deterministic piece is a short LLM
-narrative, which lives in the router and always has a deterministic fallback.
+band is derived from the residual standard deviation of the fit.  The Holt-
+Winters (triple exponential smoothing) model is available as an upgrade for
+series with seasonal patterns.  numpy is used for the Holt-Winters path;
+the linear model remains pure-Python for lightweight environments.  The only
+optional/non-deterministic piece is a short LLM narrative, which lives in the
+router and always has a deterministic fallback.
 """
 from __future__ import annotations
 
 import uuid
 from datetime import date, timedelta
 from math import sqrt
+from typing import Literal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Benchmark, Metric
+from app.services import forecast_hw as hw
 
 # Minimum number of distinct daily data points before we trust a trend.
 MIN_POINTS = 7
@@ -298,3 +302,250 @@ async def list_benchmarks(
         }
         for b in rows
     ]
+
+
+# --------------------------------------------------------------------------- #
+# Holt-Winters forecast + model comparison
+# --------------------------------------------------------------------------- #
+def project_hw(series: list[dict], horizon: int, period: int | None = None,
+               mode: Literal["additive", "multiplicative"] | None = None) -> dict:
+    """Project a single daily series using Holt-Winters triple exponential smoothing."""
+    values = [float(p["value"]) for p in series]
+    dates = [p["date"] for p in series]
+    n = len(values)
+    if n == 0:
+        return {"points": [], "total": 0.0, "slope_per_day": 0.0, "residual_std": 0.0,
+                "insufficient_history": True, "period": period or 7,
+                "mode": "additive", "params": {}, "mape": None}
+
+    last_date = date.fromisoformat(series[-1]["date"])
+
+    result = hw.holt_winters_forecast(values, dates, horizon, period, mode)
+
+    if result["insufficient_history"]:
+        # Fall back to existing linear model
+        proj = project(series, horizon)
+        proj["insufficient_history"] = True
+        proj["period"] = result["period"]
+        proj["mode"] = result["mode"]
+        proj["params"] = result["params"]
+        proj["model"] = "linear"
+        proj["mape"] = None
+        return proj
+
+    forecasts = result["forecast"]
+    intervals = hw.prediction_intervals(forecasts, result["residual_std"])
+
+    points: list[dict] = []
+    total = 0.0
+    for h, iv in enumerate(intervals, start=1):
+        d = (last_date + timedelta(days=h)).isoformat()
+        points.append({
+            "date": d,
+            "value": iv["value"],
+            "lower": iv["lower"],
+            "upper": iv["upper"],
+        })
+        total += iv["value"]
+
+    # Compute approximate slope from last fitted level/trend
+    fitted = result["fitted"]
+    slope_per_day = (fitted[-1] - fitted[-2]) if len(fitted) >= 2 else 0.0
+
+    return {
+        "points": points,
+        "total": round(total, 2),
+        "slope_per_day": round(slope_per_day, 4),
+        "residual_std": round(result["residual_std"], 4),
+        "insufficient_history": False,
+        "period": result["period"],
+        "mode": result["mode"],
+        "params": result["params"],
+        "model": "holt_winters",
+        "mape": None,  # filled by compare_models if called
+    }
+
+
+def compare_models(series: list[dict], horizon: int,
+                   period: int | None = None) -> dict:
+    """Backtest both linear and Holt-Winters, return comparison + recommendation."""
+    values = [float(p["value"]) for p in series]
+    dates = [p["date"] for p in series]
+
+    hw_bt = hw.backtest(values, dates, period=period)
+    lin_bt = hw.linear_backtest(values)
+
+    recommendation: str
+    if hw_bt["insufficient_history"] and lin_bt["insufficient_history"]:
+        recommendation = "insufficient_data"
+    elif hw_bt["insufficient_history"]:
+        recommendation = "linear"
+    elif lin_bt["insufficient_history"]:
+        recommendation = "holt_winters"
+    else:
+        hw_mape = hw_bt["mape"]
+        lin_mape = lin_bt["mape"]
+        if hw_mape is None and lin_mape is None:
+            recommendation = "linear"
+        elif hw_mape is None:
+            recommendation = "linear"
+        elif lin_mape is None:
+            recommendation = "holt_winters"
+        else:
+            recommendation = "holt_winters" if hw_mape <= lin_mape else "linear"
+
+    return {
+        "holt_winters": hw_bt,
+        "linear": lin_bt,
+        "recommendation": recommendation,
+    }
+
+
+def summarize_advanced(history: dict, horizon: int,
+                       model: str = "auto",
+                       period: int | None = None) -> dict:
+    """Build the full forecast summary with model selection.
+
+    ``model`` can be "linear", "holt_winters", or "auto" (backtests both and
+    picks the more accurate one).
+    """
+    days_with_data = history["days_with_data"]
+    low_data = days_with_data < MIN_POINTS
+
+    result = {
+        "horizon_days": horizon,
+        "low_data": low_data,
+        "min_points": MIN_POINTS,
+        "days_with_data": days_with_data,
+        "range": {"start": history["start"], "end": history["end"]},
+        "historical": history["series"],
+        "projected": {},
+        "projected_totals": {},
+        "model_used": {},
+        "accuracy": {},
+        "seasonality": {},
+    }
+    if low_data:
+        return result
+
+    for metric in SERIES_METRICS:
+        series = history["series"][metric]
+        values = [float(p["value"]) for p in series]
+        dates = [p["date"] for p in series]
+
+        # Determine which model to use
+        chosen = model
+        comparison = None
+        if model == "auto":
+            comparison = compare_models(series, horizon, period)
+            chosen = comparison["recommendation"]
+            if chosen == "insufficient_data":
+                chosen = "linear"
+
+        if chosen == "holt_winters":
+            proj = project_hw(series, horizon, period)
+            if proj.get("insufficient_history"):
+                proj = project(series, horizon)
+                chosen = "linear"
+        else:
+            proj = project(series, horizon)
+            chosen = "linear"
+
+        result["projected"][metric] = proj["points"]
+        result["projected_totals"][metric] = {
+            "total": proj["total"],
+            "slope_per_day": proj["slope_per_day"],
+            "residual_std": proj["residual_std"],
+        }
+        result["model_used"][metric] = chosen
+
+        # Accuracy from backtest
+        if comparison:
+            chosen_bt = comparison.get(chosen, {})
+            result["accuracy"][metric] = {
+                "mape": chosen_bt.get("mape"),
+                "mae": chosen_bt.get("mae"),
+                "rmse": chosen_bt.get("rmse"),
+                "holdout": chosen_bt.get("holdout"),
+                "model": chosen,
+                "insufficient_history": chosen_bt.get("insufficient_history", True),
+            }
+        else:
+            # Run single backtest for the chosen model
+            if chosen == "holt_winters":
+                bt = hw.backtest(values, dates, period=period)
+            else:
+                bt = hw.linear_backtest(values)
+            result["accuracy"][metric] = {
+                "mape": bt.get("mape"),
+                "mae": bt.get("mae"),
+                "rmse": bt.get("rmse"),
+                "holdout": bt.get("holdout"),
+                "model": chosen,
+                "insufficient_history": bt.get("insufficient_history", True),
+            }
+
+        # Seasonality info
+        detected_period = hw.detect_period(dates)
+        result["seasonality"][metric] = {
+            "detected_period": detected_period,
+            "period_used": proj.get("period", detected_period) if chosen == "holt_winters" else None,
+            "mode": proj.get("mode") if chosen == "holt_winters" else None,
+            "seasonal": chosen == "holt_winters" and not proj.get("insufficient_history", True),
+        }
+
+    return result
+
+
+def driver_adjusted_forecast(history: dict, horizon: int,
+                             target_metric: str = "conversions",
+                             driver_metric: str = "impressions",
+                             period: int | None = None) -> dict | None:
+    """Optionally adjust target forecast by a correlated driver series.
+
+    Returns the adjusted projection dict or None if not applicable.
+    """
+    if target_metric not in history["series"] or driver_metric not in history["series"]:
+        return None
+
+    target_series = history["series"][target_metric]
+    driver_series = history["series"][driver_metric]
+
+    target_values = [float(p["value"]) for p in target_series]
+    driver_values = [float(p["value"]) for p in driver_series]
+    dates = [p["date"] for p in target_series]
+
+    # Forecast both
+    target_hw = hw.holt_winters_forecast(target_values, dates, horizon, period)
+    driver_hw = hw.holt_winters_forecast(driver_values, dates, horizon, period)
+
+    if target_hw["insufficient_history"] or driver_hw["insufficient_history"]:
+        return None
+
+    adjusted = hw.driver_adjustment(
+        target_values, driver_values,
+        driver_hw["forecast"], target_hw["forecast"],
+    )
+
+    # Build intervals from the adjusted forecast
+    intervals = hw.prediction_intervals(adjusted, target_hw["residual_std"])
+    last_date = date.fromisoformat(target_series[-1]["date"])
+
+    points = []
+    total = 0.0
+    for h, iv in enumerate(intervals, start=1):
+        d = (last_date + timedelta(days=h)).isoformat()
+        points.append({
+            "date": d,
+            "value": iv["value"],
+            "lower": iv["lower"],
+            "upper": iv["upper"],
+        })
+        total += iv["value"]
+
+    return {
+        "metric": target_metric,
+        "driver": driver_metric,
+        "points": points,
+        "total": round(total, 2),
+    }

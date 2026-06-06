@@ -14,7 +14,7 @@ from __future__ import annotations
 import enum
 import uuid
 
-from sqlalchemy import Boolean, Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, Enum, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -61,6 +61,9 @@ class Organization(Base, UUIDMixin, TimestampMixin):
     plan: Mapped[str] = mapped_column(String(50), default="free", nullable=False)
     stripe_customer_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
     stripe_subscription_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Per-org override for the max number of client workspaces (agencies). When
+    # null, the plan's ``limits.workspaces`` allowance applies.
+    client_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     workspaces: Mapped[list["Workspace"]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"

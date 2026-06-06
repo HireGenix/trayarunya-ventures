@@ -212,7 +212,7 @@ async def update_profile(
     return ProfileOut.model_validate(profile)
 
 
-@router.delete("/profiles/{profile_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/profiles/{profile_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_profile(
     profile_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

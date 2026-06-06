@@ -167,9 +167,16 @@ The worker runs as its own Container App (no ingress) executing
 | `AZURE_GPT5_ENDPOINT` / `AZURE_GPT5_KEY` | api, worker | GPT-5.5 (Responses API) |
 | `AZURE_ANTHROPIC_ENDPOINT` / `AZURE_ANTHROPIC_KEY` | api, worker | Claude Opus (Messages API) |
 | `AZURE_BLOB_CONNECTION_STRING` | api, worker | asset storage (later modules) |
+| `PEXELS_API_KEY` | api | stock b-roll for AI video studio (free key) |
+| `AZURE_TTS_*` / `AZURE_WHISPER_*` | api | AI video voiceover + captions (fall back to `AZURE_GPT5_*`) |
 | `NEXT_PUBLIC_API_URL` | web | public API base URL (baked at build time) |
 
 See `api/.env.example` and `web/.env.example`.
+
+> **AI video generation** also requires the `ffmpeg` and `ffprobe` binaries on the
+> API host (`brew install ffmpeg` locally, `apt-get install -y ffmpeg` in the
+> container image). Without them, `/videos/generate` returns a clear 503 instead
+> of crashing.
 
 ---
 

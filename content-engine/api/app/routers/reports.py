@@ -320,7 +320,7 @@ async def list_reports(
     ]
 
 
-@router.delete("/{token}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{token}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_report(
     token: str,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

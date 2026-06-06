@@ -27,6 +27,7 @@ import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import BoltRoundedIcon from '@mui/icons-material/BoltRounded';
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import LinkRoundedIcon from '@mui/icons-material/LinkRounded';
+import LinkOffIcon from '@mui/icons-material/LinkOffRounded';
 import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import SyncRoundedIcon from '@mui/icons-material/SyncRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
@@ -38,6 +39,9 @@ import ScienceRoundedIcon from '@mui/icons-material/ScienceRounded';
 import ShowChartRoundedIcon from '@mui/icons-material/ShowChartRounded';
 import ArrowOutwardRoundedIcon from '@mui/icons-material/ArrowOutwardRounded';
 import VolunteerActivismRoundedIcon from '@mui/icons-material/VolunteerActivismRounded';
+import RocketLaunchRoundedIcon from '@mui/icons-material/RocketLaunchRounded';
+import ErrorOutlineRoundedIcon from '@mui/icons-material/ErrorOutlineRounded';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import { useAuth } from '@/lib/auth';
 import {
   Ads,
@@ -598,27 +602,39 @@ function CampaignDetail({
   metrics,
   platformColor,
   liveCapable,
+  canLaunch,
+  connectionMessage,
   onToggle,
   onSync,
   onOptimize,
   onDelete,
+  onLaunch,
+  onValidate,
+  onDraftUpdate,
   busy,
 }: {
   campaign: Campaign;
   metrics: CampaignMetrics | null;
   platformColor: string;
   liveCapable: boolean;
+  canLaunch: boolean;
+  connectionMessage: string;
   onToggle: () => void;
   onSync: () => void;
   onOptimize: () => void;
   onDelete: () => void;
-  busy: { sync: boolean; optimize: boolean };
+  onLaunch: () => void;
+  onValidate: () => void;
+  onDraftUpdate: (data: Record<string, unknown>) => void;
+  busy: { sync: boolean; optimize: boolean; launch: boolean; validate: boolean };
 }) {
   const k = metrics?.kpis;
   const t = metrics?.totals;
   const dataPresent = hasData(t);
   const series = metrics?.series ?? [];
   const planEntries = campaign.plan ? Object.entries(campaign.plan).filter(([key]) => !HIDE_PLAN_KEYS.has(key)) : [];
+  const isDraft = campaign.status === 'draft' && !campaign.external_id;
+  const isLaunched = !!campaign.external_id;
 
   return (
     <Card sx={cardSx}>
@@ -634,11 +650,14 @@ function CampaignDetail({
               />
               {campaign.daily_budget != null && <Chip size="small" variant="outlined" label={`${fmtMoney(campaign.daily_budget)}/day`} />}
               {campaign.external_id ? (
-                <Chip size="small" variant="outlined" icon={<LinkRoundedIcon />} label="Linked" />
+                <Chip size="small" variant="outlined" icon={<LinkRoundedIcon />} label={`Linked: ${campaign.external_id}`} />
               ) : (
-                <Tooltip title="Not linked to a live platform campaign yet — performance data is empty.">
-                  <Chip size="small" variant="outlined" label="Not linked" />
+                <Tooltip title="Not linked to a live platform campaign yet -- launch to create it.">
+                  <Chip size="small" variant="outlined" label="Draft" />
                 </Tooltip>
+              )}
+              {campaign.platform_status && (
+                <Chip size="small" variant="outlined" label={campaign.platform_status} sx={{ textTransform: 'capitalize' }} />
               )}
             </Stack>
             <Typography variant="h5" fontWeight={800}>{campaign.name}</Typography>
@@ -660,6 +679,81 @@ function CampaignDetail({
             </Tooltip>
           </Stack>
         </Stack>
+
+        {/* Launch section (drafts only) */}
+        {isDraft && (
+          <Box sx={{ mt: 2.5, mb: 1 }}>
+            <Card sx={{ ...cardSx, borderColor: canLaunch ? BRAND.teal : 'rgba(14,17,22,0.12)', bgcolor: canLaunch ? 'rgba(20,187,135,0.03)' : 'rgba(14,17,22,0.012)' }}>
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ sm: 'center' }}>
+                  <Box>
+                    <Stack direction="row" spacing={0.8} alignItems="center" sx={{ mb: 0.3 }}>
+                      <RocketLaunchRoundedIcon sx={{ fontSize: 18, color: canLaunch ? BRAND.tealDeep : '#9AA4B2' }} />
+                      <Typography fontWeight={700}>
+                        {canLaunch ? 'Ready to launch' : 'Launch unavailable'}
+                      </Typography>
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary">
+                      {canLaunch
+                        ? 'Validate your draft, then launch to create the campaign on the live ad platform.'
+                        : connectionMessage || 'Connect an ad account with valid credentials to enable launch.'}
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={onValidate}
+                      disabled={busy.validate}
+                      startIcon={busy.validate ? <CircularProgress size={14} color="inherit" /> : <CheckCircleRoundedIcon />}
+                      sx={{ borderRadius: 99, textTransform: 'none' }}
+                    >
+                      Validate
+                    </Button>
+                    <Tooltip title={canLaunch ? 'Create this campaign on the live ad platform' : connectionMessage || 'Not connected'}>
+                      <span>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={onLaunch}
+                          disabled={!canLaunch || busy.launch}
+                          startIcon={busy.launch ? <CircularProgress size={14} color="inherit" /> : <RocketLaunchRoundedIcon />}
+                          sx={{ borderRadius: 99, textTransform: 'none', bgcolor: BRAND.tealDeep, '&:hover': { bgcolor: '#0FA876' } }}
+                        >
+                          {busy.launch ? 'Launching...' : 'Launch'}
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  </Stack>
+                </Stack>
+                {campaign.launch_error && (
+                  <Alert severity="error" sx={{ mt: 1.5 }} icon={<ErrorOutlineRoundedIcon fontSize="small" />}>
+                    {campaign.launch_error}
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          </Box>
+        )}
+
+        {/* Launched status */}
+        {isLaunched && (
+          <Box sx={{ mt: 2.5, mb: 1 }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ p: 1.5, borderRadius: '12px', border: `1px solid ${LINE}`, bgcolor: 'rgba(20,187,135,0.04)' }}>
+              <CheckCircleRoundedIcon sx={{ fontSize: 18, color: BRAND.tealDeep }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="body2" fontWeight={700}>
+                  Launched to platform
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Platform ID: {campaign.external_id}
+                  {campaign.platform_status ? ` · Status: ${campaign.platform_status}` : ''}
+                  {campaign.launched_at ? ` · ${new Date(campaign.launched_at).toLocaleDateString()}` : ''}
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
+        )}
 
         <Box sx={{ mt: 3 }}>
           <Typography sx={{ ...label, mb: 1.5 }}>Performance · last {metrics?.days ?? 30} days</Typography>
@@ -808,6 +902,14 @@ export default function AdsPage() {
   const [genOpen, setGenOpen] = useState(false);
   const [busySync, setBusySync] = useState(false);
   const [busyOpt, setBusyOpt] = useState(false);
+  const [busyLaunch, setBusyLaunch] = useState(false);
+  const [busyValidate, setBusyValidate] = useState(false);
+  const [validationResult, setValidationResult] = useState<{ valid: boolean; errors: { field: string; message: string; severity: string }[]; warnings: { field: string; message: string; severity: string }[] } | null>(null);
+  const [connectionInfo, setConnectionInfo] = useState<{ connected: boolean; can_launch: boolean; message: string; status: string } | null>(null);
+  const [quickConnecting, setQuickConnecting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [syncStatusResult, setSyncStatusResult] = useState<{ synced: boolean; status: string; name?: string; detail?: string } | null>(null);
+  const [syncStatusLoading, setSyncStatusLoading] = useState(false);
   const [error, setError] = useState('');
 
   const meta = AD_PLATFORMS.find((p) => p.id === platform)!;
@@ -841,12 +943,15 @@ export default function AdsPage() {
     setLoading(true);
     Ads.providers().then((r) => setProviders(r.providers)).catch(() => setProviders({}));
     loadPlatform(platform, days).finally(() => setLoading(false));
+    Ads.connectionStatus(platform).then(setConnectionInfo).catch(() => setConnectionInfo(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWorkspace]);
 
   useEffect(() => {
     if (!activeWorkspace || loading) return;
     loadPlatform(platform, days);
+    Ads.connectionStatus(platform).then(setConnectionInfo).catch(() => setConnectionInfo(null));
+    setValidationResult(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platform, days]);
 
@@ -887,6 +992,49 @@ export default function AdsPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start OAuth');
       setConnecting(false);
+    }
+  };
+
+  const quickConnect = async () => {
+    setQuickConnecting(true);
+    setError('');
+    try {
+      await Ads.quickConnect({ platform });
+      await loadPlatform(platform, days);
+      Ads.connectionStatus(platform).then(setConnectionInfo).catch(() => {});
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Quick connect failed');
+    } finally {
+      setQuickConnecting(false);
+    }
+  };
+
+  const disconnect = async () => {
+    if (!account) return;
+    setDisconnecting(true);
+    setError('');
+    try {
+      await Ads.disconnectAccount(account.id);
+      await loadPlatform(platform, days);
+      Ads.connectionStatus(platform).then(setConnectionInfo).catch(() => {});
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Disconnect failed');
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
+  const checkSyncStatus = async () => {
+    if (!selected) return;
+    setSyncStatusLoading(true);
+    setSyncStatusResult(null);
+    try {
+      const res = await Ads.syncStatus(selected.id);
+      setSyncStatusResult(res);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Sync status check failed');
+    } finally {
+      setSyncStatusLoading(false);
     }
   };
 
@@ -971,6 +1119,62 @@ export default function AdsPage() {
       return remaining[0] || null;
     });
     loadPlatform(platform, days);
+  };
+
+  const launchSelected = async () => {
+    if (!selected) return;
+    setBusyLaunch(true);
+    setError('');
+    try {
+      const result = await Ads.launchCampaign(selected.id);
+      if (result.success && result.campaign) {
+        setSelected(result.campaign);
+        setCampaigns((prev) => prev.map((x) => (x.id === result.campaign!.id ? result.campaign! : x)));
+        loadPlatform(platform, days);
+      } else {
+        const msg = result.detail || result.error || 'Launch failed';
+        setError(msg);
+        if (result.validation_errors?.length) {
+          setValidationResult({ valid: false, errors: result.validation_errors, warnings: result.warnings || [] });
+        }
+        // Refresh campaign to show launch_error
+        const updated = await Ads.campaign(selected.id);
+        setSelected(updated);
+        setCampaigns((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Launch failed');
+    } finally {
+      setBusyLaunch(false);
+    }
+  };
+
+  const validateSelected = async () => {
+    if (!selected) return;
+    setBusyValidate(true);
+    setError('');
+    try {
+      const result = await Ads.validateDraft(selected.id);
+      setValidationResult(result);
+      if (!result.valid) {
+        setError(`Validation found ${result.errors.length} error(s). Fix them before launch.`);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Validation failed');
+    } finally {
+      setBusyValidate(false);
+    }
+  };
+
+  const updateDraft = async (data: Record<string, unknown>) => {
+    if (!selected) return;
+    try {
+      const updated = await Ads.updateDraft(selected.id, data);
+      setSelected(updated);
+      setCampaigns((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update draft');
+    }
   };
 
   if (loading) {
@@ -1154,6 +1358,73 @@ export default function AdsPage() {
         </CardContent>
       </Card>
 
+      {/* Connection management */}
+      <Card sx={cardSx}>
+        <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+          <Typography sx={{ ...label, mb: 1.5 }}>Connection management</Typography>
+          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" rowGap={1}>
+            {connected ? (
+              <>
+                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: BRAND.tealDeep }}>
+                  <CheckCircleRoundedIcon sx={{ fontSize: 16 }} />
+                  <Typography variant="body2" fontWeight={700}>
+                    {account?.meta?.mode === 'live' ? 'Live connected' : 'Connected (manual mode)'}
+                  </Typography>
+                </Stack>
+                <Button
+                  onClick={disconnect}
+                  disabled={disconnecting}
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  startIcon={disconnecting ? <CircularProgress size={14} /> : <LinkOffIcon />}
+                  sx={{ borderRadius: 99, textTransform: 'none', fontWeight: 600 }}
+                >
+                  {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Typography variant="body2" color="text.secondary">Not connected</Typography>
+                <Button
+                  onClick={quickConnect}
+                  disabled={quickConnecting}
+                  size="small"
+                  variant="outlined"
+                  startIcon={quickConnecting ? <CircularProgress size={14} /> : <LinkRoundedIcon />}
+                  sx={{ borderRadius: 99, textTransform: 'none', fontWeight: 600 }}
+                >
+                  {quickConnecting ? 'Connecting...' : 'Quick connect'}
+                </Button>
+              </>
+            )}
+            {selected && (
+              <Button
+                onClick={checkSyncStatus}
+                disabled={syncStatusLoading}
+                size="small"
+                variant="outlined"
+                startIcon={syncStatusLoading ? <CircularProgress size={14} /> : <SyncRoundedIcon />}
+                sx={{ borderRadius: 99, textTransform: 'none', fontWeight: 600 }}
+              >
+                {syncStatusLoading ? 'Checking...' : 'Sync status'}
+              </Button>
+            )}
+          </Stack>
+          {syncStatusResult && (
+            <Alert
+              severity={syncStatusResult.synced ? 'success' : 'info'}
+              onClose={() => setSyncStatusResult(null)}
+              sx={{ mt: 1.5, borderRadius: '12px' }}
+            >
+              {syncStatusResult.status}
+              {syncStatusResult.name && ` — ${syncStatusResult.name}`}
+              {syncStatusResult.detail && `: ${syncStatusResult.detail}`}
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
       {/* confirm account + Ad Grants detection (Google, after OAuth) */}
       {account && account.platform === 'google_ads' && account.connected &&
         (account.meta?.needs_confirmation || (account.meta?.discovered?.length ?? 0) > 0) ? (
@@ -1257,17 +1528,57 @@ export default function AdsPage() {
 
         <Box>
           {selected ? (
-            <CampaignDetail
-              campaign={selected}
-              metrics={metrics}
-              platformColor={meta.color}
-              liveCapable={liveCapable}
-              onToggle={toggleStatus}
-              onSync={syncSelected}
-              onOptimize={optimizeSelected}
-              onDelete={deleteSelected}
-              busy={{ sync: busySync, optimize: busyOpt }}
-            />
+            <>
+              <CampaignDetail
+                campaign={selected}
+                metrics={metrics}
+                platformColor={meta.color}
+                liveCapable={liveCapable}
+                canLaunch={connectionInfo?.can_launch ?? false}
+                connectionMessage={connectionInfo?.message || ''}
+                onToggle={toggleStatus}
+                onSync={syncSelected}
+                onOptimize={optimizeSelected}
+                onDelete={deleteSelected}
+                onLaunch={launchSelected}
+                onValidate={validateSelected}
+                onDraftUpdate={updateDraft}
+                busy={{ sync: busySync, optimize: busyOpt, launch: busyLaunch, validate: busyValidate }}
+              />
+              {validationResult && (validationResult.errors.length > 0 || validationResult.warnings.length > 0) && (
+                <Card sx={{ ...cardSx, mt: 2 }}>
+                  <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                    <Typography sx={{ ...label, mb: 1 }}>Validation results</Typography>
+                    <Stack spacing={0.8}>
+                      {validationResult.errors.map((e, i) => (
+                        <Stack key={`e-${i}`} direction="row" spacing={0.8} alignItems="flex-start">
+                          <ErrorOutlineRoundedIcon sx={{ fontSize: 16, color: BRAND.pink, mt: 0.2, flexShrink: 0 }} />
+                          <Box>
+                            <Typography variant="body2" fontWeight={600} color={BRAND.pink}>{e.field}</Typography>
+                            <Typography variant="caption" color="text.secondary">{e.message}</Typography>
+                          </Box>
+                        </Stack>
+                      ))}
+                      {validationResult.warnings.map((w, i) => (
+                        <Stack key={`w-${i}`} direction="row" spacing={0.8} alignItems="flex-start">
+                          <WarningAmberRoundedIcon sx={{ fontSize: 16, color: BRAND.amberDeep, mt: 0.2, flexShrink: 0 }} />
+                          <Box>
+                            <Typography variant="body2" fontWeight={600} color={BRAND.amberDeep}>{w.field}</Typography>
+                            <Typography variant="caption" color="text.secondary">{w.message}</Typography>
+                          </Box>
+                        </Stack>
+                      ))}
+                    </Stack>
+                    {validationResult.valid && (
+                      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 1, color: BRAND.tealDeep }}>
+                        <CheckCircleRoundedIcon sx={{ fontSize: 16 }} />
+                        <Typography variant="body2" fontWeight={700}>All checks passed</Typography>
+                      </Stack>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </>
           ) : (
             <Card sx={cardSx}>
               <CardContent sx={{ p: 0 }}>

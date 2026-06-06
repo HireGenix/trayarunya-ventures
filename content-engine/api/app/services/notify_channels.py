@@ -22,10 +22,31 @@ log = logging.getLogger("notify_channels")
 _HTTP_TIMEOUT = 15.0
 
 
+def _send_email_acs_blocking(to: str, subject: str, text: str, html: str | None) -> bool:
+    """Send email via Azure Communication Services. Run via ``asyncio.to_thread``."""
+    from azure.communication.email import EmailClient  # lazy import
+
+    client = EmailClient.from_connection_string(settings.acs_connection_string)
+    content: dict[str, str] = {"subject": subject, "plainText": text or ""}
+    if html:
+        content["html"] = html
+    message: dict = {
+        "senderAddress": settings.email_sender,
+        "recipients": {"to": [{"address": to}]},
+        "content": content,
+    }
+    if settings.email_reply_to:
+        message["replyTo"] = [{"address": settings.email_reply_to}]
+    poller = client.begin_send(message)
+    result = poller.result()
+    status = (result or {}).get("status") if isinstance(result, dict) else getattr(result, "status", None)
+    return str(status).lower() in ("succeeded", "running", "")
+
+
 def _send_email_blocking(to: str, subject: str, body: str) -> bool:
     """Synchronous SMTP send; run via ``asyncio.to_thread``."""
     msg = EmailMessage()
-    msg["From"] = settings.smtp_from
+    msg["From"] = settings.email_sender
     msg["To"] = to
     msg["Subject"] = subject
     msg.set_content(body or "")
@@ -44,20 +65,27 @@ def _send_email_blocking(to: str, subject: str, body: str) -> bool:
     return True
 
 
-async def send_email(to: str, subject: str, body: str) -> bool:
-    """Send a plain-text email via SMTP.
+async def send_email(to: str, subject: str, body: str, *, html: str | None = None) -> bool:
+    """Send an email via ACS (preferred) or SMTP fallback.
 
+    ``body`` is the plain-text part; pass ``html`` for a rich version.
     Returns ``False`` when email is not configured or any error occurs.
     """
-    if not settings.email_configured:
-        return False
     if not to:
         return False
-    try:
-        return await asyncio.to_thread(_send_email_blocking, to, subject, body)
-    except Exception:  # noqa: BLE001 — a mail outage must never break the caller
-        log.exception("send_email failed (to=%s subject=%s)", to, subject)
-        return False
+    if settings.acs_email_configured:
+        try:
+            return await asyncio.to_thread(_send_email_acs_blocking, to, subject, body, html)
+        except Exception:  # noqa: BLE001 — a mail outage must never break the caller
+            log.exception("send_email via ACS failed (to=%s subject=%s)", to, subject)
+            # fall through to SMTP if available
+    if settings.smtp_configured:
+        try:
+            return await asyncio.to_thread(_send_email_blocking, to, subject, body)
+        except Exception:  # noqa: BLE001
+            log.exception("send_email via SMTP failed (to=%s subject=%s)", to, subject)
+            return False
+    return False
 
 
 async def send_slack(text: str) -> bool:

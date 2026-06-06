@@ -15,7 +15,16 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Campaign, ContentItem, Organization, Plan, ResearchJob, Workspace
+from app.models import (
+    Campaign,
+    ContentCalendar,
+    ContentItem,
+    Organization,
+    Plan,
+    ResearchJob,
+    Strategy,
+    Workspace,
+)
 
 logger = logging.getLogger("app.usage_guard")
 
@@ -29,6 +38,8 @@ DEFAULT_PLAN_CODE = "free"
 _RESOURCE_MAP: dict[str, tuple[str, type]] = {
     "research": ("research_jobs", ResearchJob),
     "content": ("content_items", ContentItem),
+    "strategy": ("strategies", Strategy),
+    "calendar": ("content_calendars", ContentCalendar),
     "ads": ("ad_accounts", Campaign),
 }
 

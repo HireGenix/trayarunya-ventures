@@ -118,9 +118,88 @@ PROVIDERS: dict[str, dict[str, Any]] = {
         "manual": True,
         "token_label": "Private API key",
     },
+    # ── Wave-2 write-side providers ───────────────────────────────────────
+    "google_ads": {
+        "label": "Google Ads",
+        "category": "ads",
+        "oauth": False,
+        "configured": lambda: False,
+        "manual": True,
+        "token_label": "Refresh token (OAuth)",
+        "description": (
+            "Connect your Google Ads account to launch and optimise search, "
+            "display and video campaigns. Google Ad Grants (nonprofit) accounts "
+            "are fully supported."
+        ),
+        "fields": [
+            {"key": "developer_token", "label": "Developer token", "secret": True, "required": True},
+            {"key": "client_id", "label": "OAuth client ID", "secret": False, "required": True},
+            {"key": "client_secret", "label": "OAuth client secret", "secret": True, "required": True},
+            {"key": "refresh_token", "label": "Refresh token", "secret": True, "required": True},
+            {"key": "login_customer_id", "label": "Login customer ID (MCC)", "secret": False, "required": True,
+             "placeholder": "123-456-7890"},
+        ],
+    },
+    "meta": {
+        "label": "Meta (Facebook / Instagram)",
+        "category": "social",
+        "oauth": False,
+        "configured": lambda: False,
+        "manual": True,
+        "token_label": "Long-lived access token",
+        "description": (
+            "Connect Meta to publish to Facebook and Instagram, manage the "
+            "social inbox, and run ads across Meta platforms."
+        ),
+        "fields": [
+            {"key": "access_token", "label": "Long-lived access token", "secret": True, "required": True},
+            {"key": "app_id", "label": "App ID", "secret": False, "required": True},
+            {"key": "app_secret", "label": "App secret", "secret": True, "required": True},
+            {"key": "ad_account_id", "label": "Ad account ID", "secret": False, "required": False,
+             "placeholder": "act_123456789"},
+            {"key": "page_id", "label": "Facebook Page ID", "secret": False, "required": True},
+            {"key": "ig_user_id", "label": "Instagram user ID", "secret": False, "required": False},
+        ],
+    },
+    "twilio": {
+        "label": "Twilio (SMS)",
+        "category": "messaging",
+        "oauth": False,
+        "configured": lambda: False,
+        "manual": True,
+        "token_label": "Auth token",
+        "description": "Send SMS campaigns and transactional messages via Twilio.",
+        "fields": [
+            {"key": "account_sid", "label": "Account SID", "secret": False, "required": True},
+            {"key": "auth_token", "label": "Auth token", "secret": True, "required": True},
+            {"key": "from_number", "label": "From number or Messaging Service SID", "secret": False,
+             "required": True, "placeholder": "+1234567890 or MGxxxxxxxx"},
+        ],
+    },
+    "whatsapp": {
+        "label": "WhatsApp (Cloud API)",
+        "category": "messaging",
+        "oauth": False,
+        "configured": lambda: False,
+        "manual": True,
+        "token_label": "Permanent access token",
+        "description": (
+            "Connect the Meta WhatsApp Cloud API to send template messages "
+            "and manage conversations."
+        ),
+        "fields": [
+            {"key": "access_token", "label": "Permanent access token", "secret": True, "required": True},
+            {"key": "phone_number_id", "label": "Phone number ID", "secret": False, "required": True},
+            {"key": "business_account_id", "label": "WhatsApp Business Account ID", "secret": False,
+             "required": True},
+        ],
+    },
 }
 
-_SECRET_CONFIG_KEYS = {"consumer_secret", "client_secret", "api_secret", "password"}
+_SECRET_CONFIG_KEYS = {
+    "consumer_secret", "client_secret", "api_secret", "password",
+    "developer_token", "auth_token", "app_secret", "refresh_token",
+}
 
 
 def _safe_config(config: dict[str, Any] | None) -> dict[str, Any]:
@@ -165,6 +244,14 @@ class IntegrationOut(BaseModel):
         )
 
 
+class CatalogField(BaseModel):
+    key: str
+    label: str
+    secret: bool = False
+    required: bool = True
+    placeholder: str | None = None
+
+
 class CatalogEntry(BaseModel):
     provider: str
     label: str
@@ -173,6 +260,8 @@ class CatalogEntry(BaseModel):
     configured: bool
     manual_connect: bool
     token_label: str | None = None
+    description: str | None = None
+    fields: list[CatalogField] | None = None
 
 
 class ConnectIn(BaseModel):
@@ -282,6 +371,8 @@ async def catalog(
 ) -> list[CatalogEntry]:
     out: list[CatalogEntry] = []
     for provider, meta in PROVIDERS.items():
+        raw_fields = meta.get("fields")
+        fields = [CatalogField(**f) for f in raw_fields] if raw_fields else None
         out.append(
             CatalogEntry(
                 provider=provider,
@@ -291,6 +382,8 @@ async def catalog(
                 configured=bool(meta["configured"]()),
                 manual_connect=bool(meta["manual"]),
                 token_label=meta.get("token_label"),
+                description=meta.get("description"),
+                fields=fields,
             )
         )
     return out
@@ -614,7 +707,7 @@ async def sync(
     )
 
 
-@router.delete("/{integration_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{integration_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def disconnect(
     integration_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

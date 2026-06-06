@@ -9,12 +9,16 @@ import {
   CircularProgress,
   Grid,
   MenuItem,
+  Snackbar,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import FilterAltRoundedIcon from '@mui/icons-material/FilterAltRounded';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import PublishIcon from '@mui/icons-material/Publish';
+import LinkIcon from '@mui/icons-material/Link';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
@@ -25,6 +29,7 @@ import {
   DialogFooter,
   SectionLabel,
   AiAssist,
+  inkPillSx,
   ghostPillSx,
 } from '@/components/PremiumDialog';
 
@@ -99,6 +104,18 @@ export default function FunnelsPage() {
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<Block[] | null>(null);
 
+  const [toast, setToast] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const [funnelOpen, setFunnelOpen] = useState(false);
+  const [funnelName, setFunnelName] = useState('');
+  const [funnelSteps, setFunnelSteps] = useState('');
+  const [creatingFunnel, setCreatingFunnel] = useState(false);
+
+  const [optimizeOpen, setOptimizeOpen] = useState(false);
+  const [optimizeResult, setOptimizeResult] = useState<Record<string, unknown> | null>(null);
+  const [optimizePage, setOptimizePage] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -157,6 +174,68 @@ export default function FunnelsPage() {
     setGenerated(null);
   };
 
+  const handlePublish = async (pageId: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api<PageCard>('/funnels/pages/' + pageId + '/publish', {
+        method: 'POST',
+        workspace: true,
+      });
+      await load();
+      setToast(res.slug ? 'Published at /p/' + res.slug : 'Page published');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Publish failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleOptimize = async (pageId: string, pageName: string) => {
+    setBusy(true);
+    setError(null);
+    setOptimizePage(pageName);
+    try {
+      const res = await api<Record<string, unknown>>('/funnels/pages/' + pageId + '/optimize', {
+        method: 'POST',
+        workspace: true,
+      });
+      setOptimizeResult(res);
+      setOptimizeOpen(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Optimization failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCreateFunnel = async () => {
+    if (!funnelName.trim()) return;
+    setCreatingFunnel(true);
+    setError(null);
+    try {
+      const steps = funnelSteps
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((label, order) => ({ label, order }));
+      await api<FunnelRow>('/funnels/funnels', {
+        method: 'POST',
+        body: { name: funnelName, steps: steps.length ? steps : undefined },
+        workspace: true,
+      });
+      setFunnelOpen(false);
+      setFunnelName('');
+      setFunnelSteps('');
+      await load();
+      setToast('Funnel created');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not create funnel');
+    } finally {
+      setCreatingFunnel(false);
+    }
+  };
+
   if (!activeWorkspace) {
     return (
       <Box sx={{ p: 1 }}>
@@ -204,24 +283,44 @@ export default function FunnelsPage() {
             Design landing pages, wire up funnels and let AI write the copy.
           </Typography>
         </Box>
-        <Button
-          startIcon={<AddIcon />}
-          onClick={() => setOpen(true)}
-          sx={{
-            px: 2.5,
-            py: 1.25,
-            borderRadius: '999px',
-            fontWeight: 700,
-            textTransform: 'none',
-            color: '#fff',
-            background: INK,
-            backgroundImage: 'none',
-            boxShadow: '0 8px 20px rgba(14,17,22,0.25)',
-            '&:hover': { background: '#1B2330' },
-          }}
-        >
-          New page
-        </Button>
+        <Stack direction="row" spacing={1.25}>
+          <Button
+            startIcon={<AddIcon />}
+            onClick={() => setFunnelOpen(true)}
+            sx={{
+              px: 2.5,
+              py: 1.25,
+              borderRadius: '999px',
+              fontWeight: 700,
+              textTransform: 'none',
+              color: INK,
+              background: '#fff',
+              border: `1px solid ${LINE}`,
+              boxShadow: 'none',
+              '&:hover': { background: 'rgba(14,17,22,0.04)' },
+            }}
+          >
+            New funnel
+          </Button>
+          <Button
+            startIcon={<AddIcon />}
+            onClick={() => setOpen(true)}
+            sx={{
+              px: 2.5,
+              py: 1.25,
+              borderRadius: '999px',
+              fontWeight: 700,
+              textTransform: 'none',
+              color: '#fff',
+              background: INK,
+              backgroundImage: 'none',
+              boxShadow: '0 8px 20px rgba(14,17,22,0.25)',
+              '&:hover': { background: '#1B2330' },
+            }}
+          >
+            New page
+          </Button>
+        </Stack>
       </Stack>
 
       {/* Pill tabs */}
@@ -286,9 +385,15 @@ export default function FunnelsPage() {
           <CircularProgress />
         </Box>
       ) : tab === 'pages' ? (
-        <PagesGrid pages={pages} onNew={() => setOpen(true)} />
+        <PagesGrid
+          pages={pages}
+          onNew={() => setOpen(true)}
+          onPublish={handlePublish}
+          onOptimize={handleOptimize}
+          busy={busy}
+        />
       ) : tab === 'funnels' ? (
-        <FunnelsList funnels={funnels} />
+        <FunnelsList funnels={funnels} onNew={() => setFunnelOpen(true)} />
       ) : (
         <OverviewPanel overview={overview} pages={pages} />
       )}
@@ -417,6 +522,80 @@ export default function FunnelsPage() {
           </Button>
         </DialogFooter>
       </PremiumDialog>
+
+      {/* New funnel dialog */}
+      <PremiumDialog open={funnelOpen} onClose={() => setFunnelOpen(false)} maxWidth="sm">
+        <DialogHero
+          icon={<FilterAltRoundedIcon />}
+          title="Create a funnel"
+          subtitle="Chain pages into a multi-step funnel"
+          onClose={() => setFunnelOpen(false)}
+        />
+        <DialogBody>
+          <Stack gap={2.25}>
+            <Box>
+              <SectionLabel>Funnel name</SectionLabel>
+              <TextField
+                value={funnelName}
+                onChange={(e) => setFunnelName(e.target.value)}
+                placeholder="e.g. Demo booking funnel"
+                fullWidth
+                size="small"
+              />
+            </Box>
+            <Box>
+              <SectionLabel>Steps (optional)</SectionLabel>
+              <TextField
+                value={funnelSteps}
+                onChange={(e) => setFunnelSteps(e.target.value)}
+                placeholder={'One step per line\nLanding page\nPricing\nCheckout'}
+                fullWidth
+                size="small"
+                multiline
+                minRows={3}
+              />
+            </Box>
+          </Stack>
+        </DialogBody>
+        <DialogFooter hint="Add the steps now or wire pages in later.">
+          <Button onClick={() => setFunnelOpen(false)} sx={ghostPillSx}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreateFunnel}
+            disabled={!funnelName.trim() || creatingFunnel}
+            sx={inkPillSx}
+          >
+            {creatingFunnel ? 'Creating…' : 'Create funnel'}
+          </Button>
+        </DialogFooter>
+      </PremiumDialog>
+
+      {/* Optimization results dialog */}
+      <PremiumDialog open={optimizeOpen} onClose={() => setOptimizeOpen(false)} maxWidth="sm">
+        <DialogHero
+          icon={<AutoAwesomeIcon />}
+          title="AI optimization"
+          subtitle={optimizePage ? 'Suggestions for ' + optimizePage : 'Suggestions for this page'}
+          onClose={() => setOptimizeOpen(false)}
+        />
+        <DialogBody>
+          <OptimizeResult result={optimizeResult} />
+        </DialogBody>
+        <DialogFooter hint="Apply the suggestions to lift conversion.">
+          <Button onClick={() => setOptimizeOpen(false)} sx={ghostPillSx}>
+            Close
+          </Button>
+        </DialogFooter>
+      </PremiumDialog>
+
+      <Snackbar
+        open={!!toast}
+        autoHideDuration={2600}
+        onClose={() => setToast(null)}
+        message={toast}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      />
     </Box>
   );
 }
@@ -430,7 +609,19 @@ function blockSummary(b: Block): string {
   return b.type;
 }
 
-function PagesGrid({ pages, onNew }: { pages: PageCard[]; onNew: () => void }) {
+function PagesGrid({
+  pages,
+  onNew,
+  onPublish,
+  onOptimize,
+  busy,
+}: {
+  pages: PageCard[];
+  onNew: () => void;
+  onPublish: (pageId: string) => void;
+  onOptimize: (pageId: string, pageName: string) => void;
+  busy: boolean;
+}) {
   if (!pages.length) {
     return (
       <Box
@@ -486,10 +677,28 @@ function PagesGrid({ pages, onNew }: { pages: PageCard[]; onNew: () => void }) {
                   <Typography sx={{ fontWeight: 800, color: INK, fontSize: 17 }} noWrap>
                     {p.name}
                   </Typography>
-                  {p.slug && (
-                    <Typography sx={{ color: SUBTLE, fontSize: 12.5 }} noWrap>
-                      /{p.slug}
-                    </Typography>
+                  {p.status === 'published' && p.slug ? (
+                    <Stack
+                      component="a"
+                      href={'/p/' + p.slug}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      direction="row"
+                      spacing={0.5}
+                      alignItems="center"
+                      sx={{ color: BRAND.tealDeep, fontSize: 12.5, textDecoration: 'none', mt: 0.25 }}
+                    >
+                      <LinkIcon sx={{ fontSize: 14 }} />
+                      <Typography component="span" sx={{ fontSize: 12.5, fontWeight: 600 }} noWrap>
+                        /p/{p.slug}
+                      </Typography>
+                    </Stack>
+                  ) : (
+                    p.slug && (
+                      <Typography sx={{ color: SUBTLE, fontSize: 12.5 }} noWrap>
+                        /{p.slug}
+                      </Typography>
+                    )
                   )}
                 </Box>
                 <Chip
@@ -521,6 +730,49 @@ function PagesGrid({ pages, onNew }: { pages: PageCard[]; onNew: () => void }) {
                   />
                 ))}
               </Stack>
+
+              <Stack direction="row" spacing={1} sx={{ mt: 2.25 }}>
+                {p.status !== 'published' && (
+                  <Button
+                    onClick={() => onPublish(p.id)}
+                    disabled={busy}
+                    startIcon={<PublishIcon sx={{ fontSize: 18 }} />}
+                    sx={{
+                      px: 2,
+                      py: 0.85,
+                      borderRadius: '999px',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      textTransform: 'none',
+                      color: '#fff',
+                      background: INK,
+                      backgroundImage: 'none',
+                      '&:hover': { background: '#1B2330' },
+                    }}
+                  >
+                    Publish
+                  </Button>
+                )}
+                <Button
+                  onClick={() => onOptimize(p.id, p.name)}
+                  disabled={busy}
+                  startIcon={<AutoAwesomeIcon sx={{ fontSize: 18 }} />}
+                  sx={{
+                    px: 2,
+                    py: 0.85,
+                    borderRadius: '999px',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    textTransform: 'none',
+                    color: INK,
+                    background: '#fff',
+                    border: `1px solid ${LINE}`,
+                    '&:hover': { background: 'rgba(14,17,22,0.04)' },
+                  }}
+                >
+                  AI Optimize
+                </Button>
+              </Stack>
             </Box>
           </Grid>
         );
@@ -529,7 +781,7 @@ function PagesGrid({ pages, onNew }: { pages: PageCard[]; onNew: () => void }) {
   );
 }
 
-function FunnelsList({ funnels }: { funnels: FunnelRow[] }) {
+function FunnelsList({ funnels, onNew }: { funnels: FunnelRow[]; onNew: () => void }) {
   if (!funnels.length) {
     return (
       <Box
@@ -542,9 +794,24 @@ function FunnelsList({ funnels }: { funnels: FunnelRow[] }) {
         }}
       >
         <Typography sx={{ fontWeight: 700, color: INK }}>No funnels yet</Typography>
-        <Typography sx={{ color: SUBTLE }}>
+        <Typography sx={{ color: SUBTLE, mb: 2 }}>
           Chain pages into a multi-step funnel to track conversion end to end.
         </Typography>
+        <Button
+          onClick={onNew}
+          startIcon={<AddIcon />}
+          sx={{
+            borderRadius: '999px',
+            textTransform: 'none',
+            fontWeight: 700,
+            color: '#fff',
+            background: INK,
+            backgroundImage: 'none',
+            '&:hover': { background: '#1B2330' },
+          }}
+        >
+          New funnel
+        </Button>
       </Box>
     );
   }
@@ -636,4 +903,103 @@ function Metric({ label, value, tone = INK }: { label: string; value: string; to
       <Typography sx={{ fontWeight: 800, fontSize: 18, color: tone }}>{value}</Typography>
     </Box>
   );
+}
+
+function OptimizeResult({ result }: { result: Record<string, unknown> | null }) {
+  if (!result) {
+    return (
+      <Typography sx={{ color: SUBTLE, fontSize: 13.5 }}>No suggestions returned.</Typography>
+    );
+  }
+
+  const suggestions = collectSuggestions(result);
+  const entries = Object.entries(result).filter(
+    ([k]) => k !== 'suggestions' && k !== 'recommendations' && k !== 'tips',
+  );
+
+  return (
+    <Stack gap={2.25}>
+      {suggestions.length > 0 && (
+        <Box>
+          <SectionLabel>Suggestions</SectionLabel>
+          <Stack gap={1} sx={{ mt: 1 }}>
+            {suggestions.map((s, i) => (
+              <Box
+                key={i}
+                sx={{
+                  bgcolor: 'rgba(14,17,22,0.025)',
+                  border: `1px solid ${LINE}`,
+                  borderRadius: '14px',
+                  px: 1.75,
+                  py: 1.25,
+                }}
+              >
+                <Stack direction="row" spacing={1.25} alignItems="flex-start">
+                  <AutoAwesomeIcon sx={{ fontSize: 16, color: BRAND.tealDeep, mt: 0.25 }} />
+                  <Typography sx={{ fontSize: 13.5, color: INK }}>{s}</Typography>
+                </Stack>
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      )}
+
+      {entries.length > 0 && (
+        <Box>
+          <SectionLabel>Details</SectionLabel>
+          <Stack gap={0.75} sx={{ mt: 1 }}>
+            {entries.map(([k, v]) => (
+              <Stack
+                key={k}
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                spacing={1.5}
+              >
+                <Typography sx={{ fontSize: 13, color: SUBTLE, textTransform: 'capitalize' }}>
+                  {k.replace(/_/g, ' ')}
+                </Typography>
+                <Chip
+                  label={formatValue(v)}
+                  size="small"
+                  sx={{ fontWeight: 700, bgcolor: BRAND.amberSoft, color: BRAND.amberDeep }}
+                />
+              </Stack>
+            ))}
+          </Stack>
+        </Box>
+      )}
+
+      {suggestions.length === 0 && entries.length === 0 && (
+        <Typography sx={{ color: SUBTLE, fontSize: 13.5 }}>No suggestions returned.</Typography>
+      )}
+    </Stack>
+  );
+}
+
+function collectSuggestions(result: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  for (const key of ['suggestions', 'recommendations', 'tips']) {
+    const val = result[key];
+    if (Array.isArray(val)) {
+      for (const item of val) {
+        if (typeof item === 'string') out.push(item);
+        else if (item && typeof item === 'object') {
+          const rec = item as Record<string, unknown>;
+          const text = rec.text ?? rec.suggestion ?? rec.message ?? rec.title;
+          if (typeof text === 'string') out.push(text);
+          else out.push(JSON.stringify(item));
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function formatValue(v: unknown): string {
+  if (typeof v === 'number') return String(v);
+  if (typeof v === 'string') return v;
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  if (Array.isArray(v)) return `${v.length} items`;
+  return JSON.stringify(v);
 }

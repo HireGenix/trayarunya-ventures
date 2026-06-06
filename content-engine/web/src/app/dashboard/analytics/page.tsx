@@ -2,15 +2,19 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Card,
   CardContent,
   Chip,
   CircularProgress,
+  Collapse,
   Grid,
   LinearProgress,
+  Snackbar,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
 import BoltIcon from '@mui/icons-material/BoltOutlined';
@@ -24,7 +28,7 @@ import TouchAppIcon from '@mui/icons-material/TouchAppOutlined';
 import TrendingUpIcon from '@mui/icons-material/TrendingUpOutlined';
 import VisibilityIcon from '@mui/icons-material/VisibilityOutlined';
 import { useAuth } from '@/lib/auth';
-import { Analytics, type AnalyticsSummary } from '@/lib/api';
+import { Analytics, api, type AnalyticsSummary } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
 
 const INK = '#11151B';
@@ -246,6 +250,39 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importForm, setImportForm] = useState({ source: 'manual', metric_date: '', impressions: '0', clicks: '0', engagements: '0', conversions: '0', spend: '0' });
+  const [importToast, setImportToast] = useState<string | null>(null);
+
+  const submitImport = async () => {
+    setImportBusy(true);
+    try {
+      await api('/analytics/metrics', {
+        method: 'POST',
+        workspace: true,
+        body: {
+          source: importForm.source || 'manual',
+          metric_date: importForm.metric_date || null,
+          impressions: Number(importForm.impressions) || 0,
+          clicks: Number(importForm.clicks) || 0,
+          engagements: Number(importForm.engagements) || 0,
+          conversions: Number(importForm.conversions) || 0,
+          spend: Number(importForm.spend) || 0,
+        },
+      });
+      setImportToast('Metrics imported');
+      setImportOpen(false);
+      setImportForm({ source: 'manual', metric_date: '', impressions: '0', clicks: '0', engagements: '0', conversions: '0', spend: '0' });
+      if (activeWorkspace) {
+        Analytics.summary().then(setData).catch(() => {});
+      }
+    } catch (e) {
+      setImportToast(e instanceof Error ? e.message : 'Import failed');
+    } finally {
+      setImportBusy(false);
+    }
+  };
 
   const load = (sync = false) => {
     if (!activeWorkspace) return;
@@ -384,6 +421,65 @@ export default function AnalyticsPage() {
           <AiNextMoves workspaceKey={activeWorkspace?.id ?? 'none'} />
         </Grid>
       </Grid>
+
+      {/* ── Import metrics ── */}
+      <Card sx={{ borderRadius: 4, border: '1px solid rgba(17,21,27,0.08)', background: PANEL, backdropFilter: 'blur(10px)', boxShadow: '0 18px 45px rgba(17,21,27,0.06)' }}>
+        <CardContent sx={{ p: 3 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+            <Box>
+              <Typography fontWeight={950} variant="h6">Import metrics</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.4 }}>Manually add a metric snapshot to feed the cockpit.</Typography>
+            </Box>
+            <Button onClick={() => setImportOpen((o) => !o)}
+              sx={{ textTransform: 'none', fontWeight: 800, color: INK, borderRadius: 2.5, px: 2, border: '1px solid rgba(17,21,27,0.14)' }}>
+              {importOpen ? 'Close' : 'Import metrics'}
+            </Button>
+          </Stack>
+          <Collapse in={importOpen} timeout="auto" unmountOnExit>
+            <Grid container spacing={2} sx={{ mt: 0.5 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <TextField fullWidth size="small" label="Source" value={importForm.source}
+                  onChange={(e) => setImportForm((f) => ({ ...f, source: e.target.value }))} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <TextField fullWidth size="small" type="date" label="Date" InputLabelProps={{ shrink: true }} value={importForm.metric_date}
+                  onChange={(e) => setImportForm((f) => ({ ...f, metric_date: e.target.value }))} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <TextField fullWidth size="small" type="number" label="Impressions" value={importForm.impressions}
+                  onChange={(e) => setImportForm((f) => ({ ...f, impressions: e.target.value }))} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <TextField fullWidth size="small" type="number" label="Clicks" value={importForm.clicks}
+                  onChange={(e) => setImportForm((f) => ({ ...f, clicks: e.target.value }))} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <TextField fullWidth size="small" type="number" label="Engagements" value={importForm.engagements}
+                  onChange={(e) => setImportForm((f) => ({ ...f, engagements: e.target.value }))} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <TextField fullWidth size="small" type="number" label="Conversions" value={importForm.conversions}
+                  onChange={(e) => setImportForm((f) => ({ ...f, conversions: e.target.value }))} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <TextField fullWidth size="small" type="number" label="Spend" value={importForm.spend}
+                  onChange={(e) => setImportForm((f) => ({ ...f, spend: e.target.value }))} />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <Button fullWidth onClick={submitImport} disabled={importBusy}
+                  startIcon={importBusy ? <CircularProgress size={16} color="inherit" /> : undefined}
+                  sx={{ height: '100%', textTransform: 'none', fontWeight: 900, color: INK, borderRadius: 2.5, background: `linear-gradient(135deg, ${BRAND.amber} 0%, ${BRAND.teal} 100%)`, '&.Mui-disabled': { color: 'rgba(17,21,27,0.5)' } }}>
+                  {importBusy ? 'Importing…' : 'Submit'}
+                </Button>
+              </Grid>
+            </Grid>
+          </Collapse>
+        </CardContent>
+      </Card>
+
+      <Snackbar open={!!importToast} autoHideDuration={4000} onClose={() => setImportToast(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity="info" onClose={() => setImportToast(null)} sx={{ width: '100%' }}>{importToast}</Alert>
+      </Snackbar>
     </Stack>
   );
 }

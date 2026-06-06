@@ -20,6 +20,9 @@ import {
   TableHead,
   TableRow,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUpOutlined';
@@ -29,8 +32,16 @@ import InsightsIcon from '@mui/icons-material/InsightsOutlined';
 import LeaderboardIcon from '@mui/icons-material/LeaderboardOutlined';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmptyOutlined';
 import WorkspacesIcon from '@mui/icons-material/WorkspacesOutlined';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrowsOutlined';
+import WavesIcon from '@mui/icons-material/WavesOutlined';
 import { useAuth } from '@/lib/auth';
-import { Forecast, type ForecastSummary, type BenchmarksResponse } from '@/lib/api';
+import {
+  api,
+  Forecast,
+  type AdvancedForecastSummary,
+  type BenchmarksResponse,
+  type ModelComparison,
+} from '@/lib/api';
 import { BRAND } from '@/theme/theme';
 
 const INK = BRAND.ink;
@@ -42,9 +53,17 @@ const GRID = 'rgba(14,17,22,0.06)';
 
 const HORIZONS = [7, 14, 30, 60, 90];
 const LOOKBACKS = [30, 60, 90, 180, 365];
+const MODELS: { value: string; label: string }[] = [
+  { value: 'auto', label: 'Auto-select' },
+  { value: 'linear', label: 'Linear' },
+  { value: 'holt_winters', label: 'Holt-Winters' },
+];
 
 type HistPoint = { date: string; value: number };
 type ProjPoint = { date: string; value: number; lower: number; upper: number };
+type DriverForecastResult = { metric: string; driver: string; points: ProjPoint[]; total: number; note?: string };
+
+const DRIVER_METRICS = ['impressions', 'clicks', 'engagements', 'conversions', 'spend'];
 
 function fmt(n: number): string {
   const abs = Math.abs(n);
@@ -58,6 +77,12 @@ function prettyMetric(key: string): string {
   return key
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function prettyModel(model: string): string {
+  if (model === 'holt_winters') return 'Holt-Winters';
+  if (model === 'linear') return 'Linear';
+  return model;
 }
 
 // ── Plain-SVG sparkline combining historical + projected (band + dashed) ──
@@ -107,7 +132,6 @@ function Sparkline({
   const histPts = historical.map((p, i) => `${xAt(i)},${yAt(p.value)}`);
   const boundary = historical.length - 1;
 
-  // Projected line starts from last historical point for continuity.
   const projLine: string[] = [];
   if (historical.length > 0 && projected.length > 0) {
     projLine.push(`${xAt(boundary)},${yAt(historical[historical.length - 1].value)}`);
@@ -116,7 +140,6 @@ function Sparkline({
     projLine.push(`${xAt(historical.length + i)},${yAt(p.value)}`);
   });
 
-  // Band area (lower/upper) across projected range.
   const upperPath = projected.map((p, i) => `${xAt(historical.length + i)},${yAt(p.upper)}`);
   const lowerPath = projected
     .map((p, i) => `${xAt(historical.length + i)},${yAt(p.lower)}`)
@@ -169,7 +192,8 @@ export default function ForecastPage() {
 
   const [horizon, setHorizon] = useState(30);
   const [lookback, setLookback] = useState(90);
-  const [summary, setSummary] = useState<ForecastSummary | null>(null);
+  const [model, setModel] = useState<string>('auto');
+  const [summary, setSummary] = useState<AdvancedForecastSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [narrative, setNarrative] = useState<string | null>(null);
@@ -181,6 +205,15 @@ export default function ForecastPage() {
   const [benchmarks, setBenchmarks] = useState<BenchmarksResponse | null>(null);
   const [benchLoading, setBenchLoading] = useState(false);
 
+  const [driverTarget, setDriverTarget] = useState('conversions');
+  const [driverDriver, setDriverDriver] = useState('impressions');
+  const [driverResult, setDriverResult] = useState<DriverForecastResult | null>(null);
+  const [driverLoading, setDriverLoading] = useState(false);
+
+  const [compareMetric, setCompareMetric] = useState('conversions');
+  const [compareResult, setCompareResult] = useState<ModelComparison | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
+
   const [toast, setToast] = useState<{ msg: string; sev: 'success' | 'error' } | null>(null);
 
   const loadSummary = useCallback(() => {
@@ -188,14 +221,14 @@ export default function ForecastPage() {
     setLoading(true);
     setNarrative(null);
     setNarrativeSource(null);
-    Forecast.summary(horizon, lookback)
+    Forecast.advancedSummary(horizon, lookback, model)
       .then(setSummary)
       .catch(() => {
         setSummary(null);
         setToast({ msg: 'Failed to load forecast', sev: 'error' });
       })
       .finally(() => setLoading(false));
-  }, [activeWorkspace, horizon, lookback]);
+  }, [activeWorkspace, horizon, lookback, model]);
 
   useEffect(() => {
     loadSummary();
@@ -226,6 +259,40 @@ export default function ForecastPage() {
       setToast({ msg: 'Failed to load benchmarks', sev: 'error' });
     } finally {
       setBenchLoading(false);
+    }
+  };
+
+  const handleDriverForecast = async () => {
+    if (!activeWorkspace) return;
+    setDriverLoading(true);
+    try {
+      const q = new URLSearchParams({
+        horizon_days: String(horizon),
+        lookback_days: String(lookback),
+        target: driverTarget,
+        driver: driverDriver,
+      });
+      const res = await api<DriverForecastResult>(`/forecast/driver?${q}`, { workspace: true });
+      setDriverResult(res);
+    } catch {
+      setDriverResult(null);
+      setToast({ msg: 'Failed to load driver forecast', sev: 'error' });
+    } finally {
+      setDriverLoading(false);
+    }
+  };
+
+  const handleCompare = async () => {
+    if (!activeWorkspace) return;
+    setCompareLoading(true);
+    try {
+      const res = await Forecast.compare(lookback, horizon, compareMetric.trim() || 'conversions');
+      setCompareResult(res);
+    } catch {
+      setCompareResult(null);
+      setToast({ msg: 'Failed to compare models', sev: 'error' });
+    } finally {
+      setCompareLoading(false);
     }
   };
 
@@ -371,6 +438,40 @@ export default function ForecastPage() {
             })}
           </Stack>
         </Box>
+        <Box>
+          <Typography sx={{ color: SUBTLE, fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', mb: 1 }}>
+            Model
+          </Typography>
+          <ToggleButtonGroup
+            value={model}
+            exclusive
+            onChange={(_, v) => { if (v) setModel(v); }}
+            size="small"
+            sx={{
+              '& .MuiToggleButton-root': {
+                px: 2.25,
+                py: 0.75,
+                borderRadius: '999px !important',
+                border: `1px solid ${LINE} !important`,
+                fontWeight: 600,
+                fontSize: 13,
+                textTransform: 'none',
+                color: SUBTLE,
+                '&.Mui-selected': {
+                  bgcolor: INK,
+                  color: '#fff',
+                  '&:hover': { bgcolor: '#1B2330' },
+                },
+                '&:hover': { bgcolor: 'rgba(14,17,22,0.05)' },
+              },
+              gap: 0.75,
+            }}
+          >
+            {MODELS.map((m) => (
+              <ToggleButton key={m.value} value={m.value}>{m.label}</ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Box>
       </Stack>
 
       <Stack spacing={2.5}>
@@ -409,6 +510,9 @@ export default function ForecastPage() {
               const hist = summary.historical[key] ?? [];
               const proj = summary.projected[key] ?? [];
               const positive = totals.slope_per_day >= 0;
+              const modelUsed = summary.model_used?.[key];
+              const accuracy = summary.accuracy?.[key];
+              const seasonality = summary.seasonality?.[key];
               return (
                 <Grid key={key} size={{ xs: 12, md: 6, lg: 4 }}>
                   <Box
@@ -472,7 +576,9 @@ export default function ForecastPage() {
                     <Box sx={{ mt: 2 }}>
                       <Sparkline historical={hist} projected={proj} />
                     </Box>
-                    <Stack direction="row" spacing={2} sx={{ mt: 1.25 }}>
+
+                    {/* Legend + model / accuracy badges */}
+                    <Stack direction="row" spacing={1} flexWrap="wrap" rowGap={0.75} sx={{ mt: 1.25 }}>
                       <Stack direction="row" spacing={0.5} alignItems="center">
                         <Box sx={{ width: 14, height: 2, borderRadius: 999, bgcolor: INK }} />
                         <Typography variant="caption" sx={{ color: SUBTLE }}>Historical</Typography>
@@ -481,6 +587,56 @@ export default function ForecastPage() {
                         <Box sx={{ width: 14, height: 0, borderTop: `2px dashed ${BRAND.teal}` }} />
                         <Typography variant="caption" sx={{ color: SUBTLE }}>Projected</Typography>
                       </Stack>
+                      {modelUsed && (
+                        <Tooltip title={`Forecast model: ${prettyModel(modelUsed)}`}>
+                          <Chip
+                            icon={<CompareArrowsIcon sx={{ fontSize: '14px !important' }} />}
+                            size="small"
+                            label={prettyModel(modelUsed)}
+                            sx={{
+                              height: 22,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              borderRadius: '999px',
+                              bgcolor: modelUsed === 'holt_winters' ? BRAND.tealSoft : 'rgba(14,17,22,0.05)',
+                              color: modelUsed === 'holt_winters' ? BRAND.tealDeep : SUBTLE,
+                            }}
+                          />
+                        </Tooltip>
+                      )}
+                      {accuracy && accuracy.mape != null && !accuracy.insufficient_history && (
+                        <Tooltip title={`MAPE: ${accuracy.mape}% (backtest on ${accuracy.holdout} points)`}>
+                          <Chip
+                            size="small"
+                            label={`MAPE ${accuracy.mape}%`}
+                            sx={{
+                              height: 22,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              borderRadius: '999px',
+                              bgcolor: accuracy.mape <= 15 ? BRAND.tealSoft : accuracy.mape <= 30 ? BRAND.amberSoft : BRAND.pinkSoft,
+                              color: accuracy.mape <= 15 ? BRAND.tealDeep : accuracy.mape <= 30 ? BRAND.amberDeep : BRAND.pink,
+                            }}
+                          />
+                        </Tooltip>
+                      )}
+                      {seasonality?.seasonal && (
+                        <Tooltip title={`Seasonal period: ${seasonality.period_used} (${seasonality.mode})`}>
+                          <Chip
+                            icon={<WavesIcon sx={{ fontSize: '14px !important' }} />}
+                            size="small"
+                            label={`P=${seasonality.period_used}`}
+                            sx={{
+                              height: 22,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              borderRadius: '999px',
+                              bgcolor: BRAND.amberSoft,
+                              color: BRAND.amberDeep,
+                            }}
+                          />
+                        </Tooltip>
+                      )}
                     </Stack>
                   </Box>
                 </Grid>
@@ -526,7 +682,7 @@ export default function ForecastPage() {
                     '&:hover': { background: '#1B2330' },
                   }}
                 >
-                  {narrativeLoading ? 'Generating…' : narrative ? 'Regenerate' : 'Generate narrative'}
+                  {narrativeLoading ? 'Generating...' : narrative ? 'Regenerate' : 'Generate narrative'}
                 </Button>
               </Stack>
               {narrative && (
@@ -562,7 +718,234 @@ export default function ForecastPage() {
         </>
       )}
 
-      {/* ── Benchmarks ── */}
+      {/* ── Driver forecast ── */}
+      <Card sx={{ borderRadius: CARD_RADIUS, border: `1px solid ${LINE}`, boxShadow: CARD_SHADOW, bgcolor: '#fff' }}>
+        <CardContent sx={{ p: 2.5 }}>
+          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 2 }}>
+            <Box
+              sx={{
+                width: 34,
+                height: 34,
+                borderRadius: '11px',
+                display: 'grid',
+                placeItems: 'center',
+                bgcolor: 'rgba(14,17,22,0.05)',
+                color: INK,
+              }}
+            >
+              <InsightsIcon fontSize="small" />
+            </Box>
+            <Typography sx={{ fontWeight: 700, fontSize: 15, color: INK }}>Driver forecast</Typography>
+          </Stack>
+          <Typography variant="body2" sx={{ color: SUBTLE, mb: 2 }}>
+            Project a target metric from the trajectory of a driving metric over the selected horizon.
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
+            <TextField
+              select
+              size="small"
+              label="Target metric"
+              value={driverTarget}
+              onChange={(e) => setDriverTarget(e.target.value)}
+              SelectProps={{ native: true }}
+              sx={{ minWidth: 200 }}
+            >
+              {DRIVER_METRICS.map((m) => (
+                <option key={m} value={m}>
+                  {prettyMetric(m)}
+                </option>
+              ))}
+            </TextField>
+            <TextField
+              select
+              size="small"
+              label="Driver metric"
+              value={driverDriver}
+              onChange={(e) => setDriverDriver(e.target.value)}
+              SelectProps={{ native: true }}
+              sx={{ minWidth: 200 }}
+            >
+              {DRIVER_METRICS.map((m) => (
+                <option key={m} value={m}>
+                  {prettyMetric(m)}
+                </option>
+              ))}
+            </TextField>
+            <Button
+              disableRipple
+              variant="contained"
+              onClick={handleDriverForecast}
+              disabled={driverLoading}
+              startIcon={driverLoading ? <CircularProgress size={14} color="inherit" /> : <InsightsIcon />}
+              sx={{
+                px: 2.5,
+                py: 1.25,
+                borderRadius: '999px',
+                textTransform: 'none',
+                fontWeight: 700,
+                color: '#fff',
+                background: INK,
+                backgroundImage: 'none',
+                boxShadow: '0 8px 20px rgba(14,17,22,0.25)',
+                '&:hover': { background: '#1B2330' },
+              }}
+            >
+              {driverLoading ? 'Running...' : 'Run driver forecast'}
+            </Button>
+          </Stack>
+
+          {driverResult && (
+            <Box sx={{ mt: 2.5 }}>
+              {driverResult.points.length > 0 ? (
+                <Box
+                  sx={{
+                    p: 2.5,
+                    borderRadius: '16px',
+                    border: `1px solid ${LINE}`,
+                    bgcolor: 'rgba(14,17,22,0.02)',
+                  }}
+                >
+                  <Stack direction="row" alignItems="flex-end" spacing={1.25}>
+                    <Typography sx={{ fontWeight: 800, fontSize: 36, lineHeight: 1, letterSpacing: '-0.02em', color: INK }}>
+                      {fmt(driverResult.total)}
+                    </Typography>
+                    <Typography sx={{ color: 'text.secondary', fontSize: 14, pb: 0.5 }}>
+                      projected {prettyMetric(driverResult.metric)} / next {horizon}d
+                    </Typography>
+                  </Stack>
+                  <Typography variant="body2" sx={{ color: SUBTLE, mt: 0.5 }}>
+                    Driven by {prettyMetric(driverResult.driver)}
+                  </Typography>
+                  <Box sx={{ mt: 2 }}>
+                    <Sparkline historical={[]} projected={driverResult.points} />
+                  </Box>
+                </Box>
+              ) : (
+                <Alert severity="info" sx={{ borderRadius: '14px' }}>
+                  {driverResult.note || 'Not enough data to produce a driver forecast.'}
+                </Alert>
+              )}
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Compare models ── */}
+      <Card sx={{ borderRadius: CARD_RADIUS, border: `1px solid ${LINE}`, boxShadow: CARD_SHADOW, bgcolor: '#fff' }}>
+        <CardContent sx={{ p: 2.5 }}>
+          <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 2 }}>
+            <Box
+              sx={{
+                width: 34,
+                height: 34,
+                borderRadius: '11px',
+                display: 'grid',
+                placeItems: 'center',
+                bgcolor: 'rgba(14,17,22,0.05)',
+                color: INK,
+              }}
+            >
+              <CompareArrowsIcon fontSize="small" />
+            </Box>
+            <Typography sx={{ fontWeight: 700, fontSize: 15, color: INK }}>Compare models</Typography>
+          </Stack>
+          <Typography variant="body2" sx={{ color: SUBTLE, mb: 2 }}>
+            Back-test Holt-Winters against a linear model and see which fits your history best.
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
+            <TextField
+              size="small"
+              label="Metric"
+              value={compareMetric}
+              onChange={(e) => setCompareMetric(e.target.value)}
+              placeholder="e.g. conversions"
+              sx={{ minWidth: 200 }}
+            />
+            <Button
+              disableRipple
+              variant="contained"
+              onClick={handleCompare}
+              disabled={compareLoading}
+              startIcon={compareLoading ? <CircularProgress size={14} color="inherit" /> : <CompareArrowsIcon />}
+              sx={{
+                px: 2.5,
+                py: 1.25,
+                borderRadius: '999px',
+                textTransform: 'none',
+                fontWeight: 700,
+                color: '#fff',
+                background: INK,
+                backgroundImage: 'none',
+                boxShadow: '0 8px 20px rgba(14,17,22,0.25)',
+                '&:hover': { background: '#1B2330' },
+              }}
+            >
+              {compareLoading ? 'Comparing...' : 'Compare'}
+            </Button>
+          </Stack>
+
+          {compareResult && (
+            <Box sx={{ mt: 2.5 }}>
+              <TableContainer sx={{ border: `1px solid ${LINE}`, borderRadius: '16px' }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700, color: SUBTLE }}>Model</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, color: SUBTLE }}>MAPE</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, color: SUBTLE }}>MAE</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, color: SUBTLE }}>RMSE</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {([
+                      { key: 'holt_winters', stats: compareResult.holt_winters },
+                      { key: 'linear', stats: compareResult.linear },
+                    ] as const).map(({ key, stats }) => (
+                      <TableRow key={key}>
+                        <TableCell sx={{ fontWeight: 700, color: INK }}>{prettyModel(key)}</TableCell>
+                        {stats.insufficient_history ? (
+                          <TableCell colSpan={3} align="right" sx={{ color: SUBTLE }}>
+                            Insufficient history
+                          </TableCell>
+                        ) : (
+                          <>
+                            <TableCell align="right" sx={{ color: INK }}>
+                              {stats.mape != null ? `${stats.mape.toFixed(1)}%` : '—'}
+                            </TableCell>
+                            <TableCell align="right" sx={{ color: INK }}>
+                              {stats.mae != null ? fmt(stats.mae) : '—'}
+                            </TableCell>
+                            <TableCell align="right" sx={{ color: INK }}>
+                              {stats.rmse != null ? fmt(stats.rmse) : '—'}
+                            </TableCell>
+                          </>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2 }}>
+                <Typography variant="body2" sx={{ color: SUBTLE, fontWeight: 700 }}>
+                  Recommended
+                </Typography>
+                <Chip
+                  size="small"
+                  label={prettyModel(compareResult.recommendation)}
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: 12,
+                    borderRadius: '999px',
+                    bgcolor: BRAND.tealSoft,
+                    color: BRAND.tealDeep,
+                  }}
+                />
+              </Stack>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
       <Card sx={{ borderRadius: CARD_RADIUS, border: `1px solid ${LINE}`, boxShadow: CARD_SHADOW, bgcolor: '#fff' }}>
         <CardContent sx={{ p: 2.5 }}>
           <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 2 }}>
@@ -614,7 +997,7 @@ export default function ForecastPage() {
                 '&:hover': { bgcolor: 'rgba(14,17,22,0.09)' },
               }}
             >
-              {benchLoading ? 'Loading…' : 'Load benchmarks'}
+              {benchLoading ? 'Loading...' : 'Load benchmarks'}
             </Button>
           </Stack>
 

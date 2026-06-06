@@ -28,6 +28,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.agents.image_agent import create_slide_deck, create_social_image
 from app.agents.email_render import render_email_html
 from app.agents.writer import generate_carousel_slides, generate_content
+from app.config import settings
 from app.models import ContentImage, ContentItem, ContentStatus, ContentType
 from app.tools.trending import caption_and_tags
 
@@ -206,6 +207,9 @@ async def produce_content(
     fmt = (fmt or "static").lower()
     fmt = resolve_format(content_type, fmt, with_image=with_image)
     style = image_style or "modern_gradient"
+    # Default post/calendar imagery to the configured image model (MAI-Image-2.5)
+    # for premium, on-brand, text-free visuals.
+    image_provider = image_provider or settings.default_post_image_provider
     text_provider = provider_for(provider)
     want_image = _wants_image(
         fmt=fmt, content_type=content_type, platform=platform, with_image=with_image

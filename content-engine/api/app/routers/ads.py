@@ -28,15 +28,27 @@ from app.schemas import (
     AdAccountCreate,
     AdAccountOut,
     AdAccountUpdate,
+    CampaignDraftUpdateRequest,
     CampaignGenerateRequest,
+    CampaignLaunchOut,
     CampaignMetricsOut,
     CampaignOut,
+    CampaignStatusSyncOut,
+    CampaignValidateOut,
+    ConnectionStatusOut,
     OAuthStartOut,
     PlatformOverview,
     QuickConnectRequest,
+    ValidationErrorItem,
 )
 from app.services import ads_metrics, oauth
 from app.services.ads_connectors import PLATFORM_LABELS, discover_google_accounts
+from app.services.ads_launcher import (
+    check_connection,
+    launch_campaign,
+    sync_campaign_status,
+    validate_campaign_draft,
+)
 from app.services.token_vault import (
     get_account_token,
     set_account_token,
@@ -557,7 +569,7 @@ async def update_status(
     return _campaign_out(campaign, platform)
 
 
-@router.delete("/campaigns/{campaign_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/campaigns/{campaign_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_campaign(
     campaign_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),
@@ -683,3 +695,230 @@ async def optimize(
     await db.commit()
     await db.refresh(campaign)
     return _campaign_out(campaign, platform)
+
+
+# ---------------------------------------------------------------- connection status
+
+
+@router.get("/{platform}/connection", response_model=ConnectionStatusOut)
+async def connection_status(
+    platform: str,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> ConnectionStatusOut:
+    """Per-workspace connection check for an ad platform.
+
+    Returns ``connected``, ``can_launch``, and honest status when credentials
+    are missing or the platform OAuth app is not configured.
+
+    Also recognises credentials stored via the integrations catalog
+    (provider ids ``google_ads`` / ``meta``).
+    """
+    if platform not in PLATFORMS:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unsupported ad platform")
+    account = (
+        await db.execute(
+            select(AdAccount).where(
+                AdAccount.workspace_id == ctx.workspace.id,
+                AdAccount.platform == AdPlatform(platform),
+            )
+        )
+    ).scalars().first()
+    result = check_connection(account)
+
+    # Fallback: if not connected via AdAccount, check the integrations catalog.
+    if not result.get("connected"):
+        from app.models import Integration  # local to avoid circular imports
+
+        catalog_provider = {"google_ads": "google_ads", "meta_ads": "meta"}.get(platform)
+        if catalog_provider:
+            row = (
+                await db.execute(
+                    select(Integration).where(
+                        Integration.workspace_id == ctx.workspace.id,
+                        Integration.provider == catalog_provider,
+                        Integration.status == "connected",
+                    )
+                )
+            ).scalar_one_or_none()
+            if row is not None:
+                result = {
+                    **result,
+                    "connected": True,
+                    "has_credentials": True,
+                    "status": "connected_via_catalog",
+                    "message": (
+                        f"{PLATFORM_LABELS.get(platform, platform)} credentials "
+                        "available via the integrations catalog."
+                    ),
+                }
+
+    return ConnectionStatusOut(**result)
+
+
+# ---------------------------------------------------------------- validate draft
+
+
+@router.post("/campaigns/{campaign_id}/validate", response_model=CampaignValidateOut)
+async def validate_draft(
+    campaign_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> CampaignValidateOut:
+    """Validate a campaign draft against platform rules (budget, RSA asset counts,
+    Performance Max asset groups, Ad Grants constraints). Returns errors/warnings."""
+    campaign = await db.get(Campaign, campaign_id)
+    if campaign is None or campaign.workspace_id != ctx.workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Campaign not found")
+    account = await db.get(AdAccount, campaign.ad_account_id)
+    if account is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Ad account not found")
+
+    issues = validate_campaign_draft(campaign, account)
+    errors = [ValidationErrorItem(**e.dict()) for e in issues if e.severity == "error"]
+    warnings = [ValidationErrorItem(**e.dict()) for e in issues if e.severity == "warning"]
+    return CampaignValidateOut(valid=len(errors) == 0, errors=errors, warnings=warnings)
+
+
+# ---------------------------------------------------------------- update draft
+
+
+@router.patch("/campaigns/{campaign_id}/draft", response_model=CampaignOut)
+async def update_draft(
+    campaign_id: uuid.UUID,
+    data: CampaignDraftUpdateRequest,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> CampaignOut:
+    """Update a draft campaign's editable fields before launch."""
+    campaign = await db.get(Campaign, campaign_id)
+    if campaign is None or campaign.workspace_id != ctx.workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Campaign not found")
+    if campaign.external_id:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Cannot edit a campaign that has been launched. Mutate it on the platform directly.",
+        )
+
+    if data.name is not None:
+        campaign.name = data.name.strip()[:300]
+    if data.objective is not None:
+        campaign.objective = data.objective.strip()[:120] or None
+    if data.daily_budget is not None:
+        campaign.daily_budget = data.daily_budget
+    if data.plan is not None:
+        campaign.plan = {**(campaign.plan or {}), **data.plan}
+    if data.assets is not None:
+        campaign.assets = {**(campaign.assets or {}), **data.assets}
+
+    await db.flush()
+    await db.commit()
+    await db.refresh(campaign)
+    platform = await _platform_for_account(db, campaign.ad_account_id)
+    return _campaign_out(campaign, platform)
+
+
+# ---------------------------------------------------------------- launch
+
+
+@router.post("/campaigns/{campaign_id}/launch", response_model=CampaignLaunchOut)
+async def launch(
+    campaign_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> CampaignLaunchOut:
+    """Launch a draft campaign to the real ad platform.
+
+    When credentials are present: performs a real API write (Google Ads / Meta Ads),
+    stores the returned platform ID, and transitions the campaign to ``active``.
+
+    When credentials are missing: returns ``success: false`` with honest
+    ``not_connected`` / ``awaiting_credentials`` status. NEVER fabricates a
+    campaign ID.
+    """
+    campaign = await db.get(Campaign, campaign_id)
+    if campaign is None or campaign.workspace_id != ctx.workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Campaign not found")
+    if campaign.external_id:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Campaign already launched (platform ID: {campaign.external_id}).",
+        )
+
+    account = await db.get(AdAccount, campaign.ad_account_id)
+    if account is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Ad account not found")
+
+    result = await launch_campaign(campaign, account)
+
+    if result["success"]:
+        campaign.external_id = result["external_id"]
+        campaign.platform_status = result.get("platform_status")
+        campaign.status = CampaignStatus.active
+        campaign.launch_error = None
+        campaign.launched_at = datetime.now(timezone.utc)
+        # Store platform-side metadata in plan
+        campaign.plan = {
+            **(campaign.plan or {}),
+            "platform_status": result.get("platform_status"),
+            "launched_at": campaign.launched_at.isoformat(),
+        }
+        await db.flush()
+        await db.commit()
+        await db.refresh(campaign)
+        platform = account.platform.value
+        return CampaignLaunchOut(
+            success=True,
+            external_id=result["external_id"],
+            platform_status=result.get("platform_status"),
+            detail=result.get("detail"),
+            warnings=[ValidationErrorItem(**w) for w in result.get("warnings", [])],
+            campaign=_campaign_out(campaign, platform),
+        )
+    else:
+        campaign.launch_error = result.get("detail")
+        await db.flush()
+        await db.commit()
+        await db.refresh(campaign)
+        return CampaignLaunchOut(
+            success=False,
+            error=result.get("error"),
+            detail=result.get("detail"),
+            validation_errors=[
+                ValidationErrorItem(**ve) for ve in result.get("validation_errors", [])
+            ],
+        )
+
+
+# ---------------------------------------------------------------- sync platform status
+
+
+@router.post(
+    "/campaigns/{campaign_id}/sync-status", response_model=CampaignStatusSyncOut
+)
+async def sync_platform_status(
+    campaign_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> CampaignStatusSyncOut:
+    """Pull real campaign status from the ad platform.
+
+    When connected: queries the live API and updates ``platform_status``.
+    When not connected: returns the last-known status honestly.
+    """
+    campaign = await db.get(Campaign, campaign_id)
+    if campaign is None or campaign.workspace_id != ctx.workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Campaign not found")
+
+    account = await db.get(AdAccount, campaign.ad_account_id)
+    if account is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Ad account not found")
+
+    result = await sync_campaign_status(campaign, account)
+
+    if result.get("synced"):
+        campaign.platform_status = result["status"]
+        await db.flush()
+        await db.commit()
+
+    return CampaignStatusSyncOut(**result)

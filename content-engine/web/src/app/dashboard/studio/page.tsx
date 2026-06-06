@@ -50,15 +50,21 @@ import EditNoteIcon from '@mui/icons-material/EditNote';
 import CheckCircleIcon from '@mui/icons-material/CheckCircleRounded';
 import MovieCreationOutlinedIcon from '@mui/icons-material/MovieCreationOutlined';
 import GraphicEqIcon from '@mui/icons-material/GraphicEq';
+import HistoryIcon from '@mui/icons-material/History';
+import DescriptionIcon from '@mui/icons-material/Description';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import SendIcon from '@mui/icons-material/Send';
 import { useAuth } from '@/lib/auth';
 import {
   Content,
+  ContentOptimize,
   Images,
   Videos,
   Brand,
   Calendar,
   assetUrl,
   downloadImage,
+  imageUrl,
   videoUrl,
   AI_MODELS,
   IMAGE_MODELS,
@@ -69,6 +75,7 @@ import {
   VIDEO_STYLES,
   VIDEO_VISUALS,
   type ContentItem,
+  type ContentImage,
   type ContentCalendar,
   type CalendarEntry,
   type ContentVideo,
@@ -81,6 +88,12 @@ import {
 import { useAIModels } from '@/lib/useAIModels';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { BRAND } from '@/theme/theme';
+import SerpEditor from './SerpEditor';
+import RepurposeDialog from './RepurposeDialog';
+import TemplatesDialog from './TemplatesDialog';
+import RichTextEditor from './RichTextEditor';
+import { VersionHistoryDrawer, ContentBriefPanel, ReviewQueuePanel, FanOutDialog } from './EnterprisePanels';
+import CollabPanel from '@/components/CollabPanel';
 
 /* ============================ format model ============================ */
 
@@ -338,6 +351,7 @@ const PANEL_SHADOW = '0 1px 3px rgba(0,0,0,0.04), 0 6px 24px rgba(0,0,0,0.06)';
 const PANEL_RADIUS = 5; // 20px
 const TRANSITION = 'all .18s cubic-bezier(.4,0,.2,1)';
 const INK_STUDIO = BRAND.ink;
+const SUBTLE = '#6B7280';
 
 /* ============================ create studio ============================ */
 
@@ -626,6 +640,169 @@ function CalendarComposer({
   );
 }
 
+function ImageGenerator() {
+  const [prompt, setPrompt] = useState('');
+  const [style, setStyle] = useState<string>(IMAGE_STYLES[0].id);
+  const [provider, setProvider] = useState<string>(IMAGE_MODELS[0].id);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+  const [images, setImages] = useState<ContentImage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
+
+  useEffect(() => {
+    let cancelled = false;
+    Images.list()
+      .then((imgs) => { if (!cancelled) setImages(imgs); })
+      .catch(() => { /* ignore */ })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const generate = async () => {
+    if (!prompt.trim() || generating) return;
+    setGenerating(true);
+    setError('');
+    try {
+      const img = await Images.generate({ prompt: prompt.trim(), style, provider });
+      setImages((prev) => [img, ...prev]);
+      setPrompt('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Image generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const remove = async (img: ContentImage) => {
+    const ok = await confirm({
+      title: 'Delete image?',
+      message: 'This permanently removes the generated image.',
+      confirmText: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await Images.remove(img.id);
+      setImages((prev) => prev.filter((x) => x.id !== img.id));
+    } catch { /* ignore */ }
+  };
+
+  const canGenerate = !!prompt.trim() && !generating;
+
+  return (
+    <Box>
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2, md: 2.5 },
+          borderRadius: '20px',
+          border: '1.5px solid rgba(15,17,22,0.08)',
+          boxShadow: '0 10px 34px rgba(15,17,22,0.06)',
+        }}
+      >
+        <TextField
+          fullWidth
+          multiline
+          minRows={2}
+          maxRows={5}
+          placeholder="Describe the image — e.g. 'a serene mountain landscape at sunrise, soft pastel palette'"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') generate(); }}
+          variant="standard"
+          InputProps={{ disableUnderline: true, sx: { fontSize: 16, fontWeight: 500, color: INK_STUDIO } }}
+          sx={{ mb: 1.5 }}
+        />
+
+        <Divider sx={{ my: 1.5 }} />
+
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
+          <TextField
+            select size="small" label="Style" value={style}
+            onChange={(e) => setStyle(e.target.value)}
+            sx={{ flex: '1 1 160px', minWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
+          >
+            {IMAGE_STYLES.map((s) => <MenuItem key={s.id} value={s.id}>{s.label}</MenuItem>)}
+          </TextField>
+          <TextField
+            select size="small" label="Model" value={provider}
+            onChange={(e) => setProvider(e.target.value)}
+            sx={{ flex: '1 1 180px', minWidth: 180, '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
+          >
+            {IMAGE_MODELS.map((m) => <MenuItem key={m.id} value={m.id}>{m.label}</MenuItem>)}
+          </TextField>
+          <Button
+            onClick={generate}
+            disabled={!canGenerate}
+            variant="contained"
+            startIcon={generating ? <CircularProgress size={15} color="inherit" /> : <ImageIcon />}
+            sx={{
+              fontWeight: 800,
+              fontSize: 14,
+              px: 2.5, py: 1.05,
+              borderRadius: '12px',
+              textTransform: 'none',
+              flexShrink: 0,
+              background: canGenerate ? `linear-gradient(135deg,${BRAND.amberDeep},${BRAND.tealDeep})` : undefined,
+              boxShadow: canGenerate ? '0 6px 18px rgba(255,175,6,0.28)' : undefined,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {generating ? 'Generating…' : 'Generate'}
+          </Button>
+        </Box>
+
+        <Typography sx={{ mt: 1.25, fontSize: 12, color: 'text.disabled' }}>
+          Brand-ready visuals rendered from your prompt.{generating ? ' This takes a few seconds.' : ' ⌘↵ to generate.'}
+        </Typography>
+        {error && <Alert severity="error" sx={{ mt: 1.5, borderRadius: '12px' }}>{error}</Alert>}
+      </Paper>
+
+      {/* generated images */}
+      <Box sx={{ mt: 3 }}>
+        <Typography sx={{ fontSize: 15, fontWeight: 800, color: INK_STUDIO, mb: 1.5 }}>Your images</Typography>
+        {loading ? (
+          <Box sx={{ display: 'grid', placeItems: 'center', py: 5 }}><CircularProgress size={24} /></Box>
+        ) : images.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 5, border: '1.5px dashed rgba(15,17,22,0.12)', borderRadius: '18px', color: 'text.secondary' }}>
+            <ImageIcon sx={{ fontSize: 28, opacity: 0.5, mb: 1 }} />
+            <Typography sx={{ fontSize: 13.5 }}>No images yet — describe one above to generate it.</Typography>
+          </Box>
+        ) : (
+          <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(3,1fr)', lg: 'repeat(4,1fr)' } }}>
+            {images.map((img) => (
+              <Box key={img.id} sx={{ borderRadius: '18px', overflow: 'hidden', border: '1.5px solid rgba(15,17,22,0.08)', bgcolor: '#fff', position: 'relative' }}>
+                <Box sx={{ position: 'relative', aspectRatio: '1 / 1', bgcolor: '#0b0d10' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageUrl(img)}
+                    alt={img.prompt || 'Generated image'}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                </Box>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.25, py: 1 }}>
+                  <Typography noWrap sx={{ fontSize: 11.5, color: SUBTLE, minWidth: 0, flex: 1 }}>
+                    {IMAGE_STYLES.find((s) => s.id === img.style)?.label || img.style || 'Image'}
+                  </Typography>
+                  <Stack direction="row" spacing={0.5}>
+                    <IconButton size="small" onClick={() => downloadImage(imageUrl(img), `image-${img.id}.png`)}>
+                      <DownloadIcon sx={{ fontSize: 17 }} />
+                    </IconButton>
+                    <IconButton size="small" onClick={() => remove(img)}>
+                      <DeleteOutlineIcon sx={{ fontSize: 17 }} />
+                    </IconButton>
+                  </Stack>
+                </Stack>
+              </Box>
+            ))}
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
 function CreateStudio({
   provider,
   list,
@@ -636,6 +813,7 @@ function CreateStudio({
   onPreview,
   onCreated,
   onDelete,
+  onRepurpose,
 }: {
   provider: string;
   list: ContentItem[];
@@ -646,10 +824,11 @@ function CreateStudio({
   onPreview: (item: ContentItem) => void;
   onCreated: (items: ContentItem[]) => void;
   onDelete: (item: ContentItem) => void;
+  onRepurpose?: (item: ContentItem) => void;
 }) {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
-  const [mode, setMode] = useState<'prompt' | 'calendar' | 'video'>(initialMode);
+  const [mode, setMode] = useState<'prompt' | 'calendar' | 'video' | 'images'>(initialMode);
 
   const [contentType, setContentType] = useState('social_post');
   const [platform, setPlatform] = useState('linkedin');
@@ -752,6 +931,7 @@ function CreateStudio({
             <ToggleButton value="prompt"><EditNoteIcon sx={{ fontSize: 18 }} />New prompt</ToggleButton>
             <ToggleButton value="calendar"><CalendarMonthIcon sx={{ fontSize: 17 }} />From calendar</ToggleButton>
             <ToggleButton value="video"><MovieCreationOutlinedIcon sx={{ fontSize: 17 }} />AI video</ToggleButton>
+            <ToggleButton value="images"><ImageIcon sx={{ fontSize: 17 }} />AI Images</ToggleButton>
           </ToggleButtonGroup>
         </Stack>
 
@@ -759,6 +939,8 @@ function CreateStudio({
           <CalendarComposer provider={provider} initialCalId={initialCalId} initialDate={initialDate} onPreview={onPreview} onCreated={onCreated} />
         ) : mode === 'video' ? (
           <VideoComposer />
+        ) : mode === 'images' ? (
+          <ImageGenerator />
         ) : (
         <Box>
         {/* format quick-pick */}
@@ -923,7 +1105,7 @@ function CreateStudio({
           </Box>
         ) : (
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3,1fr)', lg: 'repeat(4,1fr)' } }}>
-            {list.map((c) => <LibraryCard key={c.id} item={c} onOpen={() => onPreview(c)} onDelete={() => onDelete(c)} />)}
+            {list.map((c) => <LibraryCard key={c.id} item={c} onOpen={() => onPreview(c)} onDelete={() => onDelete(c)} onRepurpose={onRepurpose ? () => onRepurpose(c) : undefined} />)}
           </Box>
         )}
       </Box>
@@ -1156,7 +1338,12 @@ function VideoComposer() {
           </Box>
         ) : (
           <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(3,1fr)', lg: 'repeat(4,1fr)' } }}>
-            {videos.map((v) => <VideoCard key={v.id} video={v} onDelete={() => remove(v)} />)}
+            {videos.map((v) => <VideoCard key={v.id} video={v} onDelete={() => remove(v)} onRegenerate={async () => {
+              try {
+                const updated = await Videos.regenerate(v.id, {});
+                setVideos((prev) => prev.map((x) => x.id === v.id ? updated : x));
+              } catch { /* ignore */ }
+            }} />)}
           </Box>
         )}
       </Box>
@@ -1164,7 +1351,7 @@ function VideoComposer() {
   );
 }
 
-function VideoCard({ video, onDelete }: { video: ContentVideo; onDelete: () => void }) {
+function VideoCard({ video, onDelete, onRegenerate }: { video: ContentVideo; onDelete: () => void; onRegenerate?: () => void }) {
   const portrait = (video.height ?? 1920) >= (video.width ?? 1080);
   const fmtLabel = VIDEO_FORMATS.find((f) => f.value === video.fmt)?.label ?? video.fmt;
   const shortSide = Math.min(video.width ?? 0, video.height ?? 0);
@@ -1196,6 +1383,11 @@ function VideoCard({ video, onDelete }: { video: ContentVideo; onDelete: () => v
           <IconButton size="small" onClick={() => downloadImage(videoUrl(video), `video-${video.id}.mp4`)}>
             <DownloadIcon sx={{ fontSize: 17 }} />
           </IconButton>
+          {onRegenerate && (
+            <IconButton size="small" onClick={onRegenerate}>
+              <RefreshIcon sx={{ fontSize: 17 }} />
+            </IconButton>
+          )}
           <IconButton size="small" onClick={onDelete}>
             <DeleteOutlineIcon sx={{ fontSize: 17 }} />
           </IconButton>
@@ -1327,7 +1519,12 @@ function ScriptToVideo({ item }: { item: ContentItem }) {
           ) : videos.length > 0 ? (
             <Stack spacing={1.5} sx={{ mt: 0.5 }}>
               <Typography sx={{ fontSize: 12, fontWeight: 800, color: INK_STUDIO, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rendered videos</Typography>
-              {videos.map((v) => <VideoCard key={v.id} video={v} onDelete={() => remove(v)} />)}
+              {videos.map((v) => <VideoCard key={v.id} video={v} onDelete={() => remove(v)} onRegenerate={async () => {
+                try {
+                  const updated = await Videos.regenerate(v.id, {});
+                  setVideos((prev) => prev.map((x) => x.id === v.id ? updated : x));
+                } catch { /* ignore */ }
+              }} />)}
             </Stack>
           ) : null}
         </Stack>
@@ -1336,7 +1533,7 @@ function ScriptToVideo({ item }: { item: ContentItem }) {
   );
 }
 
-function LibraryCard({ item, onOpen, onDelete }: { item: ContentItem; onOpen: () => void; onDelete: () => void }) {
+function LibraryCard({ item, onOpen, onDelete, onRepurpose }: { item: ContentItem; onOpen: () => void; onDelete: () => void; onRepurpose?: () => void }) {
   const urls = assetUrls(item);
   const thumb = urls[0];
   const kind = deckKind(item);
@@ -1370,6 +1567,17 @@ function LibraryCard({ item, onOpen, onDelete }: { item: ContentItem; onOpen: ()
         <Box sx={{ position: 'absolute', top: 8, left: 8, px: 0.9, py: 0.3, borderRadius: 99, bgcolor: 'rgba(14,17,22,0.7)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 10.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.4 }}>
           {KIND_LABEL[kind]}{count > 1 ? ` · ${count}` : ''}
         </Box>
+        {onRepurpose && (
+          <IconButton
+            className="lib-del"
+            size="small"
+            onClick={(e) => { e.stopPropagation(); onRepurpose(); }}
+            sx={{ position: 'absolute', top: 6, right: 38, width: 28, height: 28, bgcolor: 'rgba(14,17,22,0.62)', color: '#fff', opacity: { xs: 1, lg: 0 }, transition: 'opacity .14s', '&:hover': { bgcolor: BRAND.tealDeep } }}
+            aria-label="repurpose"
+          >
+            <ShareOutlinedIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        )}
         <IconButton
           className="lib-del"
           size="small"
@@ -1512,7 +1720,7 @@ function MetaCell({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-type EditorTab = 'details' | 'design' | 'export';
+type EditorTab = 'details' | 'design' | 'export' | 'brief' | 'history' | 'collab';
 
 function StudioEditor({
   item,
@@ -1520,12 +1728,14 @@ function StudioEditor({
   onCopy,
   onRefresh,
   onDelete,
+  onFanOut,
 }: {
   item: ContentItem;
   onBack: () => void;
   onCopy: (text: string) => void;
   onRefresh: (updated: ContentItem) => void;
   onDelete: () => void;
+  onFanOut?: () => void;
 }) {
   const [brand, setBrand] = useState<BrandType | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1538,16 +1748,32 @@ function StudioEditor({
 
   const [tab, setTab] = useState<EditorTab>('details');
   const [title, setTitle] = useState(item.title || '');
-  const [slug, setSlug] = useState(slugify(item.title || ''));
+  const [slug, setSlug] = useState(() => {
+    const ms = (item.meta as Record<string, unknown> | null)?.slug;
+    return typeof ms === 'string' ? ms : slugify(item.title || '');
+  });
   const [desc, setDesc] = useState(item.body || '');
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
-  const [exclusive, setExclusive] = useState(false);
-  const [allowLikes, setAllowLikes] = useState(true);
-  const [scheduleOn, setScheduleOn] = useState(false);
-  const [scheduleDay, setScheduleDay] = useState<number | null>(new Date().getDate());
-  const [scheduleTime, setScheduleTime] = useState('09:00');
+  const [exclusive, setExclusive] = useState(!!((item.meta as Record<string, unknown> | null)?.exclusive));
+  const [allowLikes, setAllowLikes] = useState(((item.meta as Record<string, unknown> | null)?.allow_likes) !== false);
+  const [scheduleOn, setScheduleOn] = useState(item.status === 'scheduled' || !!((item.meta as Record<string, unknown> | null)?.scheduled_at));
+  const [scheduleDay, setScheduleDay] = useState<number | null>(() => {
+    const sa = (item.meta as Record<string, unknown> | null)?.scheduled_at;
+    return typeof sa === 'string' ? new Date(sa).getDate() : new Date().getDate();
+  });
+  const [scheduleTime, setScheduleTime] = useState<string>(() => {
+    const sa = (item.meta as Record<string, unknown> | null)?.scheduled_at;
+    if (typeof sa === 'string') {
+      const d = new Date(sa);
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+    return '09:00';
+  });
+
+  const [versionDrawerOpen, setVersionDrawerOpen] = useState(false);
+  const [provider] = useState<string>(AI_MODELS[0].id);
 
   const [instruction, setInstruction] = useState('');
   const [editBusy, setEditBusy] = useState(false);
@@ -1562,12 +1788,21 @@ function StudioEditor({
 
   useEffect(() => {
     setTitle(item.title || '');
-    setSlug(slugify(item.title || ''));
+    const meta = (item.meta || {}) as Record<string, unknown>;
+    setSlug(typeof meta.slug === 'string' ? meta.slug : slugify(item.title || ''));
     setDesc(item.body || '');
     setEmailFormat(item.email_format || 'html');
     setActiveIdx(0);
     setSavedAt(null);
-  }, [item.id, item.email_format, item.title, item.body]);
+    setExclusive(!!meta.exclusive);
+    setAllowLikes(meta.allow_likes !== false);
+    setScheduleOn(item.status === 'scheduled' || !!meta.scheduled_at);
+    if (typeof meta.scheduled_at === 'string') {
+      const d = new Date(meta.scheduled_at);
+      setScheduleDay(d.getDate());
+      setScheduleTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+    }
+  }, [item.id, item.email_format, item.title, item.body, item.meta, item.status]);
 
   const urls = assetUrls(item);
   const kind = deckKind(item);
@@ -1627,7 +1862,29 @@ function StudioEditor({
   const save = async () => {
     setSaving(true);
     try {
-      const updated = await Content.update(item.id, { title, body: desc });
+      const now = new Date();
+      let scheduledAt: string | null = null;
+      if (scheduleOn && scheduleDay) {
+        const d = new Date(now.getFullYear(), now.getMonth(), scheduleDay);
+        const [hh, mm] = scheduleTime.split(':');
+        d.setHours(Number(hh) || 9, Number(mm) || 0, 0, 0);
+        scheduledAt = d.toISOString();
+      }
+      const nextStatus = scheduleOn && scheduledAt ? 'scheduled' : undefined;
+      const mergedMeta = {
+        ...(item.meta || {}),
+        slug,
+        exclusive,
+        allow_likes: allowLikes,
+        scheduled_at: scheduledAt,
+        visibility: exclusive ? 'exclusive' : 'public',
+      };
+      const updated = await Content.update(item.id, {
+        title,
+        body: desc,
+        meta: mergedMeta,
+        ...(nextStatus ? { status: nextStatus } : {}),
+      });
       onRefresh(updated);
       setSavedAt(Date.now());
     } catch (e) {
@@ -1640,7 +1897,7 @@ function StudioEditor({
   const togglePublish = async () => {
     setPublishing(true);
     try {
-      const next = item.status === 'published' ? 'ready' : 'published';
+      const next = item.status === 'published' ? 'draft' : 'published';
       const updated = await Content.update(item.id, { status: next });
       onRefresh(updated);
     } catch (e) {
@@ -1660,7 +1917,7 @@ function StudioEditor({
     setSavedAt(Date.now());
   };
 
-  const dirty = title !== (item.title || '') || desc !== (item.body || '');
+  const dirty = title !== (item.title || '') || desc !== (item.body || '') || slug !== (typeof (item.meta as Record<string, unknown> | null)?.slug === 'string' ? (item.meta as Record<string, unknown>).slug : slugify(item.title || ''));
 
   // ----- metadata derivations -----
   const m = (item.meta || {}) as Record<string, unknown>;
@@ -1687,8 +1944,11 @@ function StudioEditor({
 
   const tabs: { id: EditorTab; label: string }[] = [
     { id: 'details', label: 'Details' },
+    { id: 'brief', label: 'Brief' },
     { id: 'design', label: 'Design' },
     { id: 'export', label: 'Export' },
+    { id: 'collab', label: 'Collaborate' },
+    { id: 'history', label: 'History' },
   ];
 
   // ----- preview hero by kind -----
@@ -1808,6 +2068,32 @@ function StudioEditor({
             <ListItemIcon><DownloadIcon fontSize="small" /></ListItemIcon>Download .md (copy)
           </MenuItem>
           <Divider />
+          <MenuItem onClick={async () => {
+            setMenuEl(null);
+            try {
+              const updated = await Content.update(item.id, { status: 'in_review' });
+              onRefresh(updated);
+            } catch { /* ignore */ }
+          }}>
+            <ListItemIcon><SendIcon fontSize="small" /></ListItemIcon>Submit for review
+          </MenuItem>
+          {item.status === 'approved' && (
+            <MenuItem onClick={async () => {
+              setMenuEl(null);
+              try {
+                const updated = await Content.unapprove(item.id);
+                onRefresh(updated);
+              } catch { /* ignore */ }
+            }}>
+              <ListItemIcon><RefreshIcon fontSize="small" /></ListItemIcon>Unapprove / Reopen
+            </MenuItem>
+          )}
+          {onFanOut && (
+            <MenuItem onClick={() => { setMenuEl(null); onFanOut(); }}>
+              <ListItemIcon><AutoAwesomeIcon fontSize="small" /></ListItemIcon>Fan out to channels
+            </MenuItem>
+          )}
+          <Divider />
           <MenuItem onClick={() => { setMenuEl(null); onDelete(); }} sx={{ color: 'error.main' }}>
             <ListItemIcon><DeleteOutlineIcon fontSize="small" color="error" /></ListItemIcon>Delete content
           </MenuItem>
@@ -1845,7 +2131,16 @@ function StudioEditor({
                     </Box>
                     <TextField label="Slug" size="small" fullWidth value={slug} onChange={(e) => setSlug(slugify(e.target.value))} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }} />
                     <Box>
-                      <TextField label="Description / body" size="small" fullWidth multiline minRows={5} value={desc} onChange={(e) => setDesc(e.target.value)} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }} />
+                      <RichTextEditor
+                        value={desc}
+                        onChange={setDesc}
+                        onInlineAI={async (text, command) => {
+                          const res = await ContentOptimize.inlineAI({ text, command, provider });
+                          return res.result;
+                        }}
+                        placeholder="Write your content body here…"
+                        minHeight={160}
+                      />
                       <Typography sx={{ fontSize: 10.5, color: 'text.secondary', textAlign: 'right', mt: 0.4 }}>{desc.trim().split(/\s+/).filter(Boolean).length} words</Typography>
                     </Box>
                     <Stack direction="row" spacing={1.25} alignItems="center">
@@ -1977,6 +2272,30 @@ function StudioEditor({
                 )}
               </Stack>
             )}
+
+            {tab === 'brief' && (
+              <ContentBriefPanel item={item} provider={provider} />
+            )}
+
+            {tab === 'history' && (
+              <Stack spacing={2}>
+                <EditorSection title="Version History" subtitle="View and restore previous versions of this content">
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    startIcon={<HistoryIcon />}
+                    onClick={() => setVersionDrawerOpen(true)}
+                    sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', borderColor: 'rgba(15,17,22,0.15)', color: INK_STUDIO }}
+                  >
+                    Open Version History
+                  </Button>
+                </EditorSection>
+              </Stack>
+            )}
+
+            {tab === 'collab' && (
+              <CollabPanel entityType="content" entityId={item.id} />
+            )}
           </Box>
         </Box>
 
@@ -2029,6 +2348,12 @@ function StudioEditor({
           )}
         </Box>
       </Box>
+      <VersionHistoryDrawer
+        open={versionDrawerOpen}
+        onClose={() => setVersionDrawerOpen(false)}
+        item={item}
+        onRestore={(updated) => { onRefresh(updated); setDesc(updated.body || ''); setTitle(updated.title || ''); }}
+      />
     </Box>
   );
 }
@@ -2049,6 +2374,13 @@ function StudioContent() {
   const [preview, setPreview] = useState<ContentItem | null>(null);
   const [list, setList] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [serpOpen, setSerpOpen] = useState(false);
+  const [repurposeOpen, setRepurposeOpen] = useState(false);
+  const [repurposeItem, setRepurposeItem] = useState<ContentItem | null>(null);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [reviewQueueOpen, setReviewQueueOpen] = useState(false);
+  const [fanOutOpen, setFanOutOpen] = useState(false);
+  const [fanOutItem, setFanOutItem] = useState<ContentItem | null>(null);
 
   const copy = useMemo(() => (text: string) => { navigator.clipboard.writeText(text); }, []);
 
@@ -2110,6 +2442,7 @@ function StudioContent() {
         onCopy={copy}
         onRefresh={onRefresh}
         onDelete={() => remove(preview)}
+        onFanOut={() => { setFanOutItem(preview); setFanOutOpen(true); }}
       />
     );
   }
@@ -2124,21 +2457,57 @@ function StudioContent() {
             A real editor for your brand — generate, preview, fine-tune images, and export.
           </Typography>
         </Box>
-        <TextField
-          select
-          size="small"
-          label="AI model"
-          value={provider}
-          onChange={(e) => setProvider(e.target.value)}
-          sx={{
-            minWidth: 200,
-            '& .MuiOutlinedInput-root': { borderRadius: 3 },
-          }}
-        >
-          {aiModels.map((m) => (
-            <MenuItem key={m.id} value={m.id}>{m.label}</MenuItem>
-          ))}
-        </TextField>
+        <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
+          <Button
+            size="small"
+            onClick={() => setSerpOpen(true)}
+            sx={{
+              borderRadius: '999px', textTransform: 'none', fontWeight: 700, px: 2, py: 0.7,
+              color: BRAND.tealDeep, background: BRAND.tealSoft,
+              '&:hover': { background: '#cdf5e5' },
+            }}
+          >
+            SERP Editor
+          </Button>
+          <Button
+            size="small"
+            onClick={() => setTemplatesOpen(true)}
+            sx={{
+              borderRadius: '999px', textTransform: 'none', fontWeight: 700, px: 2, py: 0.7,
+              color: BRAND.amberDeep, background: BRAND.amberSoft,
+              '&:hover': { background: '#ffecb3' },
+            }}
+          >
+            Templates
+          </Button>
+          <Button
+            size="small"
+            onClick={() => setReviewQueueOpen(true)}
+            startIcon={<AssignmentIcon sx={{ fontSize: 15 }} />}
+            sx={{
+              borderRadius: '999px', textTransform: 'none', fontWeight: 700, px: 2, py: 0.7,
+              color: '#7C3AED', background: '#F3E8FF',
+              '&:hover': { background: '#E9D5FF' },
+            }}
+          >
+            Review Queue
+          </Button>
+          <TextField
+            select
+            size="small"
+            label="AI model"
+            value={provider}
+            onChange={(e) => setProvider(e.target.value)}
+            sx={{
+              minWidth: 200,
+              '& .MuiOutlinedInput-root': { borderRadius: 3 },
+            }}
+          >
+            {aiModels.map((m) => (
+              <MenuItem key={m.id} value={m.id}>{m.label}</MenuItem>
+            ))}
+          </TextField>
+        </Stack>
       </Stack>
 
       <CreateStudio
@@ -2148,9 +2517,52 @@ function StudioContent() {
         initialMode={initialMode}
         initialCalId={initialCalId}
         initialDate={initialDate}
-        onPreview={setPreview}
+        onPreview={(item) => setPreview(item)}
         onCreated={onCreated}
         onDelete={remove}
+        onRepurpose={(item) => { setRepurposeItem(item); setRepurposeOpen(true); setFanOutItem(item); }}
+      />
+
+      {/* Enterprise dialogs */}
+      <SerpEditor
+        open={serpOpen}
+        onClose={() => setSerpOpen(false)}
+        initialText=""
+        initialKeyword=""
+        provider={provider}
+        onSave={(text) => {
+          Content.createDraft({ title: 'SEO draft', body: text })
+            .then((created) => {
+              setList((cur) => [created, ...cur]);
+              setSerpOpen(false);
+            })
+            .catch(() => {});
+        }}
+      />
+      <RepurposeDialog
+        open={repurposeOpen}
+        onClose={() => { setRepurposeOpen(false); setRepurposeItem(null); }}
+        item={repurposeItem}
+        provider={provider}
+        onSaved={refresh}
+      />
+      <TemplatesDialog
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+        provider={provider}
+        onGenerated={() => refresh()}
+      />
+      <ReviewQueuePanel
+        open={reviewQueueOpen}
+        onClose={() => setReviewQueueOpen(false)}
+        onOpenItem={(item) => { setPreview(item); setReviewQueueOpen(false); }}
+      />
+      <FanOutDialog
+        open={fanOutOpen}
+        onClose={() => { setFanOutOpen(false); setFanOutItem(null); }}
+        item={fanOutItem}
+        provider={provider}
+        onCreated={(items) => { setList((cur) => [...items, ...cur]); }}
       />
     </Stack>
   );

@@ -33,6 +33,19 @@ import {
   type IntegrationStatus,
   type IntegrationOAuthStart,
 } from '@/lib/api';
+
+// Extended catalog entry with multi-field support from the API.
+interface CatalogField {
+  key: string;
+  label: string;
+  secret?: boolean;
+  required?: boolean;
+  placeholder?: string;
+}
+interface ExtendedCatalogEntry extends IntegrationCatalogEntry {
+  description?: string | null;
+  fields?: CatalogField[] | null;
+}
 import { useConfirm } from '@/components/ConfirmDialog';
 import {
   PremiumDialog,
@@ -83,7 +96,7 @@ export default function IntegrationsPage() {
   const confirm = useConfirm();
 
   const [integrations, setIntegrations] = useState<Integration[]>([]);
-  const [catalog, setCatalog] = useState<IntegrationCatalogEntry[]>([]);
+  const [catalog, setCatalog] = useState<ExtendedCatalogEntry[]>([]);
   const [health, setHealth] = useState<IntegrationHealth | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -91,10 +104,11 @@ export default function IntegrationsPage() {
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; severity: 'success' | 'error' } | null>(null);
 
-  const [dialogEntry, setDialogEntry] = useState<IntegrationCatalogEntry | null>(null);
+  const [dialogEntry, setDialogEntry] = useState<ExtendedCatalogEntry | null>(null);
   const [tokenValue, setTokenValue] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [shopDomain, setShopDomain] = useState('');
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
 
   const load = () => {
     if (!activeWorkspace) return;
@@ -102,7 +116,7 @@ export default function IntegrationsPage() {
     Promise.all([Integrations.list(), Integrations.catalog(), Integrations.health()])
       .then(([list, cat, h]) => {
         setIntegrations(list);
-        setCatalog(cat);
+        setCatalog(cat as ExtendedCatalogEntry[]);
         setHealth(h);
       })
       .catch(() => {
@@ -125,7 +139,7 @@ export default function IntegrationsPage() {
   };
 
   const grouped = useMemo(() => {
-    const map = new Map<string, IntegrationCatalogEntry[]>();
+    const map = new Map<string, ExtendedCatalogEntry[]>();
     for (const entry of catalog) {
       const arr = map.get(entry.category) ?? [];
       arr.push(entry);
@@ -139,11 +153,12 @@ export default function IntegrationsPage() {
     setTokenValue('');
     setDisplayName('');
     setShopDomain('');
+    setFieldValues({});
   };
 
   const doConnect = async (
-    entry: IntegrationCatalogEntry,
-    extra?: { api_key?: string; access_token?: string; display_name?: string },
+    entry: ExtendedCatalogEntry,
+    extra?: { api_key?: string; access_token?: string; display_name?: string; config?: Record<string, unknown> },
   ) => {
     setConnectingProvider(entry.provider);
     try {
@@ -164,7 +179,7 @@ export default function IntegrationsPage() {
 
   // Real OAuth: ask the API for the provider authorization URL, open it in a
   // popup, and refetch once the popup signals completion (or closes).
-  const startOAuth = async (entry: IntegrationCatalogEntry) => {
+  const startOAuth = async (entry: ExtendedCatalogEntry) => {
     setConnectingProvider(entry.provider);
     try {
       const config: Record<string, unknown> = {};
@@ -225,19 +240,54 @@ export default function IntegrationsPage() {
     }
   };
 
-  const handleConnectClick = (entry: IntegrationCatalogEntry) => {
+  const handleConnectClick = (entry: ExtendedCatalogEntry) => {
     if (entry.manual_connect || entry.oauth) {
       setDialogEntry(entry);
       setTokenValue('');
       setDisplayName('');
       setShopDomain('');
+      setFieldValues({});
       return;
     }
     void doConnect(entry);
   };
 
   const handleManualSubmit = () => {
-    if (!dialogEntry || !tokenValue.trim()) return;
+    if (!dialogEntry) return;
+
+    const hasFields = dialogEntry.fields && dialogEntry.fields.length > 0;
+
+    if (hasFields) {
+      const fields = dialogEntry.fields!;
+      // Identify the primary token field (first secret+required field, or first field).
+      const primaryField =
+        fields.find((f) => f.secret && f.required) ?? fields[0];
+      const primaryValue = (fieldValues[primaryField.key] ?? '').trim();
+      if (!primaryValue) return;
+
+      // Check all required fields are filled.
+      for (const f of fields) {
+        if (f.required && !(fieldValues[f.key] ?? '').trim()) return;
+      }
+
+      // Build config from non-primary fields.
+      const config: Record<string, string> = {};
+      for (const f of fields) {
+        if (f.key === primaryField.key) continue;
+        const v = (fieldValues[f.key] ?? '').trim();
+        if (v) config[f.key] = v;
+      }
+
+      void doConnect(dialogEntry, {
+        access_token: primaryValue,
+        display_name: displayName.trim() || undefined,
+        config,
+      });
+      return;
+    }
+
+    // Legacy single-token flow.
+    if (!tokenValue.trim()) return;
     const key = tokenValue.trim();
     const extra =
       dialogEntry.oauth
@@ -454,6 +504,9 @@ export default function IntegrationsPage() {
                     >
                       {entries.map((entry) => {
                         const unavailable = entry.oauth && !entry.configured && !entry.manual_connect;
+                        const connectedRow = integrations.find(
+                          (i) => i.provider === entry.provider && i.status === 'connected',
+                        );
                         return (
                           <Box
                             key={entry.provider}
@@ -474,15 +527,39 @@ export default function IntegrationsPage() {
                               <Box sx={{ width: 40, height: 40, borderRadius: '11px', flexShrink: 0, display: 'grid', placeItems: 'center', color: INK, bgcolor: CHIP_BG }}>
                                 <ExtensionIcon sx={{ fontSize: 20 }} />
                               </Box>
-                              <Box sx={{ minWidth: 0 }}>
-                                <Typography sx={{ fontWeight: 700, color: INK }} noWrap>
-                                  {entry.label}
-                                </Typography>
+                              <Box sx={{ minWidth: 0, flex: 1 }}>
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                  <Typography sx={{ fontWeight: 700, color: INK }} noWrap>
+                                    {entry.label}
+                                  </Typography>
+                                  {connectedRow && (
+                                    <Chip
+                                      label="Connected"
+                                      size="small"
+                                      sx={{
+                                        height: 20,
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        color: BRAND.tealDeep,
+                                        bgcolor: BRAND.tealSoft,
+                                        border: 'none',
+                                      }}
+                                    />
+                                  )}
+                                </Stack>
                                 <Typography sx={{ mt: 0.25, fontSize: 12, fontWeight: 600, color: SUBTLE }}>
                                   {titleCase(entry.category)}
                                 </Typography>
                               </Box>
                             </Stack>
+                            {entry.description && (
+                              <Typography
+                                variant="body2"
+                                sx={{ mt: 1.25, fontSize: 12, color: SUBTLE, lineHeight: 1.5 }}
+                              >
+                                {entry.description}
+                              </Typography>
+                            )}
                             <Box sx={{ flex: 1 }} />
                             <Box sx={{ mt: 2 }}>
                               {unavailable ? (
@@ -653,7 +730,7 @@ export default function IntegrationsPage() {
       )}
 
       {/* Manual connect dialog */}
-      <PremiumDialog open={!!dialogEntry} onClose={closeDialog} maxWidth="xs">
+      <PremiumDialog open={!!dialogEntry} onClose={closeDialog} maxWidth="sm">
         <DialogHero
           icon={<LinkRoundedIcon />}
           title={`Connect ${dialogEntry?.label ?? ''}`.trim()}
@@ -706,9 +783,16 @@ export default function IntegrationsPage() {
             <Box>
               <SectionLabel>Credentials</SectionLabel>
               <Stack spacing={2}>
-                <Typography variant="body2" sx={{ color: SUBTLE }}>
-                  Enter your credentials to connect this provider. They are stored securely in your workspace.
-                </Typography>
+                {dialogEntry?.description && (
+                  <Typography variant="body2" sx={{ color: SUBTLE }}>
+                    {dialogEntry.description}
+                  </Typography>
+                )}
+                {!dialogEntry?.description && (
+                  <Typography variant="body2" sx={{ color: SUBTLE }}>
+                    Enter your credentials to connect this provider. They are stored securely in your workspace.
+                  </Typography>
+                )}
                 <TextField
                   label="Display name (optional)"
                   placeholder={dialogEntry?.label}
@@ -716,14 +800,31 @@ export default function IntegrationsPage() {
                   onChange={(e) => setDisplayName(e.target.value)}
                   fullWidth
                 />
-                <TextField
-                  label={dialogEntry?.token_label ?? 'API key'}
-                  value={tokenValue}
-                  onChange={(e) => setTokenValue(e.target.value)}
-                  fullWidth
-                  required
-                  type="password"
-                />
+                {dialogEntry?.fields && dialogEntry.fields.length > 0 ? (
+                  dialogEntry.fields.map((f) => (
+                    <TextField
+                      key={f.key}
+                      label={f.label}
+                      placeholder={f.placeholder ?? undefined}
+                      value={fieldValues[f.key] ?? ''}
+                      onChange={(e) =>
+                        setFieldValues((prev) => ({ ...prev, [f.key]: e.target.value }))
+                      }
+                      fullWidth
+                      required={f.required !== false}
+                      type={f.secret ? 'password' : 'text'}
+                    />
+                  ))
+                ) : (
+                  <TextField
+                    label={dialogEntry?.token_label ?? 'API key'}
+                    value={tokenValue}
+                    onChange={(e) => setTokenValue(e.target.value)}
+                    fullWidth
+                    required
+                    type="password"
+                  />
+                )}
               </Stack>
             </Box>
           </Stack>
@@ -734,7 +835,14 @@ export default function IntegrationsPage() {
           </Button>
           <Button
             onClick={handleManualSubmit}
-            disabled={connectingProvider !== null || !tokenValue.trim()}
+            disabled={
+              connectingProvider !== null ||
+              (dialogEntry?.fields && dialogEntry.fields.length > 0
+                ? dialogEntry.fields.some(
+                    (f) => f.required !== false && !(fieldValues[f.key] ?? '').trim(),
+                  )
+                : !tokenValue.trim())
+            }
             startIcon={connectingProvider !== null ? <CircularProgress size={14} color="inherit" /> : <LinkIcon />}
             sx={inkPillSx}
           >

@@ -5,12 +5,21 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from pydantic import BaseModel
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
-from app.models import BrandBrain, ContentImage, ContentItem, ContentStatus, Strategy
+from app.models import (
+    AuditLog,
+    BrandBrain,
+    ContentImage,
+    ContentItem,
+    ContentStatus,
+    ContentVersion,
+    Strategy,
+)
 from app.schemas import (
     ContentAssetsRequest,
     ContentGenerateRequest,
@@ -28,6 +37,48 @@ router = APIRouter(prefix="/content", tags=["content"])
 
 # Formats that trigger asset (graphic) generation alongside the copy.
 ASSET_FORMATS = {"single", "static", "carousel", "pdf", "document", "article", "newsletter"}
+
+
+class RequestChangesRequest(BaseModel):
+    note: str | None = None
+
+
+def _actor_name(ctx: WorkspaceContext) -> str | None:
+    user = ctx.user
+    return getattr(user, "full_name", None) or getattr(user, "email", None)
+
+
+async def _snapshot_version(
+    db: AsyncSession,
+    ctx: WorkspaceContext,
+    item: ContentItem,
+    note: str | None = None,
+) -> ContentVersion:
+    """Snapshot ``item``'s current title/body/variants into a new version.
+
+    The version number auto-increments from the highest existing version for
+    the content item (starting at 1).
+    """
+    next_version = (
+        await db.execute(
+            select(func.coalesce(func.max(ContentVersion.version), 0)).where(
+                ContentVersion.content_item_id == item.id
+            )
+        )
+    ).scalar_one() + 1
+    version = ContentVersion(
+        workspace_id=ctx.workspace.id,
+        content_item_id=item.id,
+        version=next_version,
+        title=item.title,
+        body=item.body,
+        variants=item.variants,
+        author_name=_actor_name(ctx),
+        note=note,
+    )
+    db.add(version)
+    await db.flush()
+    return version
 
 
 async def _latest_images(
@@ -162,6 +213,33 @@ async def generate(
         await db.refresh(c)
         out.append(_out_with_image(c, None))
     return out
+
+
+@router.post("/draft", response_model=ContentOut, status_code=status.HTTP_201_CREATED)
+async def create_draft(
+    data: ContentUpdate,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> ContentOut:
+    """Create a blank/standalone draft item (used by the SERP editor when there
+    is no source item). Persists title + body as a draft article."""
+    from app.models import ContentType
+
+    item = ContentItem(
+        workspace_id=ctx.workspace.id,
+        created_by=ctx.user.id,
+        content_type=ContentType.blog if hasattr(ContentType, "blog") else ContentType.social_post,
+        status=ContentStatus.draft,
+        platform=data.platform,
+        title=(data.title or "Untitled draft")[:400],
+        body=data.body or "",
+        meta=data.meta or {},
+    )
+    db.add(item)
+    await db.flush()
+    await db.commit()
+    await db.refresh(item)
+    return _out_with_image(item, None)
 
 
 @router.post("/{item_id}/assets", response_model=ContentOut)
@@ -301,6 +379,12 @@ async def update_content(
     db: AsyncSession = Depends(get_db),
 ) -> ContentOut:
     item = await _get_item(db, ctx, item_id)
+    # Snapshot the PREVIOUS state before mutating title/body so the version
+    # history preserves what the content looked like prior to this edit.
+    title_changes = data.title is not None and data.title != item.title
+    body_changes = data.body is not None and data.body != item.body
+    if title_changes or body_changes:
+        await _snapshot_version(db, ctx, item)
     if data.title is not None:
         item.title = data.title
     if data.body is not None:
@@ -332,6 +416,122 @@ async def approve_content(
     item = await _get_item(db, ctx, item_id)
     if item.status not in (ContentStatus.published, ContentStatus.scheduled):
         item.status = ContentStatus.approved
+    db.add(
+        AuditLog(
+            workspace_id=ctx.workspace.id,
+            actor_id=ctx.user.id,
+            actor_name=_actor_name(ctx),
+            action="content.approve",
+            entity_type="content",
+            entity_id=item.id,
+        )
+    )
+    await db.flush()
+    await db.commit()
+    await db.refresh(item)
+    return ContentOut.model_validate(item)
+
+
+@router.post("/{item_id}/request-changes", response_model=ContentOut)
+async def request_changes(
+    item_id: uuid.UUID,
+    data: RequestChangesRequest,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> ContentOut:
+    """Send a post back to draft with a note (changes requested by a reviewer)."""
+    item = await _get_item(db, ctx, item_id)
+    item.status = ContentStatus.draft
+    db.add(
+        AuditLog(
+            workspace_id=ctx.workspace.id,
+            actor_id=ctx.user.id,
+            actor_name=_actor_name(ctx),
+            action="content.request_changes",
+            entity_type="content",
+            entity_id=item.id,
+            meta={"note": data.note} if data.note else None,
+        )
+    )
+    await db.flush()
+    await db.commit()
+    await db.refresh(item)
+    return ContentOut.model_validate(item)
+
+
+@router.get("/{item_id}/versions")
+async def list_versions(
+    item_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """List all snapshot versions for a content item, newest first."""
+    item = await _get_item(db, ctx, item_id)
+    res = await db.execute(
+        select(ContentVersion)
+        .where(ContentVersion.content_item_id == item.id)
+        .order_by(ContentVersion.version.desc())
+    )
+    versions = list(res.scalars().all())
+    return [
+        {
+            "id": str(v.id),
+            "version": v.version,
+            "title": v.title,
+            "body": (v.body or "")[:200],
+            "author_name": v.author_name,
+            "note": v.note,
+            "created_at": v.created_at.isoformat() if v.created_at else None,
+        }
+        for v in versions
+    ]
+
+
+async def _get_version(
+    db: AsyncSession, item: ContentItem, version_id: uuid.UUID
+) -> ContentVersion:
+    version = await db.get(ContentVersion, version_id)
+    if version is None or version.content_item_id != item.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Version not found")
+    return version
+
+
+@router.get("/{item_id}/versions/{version_id}")
+async def get_version(
+    item_id: uuid.UUID,
+    version_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get a single version's full data."""
+    item = await _get_item(db, ctx, item_id)
+    v = await _get_version(db, item, version_id)
+    return {
+        "id": str(v.id),
+        "version": v.version,
+        "title": v.title,
+        "body": v.body,
+        "variants": v.variants,
+        "author_name": v.author_name,
+        "note": v.note,
+        "created_at": v.created_at.isoformat() if v.created_at else None,
+    }
+
+
+@router.post("/{item_id}/versions/{version_id}/restore", response_model=ContentOut)
+async def restore_version(
+    item_id: uuid.UUID,
+    version_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> ContentOut:
+    """Restore a previous version: snapshot the current state first, then apply
+    the chosen version's title/body to the live item."""
+    item = await _get_item(db, ctx, item_id)
+    target = await _get_version(db, item, version_id)
+    await _snapshot_version(db, ctx, item, note=f"before restore to v{target.version}")
+    item.title = target.title
+    item.body = target.body or ""
     await db.flush()
     await db.commit()
     await db.refresh(item)
@@ -354,7 +554,7 @@ async def unapprove_content(
     return ContentOut.model_validate(item)
 
 
-@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_content(
     item_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

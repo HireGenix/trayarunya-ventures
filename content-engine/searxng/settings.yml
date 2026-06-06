@@ -1,0 +1,43 @@
+# Minimal SearXNG settings for internal, programmatic use by the research engine.
+# Builds on the image defaults; only overrides what we need.
+use_default_settings: true
+
+general:
+  instance_name: "Trayarunya Research Search"
+  # No public stats/metrics — this is an internal service.
+  enable_metrics: false
+
+server:
+  # secret_key is injected at runtime via the SEARXNG_SECRET env var.
+  limiter: false          # disable bot/rate limiting — callers are our own services
+  public_instance: false
+  image_proxy: false
+  method: "GET"
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  # JSON is required so our backend can parse results programmatically.
+  formats:
+    - html
+    - json
+
+# Keep only fast, reliable general-web engines enabled by default. SearXNG
+# aggregates these so a single one being rate-limited doesn't stall results.
+engines:
+  - name: google
+    disabled: false
+  - name: bing
+    disabled: false
+  - name: duckduckgo
+    disabled: false
+  - name: brave
+    disabled: false
+  - name: wikipedia
+    disabled: false
+
+outgoing:
+  request_timeout: 4.0
+  max_request_timeout: 6.0
+  pool_connections: 100
+  pool_maxsize: 20

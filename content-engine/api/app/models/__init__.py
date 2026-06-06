@@ -9,6 +9,7 @@ from app.models.content import (
     Asset,
     ContentCalendar,
     ContentImage,
+    ContentVideo,
     ContentStatus,
     ContentType,
 )
@@ -36,6 +37,19 @@ from app.models.platform import (
     Benchmark,
 )
 from app.models.attribution import RevenueEvent
+from app.models.conversion import (
+    ConversionEvent,
+    EVENT_TYPES,
+    FUNNEL_STAGES,
+    VALUE_EVENTS,
+)
+from app.models.cro_action import (
+    ACTION_KINDS,
+    ACTION_STATUSES,
+    AUTONOMY_LEVELS,
+    CROAction,
+    CROSettings,
+)
 from app.models.portal_client import (
     ClientPortalInvite,
     ClientPortalMember,
@@ -71,6 +85,87 @@ from app.models.linkedin_platform import (
     TaskStatus,
     AccountStatus,
 )
+from app.models.model_registry import ModelRegistry
+from app.models.icp import ICPProfile, SEGMENTS
+from app.models.chat import Conversation, ChatMessage, ROLES
+from app.models.deck import (
+    Deck,
+    DeckSlide,
+    DeckComment,
+    DeckVersion,
+    DeckView,
+    DeckSlideView,
+    DECK_STATUSES,
+    SLIDE_LAYOUTS,
+)
+from app.models.email import (
+    EmailList,
+    EmailSubscriber,
+    EmailCampaign,
+    EmailSequence,
+    EmailSendLog,
+    EmailEnrollment,
+    EmailTemplate,
+    EmailSegment,
+    EmailSuppression,
+)
+from app.models.messaging import (
+    MessagingContact,
+    MessageTemplate,
+    MessageBroadcast,
+    MessageLog,
+)
+from app.models.social_inbox import (
+    InboxItem,
+    InboxReply,
+    ListeningKeyword,
+    ListeningHit,
+)
+from app.models.seo import (
+    SeoKeyword,
+    RankSnapshot,
+    SeoAudit,
+    ContentBrief,
+    SiteCrawlAudit,
+    SeoSerpFeature,
+    SeoBacklink,
+    SeoReferringDomain,
+    SiteLinkGraph,
+    SeoTopicCluster,
+)
+from app.models.abm_play import (
+    AbmPlay,
+    AbmPlayStep,
+    AbmPlayEnrollment,
+    PLAY_STATUSES,
+    ENROLLMENT_STATUSES,
+)
+from app.models.funnels import LandingPage, Funnel, FunnelVisit
+from app.models.forms import Form, FormSubmission
+from app.models.content_template import ContentTemplateModel
+from app.models.variant_assignment import VariantAssignment
+from app.models.form_field_event import FormFieldEvent
+from app.models.leadscore import Lead, LeadActivity, ScoringRule
+from app.models.referrals import (
+    ReferralProgram,
+    Advocate,
+    ReferralConversion,
+    LoyaltyLedger,
+    RewardTier,
+    AdvocateReward,
+    FraudFlag,
+)
+from app.models.watchtower import WatchTarget, WatchSnapshot, WatchDiff
+from app.models.reputation import Review, ReviewRequest, ReputationSource
+from app.models.budgetpacing import (
+    Budget,
+    SpendRecord,
+    PacingAlert,
+    ReallocationProposal,
+)
+from app.models.influencers import Creator, Outreach, InfluencerCampaign, UGCAsset
+from app.models.mmm import MmmModel, ChannelSpendSeries, IncrementalityTest
+from app.models.guardrails import GuardrailPolicy, GuardrailCheck, GuardrailRule
 
 __all__ = [
     "Base",
@@ -91,6 +186,7 @@ __all__ = [
     "Asset",
     "ContentCalendar",
     "ContentImage",
+    "ContentVideo",
     "ContentStatus",
     "ContentType",
     "SocialAccount",
@@ -110,6 +206,12 @@ __all__ = [
     "Experiment",
     "Integration",
     "CompetitorWatch",
+    "RewardTier",
+    "AdvocateReward",
+    "FraudFlag",
+    "WatchTarget",
+    "WatchSnapshot",
+    "WatchDiff",
     "WatchEvent",
     "AbmAccount",
     "CampaignPlan",
@@ -119,6 +221,15 @@ __all__ = [
     "AuditLog",
     "Benchmark",
     "RevenueEvent",
+    "ConversionEvent",
+    "EVENT_TYPES",
+    "FUNNEL_STAGES",
+    "VALUE_EVENTS",
+    "CROAction",
+    "CROSettings",
+    "ACTION_KINDS",
+    "ACTION_STATUSES",
+    "AUTONOMY_LEVELS",
     "ClientPortalInvite",
     "ClientPortalMember",
     "InviteStatus",
@@ -146,4 +257,78 @@ __all__ = [
     "TaskType",
     "TaskStatus",
     "AccountStatus",
+    "ModelRegistry",
+    "ICPProfile",
+    "SEGMENTS",
+    "Conversation",
+    "ChatMessage",
+    "ROLES",
+    "Deck",
+    "DeckSlide",
+    "DeckComment",
+    "DeckVersion",
+    "DeckView",
+    "DeckSlideView",
+    "DECK_STATUSES",
+    "SLIDE_LAYOUTS",
+    "EmailList",
+    "EmailSubscriber",
+    "EmailCampaign",
+    "EmailSequence",
+    "EmailSendLog",
+    "EmailTemplate",
+    "EmailSegment",
+    "EmailSuppression",
+    "MessagingContact",
+    "MessageTemplate",
+    "MessageBroadcast",
+    "MessageLog",
+    "InboxItem",
+    "InboxReply",
+    "ListeningKeyword",
+    "ListeningHit",
+    "SeoKeyword",
+    "RankSnapshot",
+    "SeoAudit",
+    "ContentBrief",
+    "SiteCrawlAudit",
+    "SeoSerpFeature",
+    "SeoBacklink",
+    "SeoReferringDomain",
+    "SiteLinkGraph",
+    "SeoTopicCluster",
+    "AbmPlay",
+    "AbmPlayStep",
+    "AbmPlayEnrollment",
+    "PLAY_STATUSES",
+    "ENROLLMENT_STATUSES",
+    "LandingPage",
+    "Funnel",
+    "FunnelVisit",
+    "Form",
+    "FormSubmission",
+    "Lead",
+    "LeadActivity",
+    "ScoringRule",
+    "ReferralProgram",
+    "Advocate",
+    "ReferralConversion",
+    "LoyaltyLedger",
+    "Review",
+    "ReviewRequest",
+    "ReputationSource",
+    "Budget",
+    "SpendRecord",
+    "PacingAlert",
+    "ReallocationProposal",
+    "Creator",
+    "Outreach",
+    "InfluencerCampaign",
+    "UGCAsset",
+    "MmmModel",
+    "ChannelSpendSeries",
+    "IncrementalityTest",
+    "GuardrailPolicy",
+    "GuardrailCheck",
+    "GuardrailRule",
 ]

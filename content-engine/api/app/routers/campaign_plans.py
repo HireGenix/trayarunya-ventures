@@ -229,7 +229,7 @@ async def update_campaign_plan(
     return CampaignPlanOut.model_validate(plan)
 
 
-@router.delete("/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{plan_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_campaign_plan(
     plan_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

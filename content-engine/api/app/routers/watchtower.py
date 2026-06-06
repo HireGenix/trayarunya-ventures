@@ -17,7 +17,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.deps import WorkspaceContext, get_workspace_ctx
 from app.models import CompetitorWatch, WatchEvent
-from app.services.watchtower import _check_watch, build_snapshot, diff_snapshots
+from app.models.watchtower import WatchTarget, WatchSnapshot, WatchDiff
+from app.services.watchtower import (
+    _check_watch, build_snapshot, diff_snapshots,
+    # new enterprise functions:
+    list_targets, create_target, get_target_snapshots, get_target_diffs,
+    get_diff_detail, get_timeline, check_target,
+)
 
 router = APIRouter(prefix="/watchtower", tags=["watchtower"])
 
@@ -82,6 +88,84 @@ class CheckResult(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
+# Enterprise schemas (targets / snapshots / diffs / timeline)
+# --------------------------------------------------------------------------- #
+class TargetCreate(BaseModel):
+    url: str
+    label: str | None = None
+
+
+class TargetUpdate(BaseModel):
+    active: bool | None = None
+    label: str | None = None
+
+
+class TargetOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    watch_id: uuid.UUID
+    url: str
+    label: str | None
+    active: bool
+    status: str
+    last_checked_at: dt.datetime | None
+    last_content_hash: str | None
+    check_interval_seconds: int
+    created_at: dt.datetime
+
+
+class SnapshotOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    target_id: uuid.UUID
+    content_hash: str
+    title: str | None
+    meta_description: str | None
+    h1s: list | None
+    headline: str | None
+    pricing_signals: list | dict | None
+    raw_text_length: int | None
+    fetched_at: dt.datetime
+
+
+class DiffOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    target_id: uuid.UUID
+    old_snapshot_id: uuid.UUID | None
+    new_snapshot_id: uuid.UUID | None
+    classification: str
+    summary: str | None
+    detail: dict | None
+    importance: str
+    detected_at: dt.datetime
+
+
+class DiffDetailOut(BaseModel):
+    id: str
+    workspace_id: str
+    target_id: str
+    classification: str
+    summary: str | None
+    detail: dict | None
+    importance: str
+    detected_at: str | None
+    old_snapshot: dict | None
+    new_snapshot: dict | None
+
+
+class TimelinePoint(BaseModel):
+    date: str
+    changes: int
+    high: int
+    medium: int
+    low: int
+
+
+# --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
 async def _get_owned_watch(
@@ -91,6 +175,15 @@ async def _get_owned_watch(
     if watch is None or watch.workspace_id != ctx.workspace.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Watch not found")
     return watch
+
+
+async def _get_owned_target(
+    target_id: uuid.UUID, ctx: WorkspaceContext, db: AsyncSession
+) -> WatchTarget:
+    target = await db.get(WatchTarget, target_id)
+    if target is None or target.workspace_id != ctx.workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Target not found")
+    return target
 
 
 # --------------------------------------------------------------------------- #
@@ -260,7 +353,7 @@ async def update_watch(
     return WatchOut.model_validate(watch)
 
 
-@router.delete("/{watch_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{watch_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_watch(
     watch_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),
@@ -268,4 +361,141 @@ async def delete_watch(
 ) -> None:
     watch = await _get_owned_watch(watch_id, ctx, db)
     await db.delete(watch)
+    await db.commit()
+
+
+# --------------------------------------------------------------------------- #
+# Enterprise endpoints (targets / snapshots / diffs / timeline)
+# --------------------------------------------------------------------------- #
+@router.get("/{watch_id}/targets", response_model=list[TargetOut])
+async def list_watch_targets(
+    watch_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> list[TargetOut]:
+    await _get_owned_watch(watch_id, ctx, db)
+    targets = await list_targets(db, ctx.workspace.id, watch_id=watch_id)
+    return [TargetOut.model_validate(t) for t in targets]
+
+
+@router.post(
+    "/{watch_id}/targets",
+    response_model=TargetOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_watch_target(
+    watch_id: uuid.UUID,
+    payload: TargetCreate,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> TargetOut:
+    await _get_owned_watch(watch_id, ctx, db)
+    if not payload.url.strip():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "URL is required")
+    target = await create_target(
+        db,
+        workspace_id=ctx.workspace.id,
+        watch_id=watch_id,
+        url=payload.url.strip(),
+        label=(payload.label or "").strip() or None,
+    )
+    return TargetOut.model_validate(target)
+
+
+@router.post("/targets/{target_id}/check", response_model=dict)
+async def check_watch_target(
+    target_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    target = await _get_owned_target(target_id, ctx, db)
+    diff = await check_target(db, target)
+    return {
+        "target_id": str(target.id),
+        "ok": True,
+        "changed": diff is not None,
+        "diff_id": str(diff.id) if diff is not None else None,
+    }
+
+
+@router.get("/targets/{target_id}/snapshots", response_model=list[SnapshotOut])
+async def list_target_snapshots(
+    target_id: uuid.UUID,
+    limit: int = Query(default=20, ge=1, le=200),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> list[SnapshotOut]:
+    await _get_owned_target(target_id, ctx, db)
+    snapshots = await get_target_snapshots(db, target_id, limit=limit)
+    return [SnapshotOut.model_validate(s) for s in snapshots]
+
+
+@router.get("/targets/{target_id}/diffs", response_model=list[DiffOut])
+async def list_target_diffs(
+    target_id: uuid.UUID,
+    limit: int = Query(default=20, ge=1, le=200),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> list[DiffOut]:
+    await _get_owned_target(target_id, ctx, db)
+    diffs = await get_target_diffs(db, target_id, limit=limit)
+    return [DiffOut.model_validate(d) for d in diffs]
+
+
+@router.get("/diffs/{diff_id}", response_model=DiffDetailOut)
+async def get_watch_diff(
+    diff_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> DiffDetailOut:
+    detail = await get_diff_detail(db, diff_id)
+    if detail is None or detail.get("workspace_id") != str(ctx.workspace.id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Diff not found")
+    return DiffDetailOut(**detail)
+
+
+@router.get("/{watch_id}/timeline", response_model=list[TimelinePoint])
+async def get_watch_timeline(
+    watch_id: uuid.UUID,
+    days: int = Query(default=90, ge=1, le=365),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> list[TimelinePoint]:
+    await _get_owned_watch(watch_id, ctx, db)
+    points = await get_timeline(
+        db, ctx.workspace.id, watch_id=watch_id, days=days
+    )
+    return [TimelinePoint(**p) for p in points]
+
+
+@router.patch("/targets/{target_id}", response_model=TargetOut)
+async def update_watch_target(
+    target_id: uuid.UUID,
+    payload: TargetUpdate,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> TargetOut:
+    target = await _get_owned_target(target_id, ctx, db)
+    if payload.active is not None:
+        target.active = payload.active
+    if payload.label is not None:
+        target.label = payload.label.strip() or None
+    db.add(target)
+    await db.commit()
+    await db.refresh(target)
+    return TargetOut.model_validate(target)
+
+
+@router.delete(
+    "/targets/{target_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+)
+async def delete_watch_target(
+    target_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    target = await _get_owned_target(target_id, ctx, db)
+    await db.delete(target)
     await db.commit()

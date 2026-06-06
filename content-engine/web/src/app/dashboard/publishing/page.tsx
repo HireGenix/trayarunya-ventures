@@ -58,6 +58,7 @@ import {
   type ContentItem,
   type ContentCalendar,
   type PostStat,
+  type ChannelStatus,
 } from '@/lib/api';
 import { useConfirm } from '@/components/ConfirmDialog';
 import {
@@ -272,7 +273,11 @@ export default function PublishingPage() {
   const [scheduleAt, setScheduleAt] = useState('');
   const [scheduling, setScheduling] = useState(false);
   const [postStats, setPostStats] = useState<Record<string, PostStat>>({});
+  const [scheduleStatuses, setScheduleStatuses] = useState<
+    Record<string, { status: string; permalink: string | null; error: string | null }>
+  >({});
   const [refreshingStats, setRefreshingStats] = useState(false);
+  const [channelStatuses, setChannelStatuses] = useState<ChannelStatus[]>([]);
 
   // LinkedIn company-page selection
   const [liOpen, setLiOpen] = useState(false);
@@ -291,7 +296,8 @@ export default function PublishingPage() {
       Content.list().catch(() => []),
       Calendar.list().catch(() => []),
       Analytics.posts(60).catch(() => []),
-    ]).then(([p, a, s, c, cal, ps]) => {
+      Social.channelStatus().catch(() => []),
+    ]).then(([p, a, s, c, cal, ps, cs]) => {
       setProviders(p as Record<string, boolean>);
       setAccounts(a as SocialAccount[]);
       setSchedules(s as Schedule[]);
@@ -300,6 +306,7 @@ export default function PublishingPage() {
       const statMap: Record<string, PostStat> = {};
       for (const stat of ps as PostStat[]) statMap[stat.schedule_id] = stat;
       setPostStats(statMap);
+      setChannelStatuses(cs as ChannelStatus[]);
       setLoading(false);
     });
   };
@@ -331,6 +338,31 @@ export default function PublishingPage() {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWorkspace]);
+
+  useEffect(() => {
+    if (!schedules.length) return;
+    let alive = true;
+    const poll = async () => {
+      const results: Record<string, { status: string; permalink: string | null; error: string | null }> = {};
+      await Promise.allSettled(
+        schedules.map(async (s) => {
+          try {
+            const r = await Social.postStatus(s.id);
+            results[s.id] = { status: r.status, permalink: r.permalink, error: r.error };
+          } catch {
+            /* ignore individual failures */
+          }
+        }),
+      );
+      if (alive) setScheduleStatuses(results);
+    };
+    poll();
+    const timer = setInterval(poll, 30000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [schedules]);
 
   const accountFor = (platform: string): SocialAccount | undefined =>
     accounts.find(
@@ -541,6 +573,8 @@ export default function PublishingPage() {
   const activeAccounts = accounts.filter((a) => a.is_active);
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   const contentById = new Map(content.map((c) => [c.id, c]));
+  const channelConnected = (platform: string): boolean =>
+    channelStatuses.some((cs) => cs.platform === platform && cs.connected);
 
   // Flatten every ready post into a single date-sorted schedule list so the
   // page reads as "what goes out, and when" instead of nested platform buckets.
@@ -1016,6 +1050,19 @@ export default function PublishingPage() {
                             sx={{ height: 20, fontSize: 10.5 }}
                           />
                         )}
+                        {account && !channelConnected(platform) && (
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label="not connected"
+                            sx={{
+                              height: 20,
+                              fontSize: 10.5,
+                              borderColor: alpha(BRAND.pink, 0.5),
+                              color: BRAND.pink,
+                            }}
+                          />
+                        )}
                       </Stack>
                       <Typography fontWeight={700} sx={{ fontSize: 14 }} noWrap>
                         {item.title || item.body.slice(0, 50) || 'Untitled post'}
@@ -1061,20 +1108,20 @@ export default function PublishingPage() {
                         </Tooltip>
                       ) : (
                         <Stack direction="row" spacing={0.5}>
-                          <Tooltip title={account ? 'Pick a date & time' : 'Connect an account first'}>
+                          <Tooltip title={account && channelConnected(platform) ? 'Pick a date & time' : account ? 'Channel credentials not connected' : 'Connect an account first'}>
                             <span>
                               <Button
                                 size="small"
                                 variant="outlined"
                                 startIcon={<ScheduleIcon />}
-                                disabled={!account}
+                                disabled={!account || !channelConnected(platform)}
                                 onClick={() => openSchedule(item)}
                               >
                                 Schedule
                               </Button>
                             </span>
                           </Tooltip>
-                          <Tooltip title={account ? 'Publish now' : 'Connect an account first'}>
+                          <Tooltip title={account && channelConnected(platform) ? 'Publish now' : account ? 'Channel credentials not connected — add a valid token to publish' : 'Connect an account first'}>
                             <span>
                               <Button
                                 size="small"
@@ -1086,7 +1133,7 @@ export default function PublishingPage() {
                                     <SendIcon />
                                   )
                                 }
-                                disabled={!account || publishing !== null}
+                                disabled={!account || !channelConnected(platform) || publishing !== null}
                                 onClick={() => publishItem(item)}
                               >
                                 Publish
@@ -1131,6 +1178,7 @@ export default function PublishingPage() {
                 .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
                 .map((s) => {
                   const stat = postStats[s.id];
+                  const st = scheduleStatuses[s.id];
                   const acc = accountById.get(s.social_account_id);
                   const item = contentById.get(s.content_item_id);
                   const platform = acc?.platform || item?.platform || 'other';
@@ -1174,7 +1222,7 @@ export default function PublishingPage() {
                         </Box>
                         <Chip
                           size="small"
-                          label={s.status}
+                          label={s.status === 'skipped_not_connected' ? 'not connected' : s.status}
                           sx={{
                             height: 22,
                             fontWeight: 700,
@@ -1184,15 +1232,56 @@ export default function PublishingPage() {
                                 ? alpha(BRAND.tealDeep, 0.12)
                                 : s.status === 'failed'
                                   ? alpha(BRAND.pink, 0.12)
-                                  : alpha('#0A66C2', 0.1),
+                                  : s.status === 'skipped_not_connected'
+                                    ? alpha('#FFAF06', 0.12)
+                                    : alpha('#0A66C2', 0.1),
                             color:
                               s.status === 'published'
                                 ? BRAND.tealDeep
                                 : s.status === 'failed'
                                   ? BRAND.pink
-                                  : '#0A66C2',
+                                  : s.status === 'skipped_not_connected'
+                                    ? '#B8860B'
+                                    : '#0A66C2',
                           }}
                         />
+                        {st?.status && (
+                          <Chip
+                            size="small"
+                            label={st.status}
+                            sx={{
+                              height: 22,
+                              fontWeight: 700,
+                              textTransform: 'capitalize',
+                              bgcolor:
+                                st.status === 'published'
+                                  ? alpha(BRAND.teal, 0.12)
+                                  : st.status === 'failed'
+                                    ? alpha(BRAND.pink, 0.12)
+                                    : alpha('#FFAF06', 0.12),
+                              color:
+                                st.status === 'published'
+                                  ? BRAND.tealDeep
+                                  : st.status === 'failed'
+                                    ? BRAND.pink
+                                    : '#B8860B',
+                            }}
+                          />
+                        )}
+                        {s.permalink && (
+                          <Tooltip title="View on platform">
+                            <IconButton
+                              size="small"
+                              component="a"
+                              href={s.permalink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{ color: 'text.secondary' }}
+                            >
+                              <LinkRoundedIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                         <Tooltip title="Delete post">
                           <IconButton
                             size="small"
@@ -1204,9 +1293,38 @@ export default function PublishingPage() {
                           </IconButton>
                         </Tooltip>
                       </Stack>
+                      {st?.status === 'published' && st?.permalink && (
+                        <Box sx={{ pl: 5.5, mt: 0.25 }}>
+                          <Typography
+                            component="a"
+                            href={st.permalink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{
+                              fontSize: 12,
+                              color: BRAND.tealDeep || '#14BB87',
+                              fontWeight: 600,
+                              textDecoration: 'none',
+                              '&:hover': { textDecoration: 'underline' },
+                            }}
+                          >
+                            View post
+                          </Typography>
+                        </Box>
+                      )}
+                      {st?.status === 'failed' && st?.error && (
+                        <Typography sx={{ fontSize: 12, color: '#D92C4A', mt: 0.25, pl: 5.5 }}>
+                          {st.error}
+                        </Typography>
+                      )}
                       {s.status === 'failed' && s.error && (
                         <Typography variant="caption" color="error" sx={{ pl: 5.5 }}>
                           {s.error}
+                        </Typography>
+                      )}
+                      {s.status === 'skipped_not_connected' && (
+                        <Typography variant="caption" sx={{ pl: 5.5, color: '#B8860B' }}>
+                          {s.error || 'Channel credentials not connected. Add a valid access token to publish.'}
                         </Typography>
                       )}
                       {s.status === 'published' && stat && (

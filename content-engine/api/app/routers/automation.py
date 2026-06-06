@@ -268,7 +268,7 @@ async def toggle_workflow(
     return _wf_dict(wf)
 
 
-@router.delete("/workflows/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/workflows/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_workflow(
     workflow_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(require_role(Role.owner, Role.admin, Role.manager)),
@@ -404,7 +404,7 @@ async def update_task(
     return _task_dict(task)
 
 
-@router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_task(
     task_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

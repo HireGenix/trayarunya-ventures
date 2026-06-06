@@ -4,8 +4,9 @@ from __future__ import annotations
 import enum
 import uuid
 from datetime import date as date_
+from datetime import datetime
 
-from sqlalchemy import Date, Enum, ForeignKey, String, Text
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -57,6 +58,7 @@ class ContentItem(Base, UUIDMixin, TimestampMixin):
     # Per-platform variants, hashtags, CTAs, QA notes, etc.
     variants: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Asset(Base, UUIDMixin, TimestampMixin):
@@ -135,4 +137,46 @@ class ContentImage(Base, UUIDMixin, TimestampMixin):
     size: Mapped[str | None] = mapped_column(String(20), nullable=True)
     mime: Mapped[str] = mapped_column(String(40), default="image/png", nullable=False)
     data_b64: Mapped[str] = mapped_column(Text, nullable=False)
+    meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+
+class ContentVideo(Base, UUIDMixin, TimestampMixin):
+    """AI-generated short-form video (Reels/Shorts/TikTok/YouTube).
+
+    Built from an AI script + Pexels stock b-roll + Azure OpenAI voiceover +
+    auto word-timed captions, assembled with ffmpeg into an MP4.
+
+    Video bytes are large, so unlike ``ContentImage`` they are NOT stored in the
+    DB. ``storage`` is ``"blob"`` (Azure Blob, ``url`` is the public/SAS URL) or
+    ``"local"`` (``path`` points at a file under ``settings.media_root``; bytes
+    are streamed via ``/api/v1/videos/{id}/raw``).
+    """
+
+    __tablename__ = "content_videos"
+
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
+    )
+    content_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_items.id", ondelete="SET NULL"), nullable=True
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    topic: Mapped[str | None] = mapped_column(Text, nullable=True)
+    platform: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # one of: youtube | youtube_shorts | reels | tiktok
+    fmt: Mapped[str] = mapped_column(String(40), default="reels", nullable=False)
+    provider: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    voice: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="ready", nullable=False)
+    duration_s: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    mime: Mapped[str] = mapped_column(String(40), default="video/mp4", nullable=False)
+    storage: Mapped[str] = mapped_column(String(20), default="local", nullable=False)
+    url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    path: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    captions_srt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    plan: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

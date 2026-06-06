@@ -30,6 +30,7 @@ from app.services.experiments import (
     pick_winner,
     summarize_learning,
 )
+from app.services.cro_stats import sequential_safety_check
 
 logger = logging.getLogger(__name__)
 
@@ -308,9 +309,17 @@ async def evaluate_experiment(
     result = pick_winner(variant_results, exp.success_metric)
     result["evaluated_at"] = _now().isoformat()
 
+    # Sequential safety guard: require minimum sample before declaring winner
+    safety = sequential_safety_check(variant_results)
+    result["sequential_safety"] = safety
+
     exp.result = result
 
-    if result.get("status") == "completed" and result.get("winner_key"):
+    if (
+        result.get("status") == "completed"
+        and result.get("winner_key")
+        and safety.get("safe_to_call", False)
+    ):
         exp.winner_key = result["winner_key"]
         exp.status = "completed"
         if exp.ended_at is None:
@@ -345,7 +354,7 @@ async def evaluate_experiment(
     return ExperimentOut.from_model(exp)
 
 
-@router.delete("/{experiment_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{experiment_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_experiment(
     experiment_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

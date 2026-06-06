@@ -51,6 +51,16 @@ param workerImage string
 @description('Container image for the web app.')
 param webImage string
 
+@description('ACR login server, e.g. myacr.azurecr.io.')
+param acrLoginServer string
+
+@description('ACR admin username.')
+param acrUsername string
+
+@secure()
+@description('ACR admin password.')
+param acrPassword string
+
 @description('Public base URL of the API, used by the web container.')
 param apiPublicUrl string = ''
 
@@ -102,16 +112,48 @@ resource pgFirewallAzure 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRule
   }
 }
 
-// ---------------- Azure Cache for Redis ----------------
-resource redis 'Microsoft.Cache/redis@2024-03-01' = {
+// ---------------- Azure Managed Redis (redisEnterprise) ----------------
+resource redis 'Microsoft.Cache/redisEnterprise@2024-10-01' = {
   name: '${namePrefix}-redis'
   location: location
   tags: tags
+  sku: { name: 'Balanced_B0' }
+}
+
+resource redisDb 'Microsoft.Cache/redisEnterprise/databases@2024-10-01' = {
+  parent: redis
+  name: 'default'
   properties: {
-    sku: { name: 'Basic', family: 'C', capacity: 0 }
-    enableNonSslPort: false
-    minimumTlsVersion: '1.2'
+    clientProtocol: 'Encrypted'
+    port: 10000
+    clusteringPolicy: 'EnterpriseCluster'
+    evictionPolicy: 'NoEviction'
   }
+}
+
+// ---------------- Storage (Blob: media / generated assets) ----------------
+resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: toLower('${take(namePrefix, 8)}st${uniqueString(resourceGroup().id)}')
+  location: location
+  tags: tags
+  sku: { name: 'Standard_LRS' }
+  kind: 'StorageV2'
+  properties: {
+    allowBlobPublicAccess: true
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+  }
+}
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: storage
+  name: 'default'
+}
+
+resource assetsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'content-assets'
+  properties: { publicAccess: 'Blob' }
 }
 
 // ---------------- Container Apps Environment ----------------
@@ -131,7 +173,9 @@ resource env 'Microsoft.App/managedEnvironments@2024-03-01' = {
 }
 
 var databaseUrl = 'postgresql+asyncpg://${pgAdminUser}:${pgAdminPassword}@${pg.properties.fullyQualifiedDomainName}:5432/${pgDatabase}'
-var redisUrl = 'rediss://:${redis.listKeys().primaryKey}@${redis.properties.hostName}:6380/0'
+var redisUrl = 'rediss://:${redisDb.listKeys().primaryKey}@${redis.properties.hostName}:10000/0'
+var storageKey = storage.listKeys().keys[0].value
+var blobConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storageKey};EndpointSuffix=${environment().suffixes.storage}'
 
 var commonSecrets = [
   { name: 'database-url', value: databaseUrl }
@@ -139,6 +183,12 @@ var commonSecrets = [
   { name: 'jwt-secret', value: jwtSecret }
   { name: 'gpt5-key', value: azureGpt5Key }
   { name: 'anthropic-key', value: azureAnthropicKey }
+  { name: 'blob-conn', value: blobConnectionString }
+  { name: 'acr-pwd', value: acrPassword }
+]
+
+var registries = [
+  { server: acrLoginServer, username: acrUsername, passwordSecretRef: 'acr-pwd' }
 ]
 
 var commonEnv = [
@@ -151,6 +201,8 @@ var commonEnv = [
   { name: 'AZURE_GPT5_KEY', secretRef: 'gpt5-key' }
   { name: 'AZURE_ANTHROPIC_ENDPOINT', value: azureAnthropicEndpoint }
   { name: 'AZURE_ANTHROPIC_KEY', secretRef: 'anthropic-key' }
+  { name: 'AZURE_BLOB_CONNECTION_STRING', secretRef: 'blob-conn' }
+  { name: 'AZURE_BLOB_CONTAINER', value: 'content-assets' }
 ]
 
 // ---------------- API Container App ----------------
@@ -168,6 +220,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
         transport: 'auto'
       }
       secrets: commonSecrets
+      registries: registries
     }
     template: {
       containers: [
@@ -195,6 +248,7 @@ resource workerApp 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       secrets: commonSecrets
+      registries: registries
     }
     template: {
       containers: [
@@ -225,6 +279,10 @@ resource webApp 'Microsoft.App/containerApps@2024-03-01' = {
         targetPort: 3000
         transport: 'auto'
       }
+      secrets: [
+        { name: 'acr-pwd', value: acrPassword }
+      ]
+      registries: registries
     }
     template: {
       containers: [
@@ -248,3 +306,4 @@ resource webApp 'Microsoft.App/containerApps@2024-03-01' = {
 output apiUrl string = 'https://${apiApp.properties.configuration.ingress.fqdn}'
 output webUrl string = 'https://${webApp.properties.configuration.ingress.fqdn}'
 output postgresHost string = pg.properties.fullyQualifiedDomainName
+output storageAccount string = storage.name

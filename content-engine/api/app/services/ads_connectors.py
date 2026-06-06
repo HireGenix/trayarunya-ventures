@@ -262,6 +262,165 @@ class LinkedInAdsConnector(BaseAdsConnector):
         return rows
 
 
+# ----------------------------------------------------------------------------
+# Account discovery + Google Ad Grants (nonprofit) detection
+# ----------------------------------------------------------------------------
+# The Google Ads API does not expose a single "this is an Ad Grants account"
+# boolean. We detect it from reliable signals on the account budget: an Ad
+# Grants account is capped at USD $10,000 / month ($329/day) and runs on a
+# promotional (non-paid) budget. We surface the detected accounts together with
+# a grant *guess* and the signals behind it; the user always confirms.
+
+GRANT_MONTHLY_USD = 10_000.0
+GRANT_MONTHLY_MICROS = int(GRANT_MONTHLY_USD * 1_000_000)
+_GRANT_MICROS_TOLERANCE = 50_000_000  # ±$50 wiggle room around the $10k cap
+_GOOGLE_API_VERSION = "v17"
+
+
+def _google_headers(access_token: str, *, login_cid: str | None = None) -> dict[str, str]:
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "developer-token": settings.google_ads_developer_token or "",
+        "Content-Type": "application/json",
+    }
+    if login_cid:
+        headers["login-customer-id"] = str(login_cid).replace("-", "")
+    return headers
+
+
+async def _google_search(
+    client: httpx.AsyncClient, customer_id: str, query: str, headers: dict[str, str]
+) -> list[dict]:
+    """Run a GAQL query via searchStream and return the flattened result rows."""
+    url = (
+        f"https://googleads.googleapis.com/{_GOOGLE_API_VERSION}/customers/"
+        f"{customer_id}/googleAds:searchStream"
+    )
+    res = await client.post(url, headers=headers, json={"query": query})
+    res.raise_for_status()
+    payload = res.json()
+    batches = payload if isinstance(payload, list) else [payload]
+    rows: list[dict] = []
+    for batch in batches:
+        rows.extend(batch.get("results", []) or [])
+    return rows
+
+
+def _detect_grant(currency: str | None, budget_micros: int | None) -> tuple[bool, list[str]]:
+    """Return (is_grant_guess, signals) from currency + monthly budget cap."""
+    signals: list[str] = []
+    is_usd = (currency or "").upper() == "USD"
+    near_cap = (
+        budget_micros is not None
+        and abs(budget_micros - GRANT_MONTHLY_MICROS) <= _GRANT_MICROS_TOLERANCE
+    )
+    if is_usd:
+        signals.append("Currency is USD")
+    if budget_micros is not None:
+        signals.append(f"Monthly budget cap ≈ ${budget_micros / 1_000_000:,.0f}")
+    if near_cap:
+        signals.append("Budget matches the $10,000/mo Ad Grants cap")
+    return (is_usd and near_cap), signals
+
+
+async def discover_google_accounts(access_token: str) -> list[dict[str, Any]]:
+    """Discover the Google Ads customers an OAuth token can access.
+
+    For each accessible customer we read its descriptive name, currency and
+    monthly budget cap, then guess whether it is a Google Ad Grants (nonprofit)
+    account. Returns ``[]`` when the developer token is missing or the API is
+    unreachable — discovery never raises into the caller.
+
+    Each item:
+    ``{external_id, name, currency, is_manager, is_test, is_grant_guess,
+       monthly_budget, grant_signals}``
+    """
+    if not access_token or not settings.google_ads_developer_token:
+        return []
+
+    login_cid = settings.google_ads_login_customer_id
+    accounts: list[dict[str, Any]] = []
+    try:
+        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
+            list_res = await client.get(
+                f"https://googleads.googleapis.com/{_GOOGLE_API_VERSION}/"
+                "customers:listAccessibleCustomers",
+                headers=_google_headers(access_token),
+            )
+            list_res.raise_for_status()
+            resource_names = list_res.json().get("resourceNames", []) or []
+
+            for name in resource_names:
+                cid = name.split("/")[-1]
+                headers = _google_headers(access_token, login_cid=login_cid or cid)
+                currency = display_name = None
+                is_manager = is_test = False
+                try:
+                    crows = await _google_search(
+                        client,
+                        cid,
+                        "SELECT customer.id, customer.descriptive_name, "
+                        "customer.currency_code, customer.manager, customer.test_account "
+                        "FROM customer LIMIT 1",
+                        headers,
+                    )
+                    if crows:
+                        c = crows[0].get("customer", {})
+                        display_name = c.get("descriptiveName")
+                        currency = c.get("currencyCode")
+                        is_manager = bool(c.get("manager"))
+                        is_test = bool(c.get("testAccount"))
+                except Exception:  # noqa: BLE001
+                    pass
+
+                budget_micros: int | None = None
+                try:
+                    brows = await _google_search(
+                        client,
+                        cid,
+                        "SELECT account_budget.adjusted_spending_limit_micros, "
+                        "account_budget.proposed_spending_limit_micros, "
+                        "account_budget.status FROM account_budget",
+                        headers,
+                    )
+                    for br in brows:
+                        ab = br.get("accountBudget", {})
+                        if (ab.get("status") or "").upper() not in ("APPROVED", "PENDING", ""):
+                            continue
+                        raw = ab.get("adjustedSpendingLimitMicros") or ab.get(
+                            "proposedSpendingLimitMicros"
+                        )
+                        if raw is not None:
+                            budget_micros = int(raw)
+                            break
+                except Exception:  # noqa: BLE001
+                    pass
+
+                is_grant_guess, signals = _detect_grant(currency, budget_micros)
+                accounts.append(
+                    {
+                        "external_id": cid,
+                        "name": display_name or f"Google Ads {cid}",
+                        "currency": currency or "USD",
+                        "is_manager": is_manager,
+                        "is_test": is_test,
+                        "is_grant_guess": is_grant_guess and not is_manager,
+                        "monthly_budget": (
+                            round(budget_micros / 1_000_000, 2)
+                            if budget_micros is not None
+                            else None
+                        ),
+                        "grant_signals": signals,
+                    }
+                )
+    except Exception:  # noqa: BLE001 — discovery is best-effort, never fatal
+        return accounts
+
+    # Prefer non-manager, real (non-test) accounts first; grant guesses bubble up.
+    accounts.sort(key=lambda a: (a["is_manager"], a["is_test"], not a["is_grant_guess"]))
+    return accounts
+
+
 _CONNECTORS: dict[str, BaseAdsConnector] = {
     "google_ads": GoogleAdsConnector(),
     "meta_ads": MetaAdsConnector(),

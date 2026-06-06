@@ -37,7 +37,7 @@ async def list_insights(
     return [InsightExplorerOut.model_validate(i) for i in res.scalars().all()]
 
 
-@router.delete("/{insight_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{insight_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_insight(
     insight_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(get_workspace_ctx),

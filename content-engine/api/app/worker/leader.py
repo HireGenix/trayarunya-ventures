@@ -30,9 +30,15 @@ LoopFactory = Callable[[asyncio.Event], Awaitable[None]]
 def _loop_factories() -> list[tuple[str, LoopFactory]]:
     from app.services.scheduler import metrics_refresh_loop, scheduler_loop
     from app.services.alerts_loop import alerts_loop
-    from app.services.watchtower import watchtower_loop
+    from app.services.watchtower import watchtower_loop, monitoring_loop
     from app.services.ads_optimizer_loop import ads_optimizer_loop
     from app.services.automation import automation_loop
+    from app.services.cro_agent_loop import cro_agent_loop
+    from app.services.marketing_agents_loop import marketing_agents_loop
+    from app.services.email_worker import email_dispatch_loop, email_sequence_loop
+    from app.services.seo_rank_loop import seo_rank_loop
+    from app.services.messaging_dispatch import messaging_dispatch_loop
+    from app.services.social_inbox_ingest import social_inbox_poll_loop
 
     return [
         ("scheduler", scheduler_loop),
@@ -41,6 +47,14 @@ def _loop_factories() -> list[tuple[str, LoopFactory]]:
         ("watchtower", watchtower_loop),
         ("ads_optimizer", ads_optimizer_loop),
         ("automation", automation_loop),
+        ("cro_agent", cro_agent_loop),
+        ("marketing_agents", marketing_agents_loop),
+        ("email_dispatch", email_dispatch_loop),
+        ("email_sequence", email_sequence_loop),
+        ("seo_rank", seo_rank_loop),
+        ("watchtower_monitoring", monitoring_loop),
+        ("messaging_dispatch", messaging_dispatch_loop),
+        ("social_inbox_poll", social_inbox_poll_loop),
     ]
 
 

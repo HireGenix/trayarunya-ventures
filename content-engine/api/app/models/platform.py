@@ -51,9 +51,11 @@ class Experiment(Base, UUIDMixin, TimestampMixin):
     hypothesis: Mapped[str | None] = mapped_column(Text, nullable=True)
     # channel/audience/offer context
     context: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    # the metric we judge success by: engagement_rate | ctr | conversions | impressions
+    # what is being tested: content | landing_page | cta | headline | email_subject | audience | offer | price
+    surface: Mapped[str] = mapped_column(String(30), default="content", nullable=False, index=True)
+    # the metric we judge success by: engagement_rate | ctr | conversions | impressions | conversion_rate
     success_metric: Mapped[str] = mapped_column(String(40), default="engagement_rate", nullable=False)
-    # list of {key, label, content_item_id?, notes?}
+    # list of {key, label, content_item_id?, payload?, notes?}
     variants: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     # draft | running | completed | archived
     status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False, index=True)
@@ -169,6 +171,10 @@ class AbmAccount(Base, UUIDMixin, TimestampMixin):
     personas: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     # generated assets: {battlecards, sequences, content} references
     assets: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Enterprise ABM: deterministic ICP-fit + intent scores
+    fit_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    intent_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fit_factors: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
 
 # --------------------------------------------------------------------------- #

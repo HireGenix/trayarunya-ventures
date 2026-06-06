@@ -27,7 +27,7 @@ beautifulsoup4==4.12.3
 lxml==5.3.0
 
 # --- Imaging (logo compositing, banner crops) ---
-Pillow==12.2.0
+Pillow==10.4.0
 
 # --- Deep research crawler ---
 crawl4ai==0.4.247
@@ -40,6 +40,9 @@ dspy-ai==2.5.43
 # --- Azure blob (asset storage) ---
 azure-storage-blob==12.24.0
 
+# --- Azure Communication Services (transactional email) ---
+azure-communication-email==1.0.0
+
 # --- Misc ---
 tenacity==9.0.0
 orjson==3.10.13
@@ -50,6 +53,11 @@ stripe==11.4.1
 # --- PDF report generation ---
 reportlab==4.5.1
 
+# --- Document text extraction (chat uploads) + deck export ---
+pypdf==5.1.0
+python-docx==1.1.2
+python-pptx==1.0.2
+
 # --- Testing (dev/CI) ---
 pytest==8.3.4
 pytest-asyncio==0.25.0
@@ -57,3 +65,6 @@ httpx==0.28.1
 
 # --- Observability (optional; activates when SENTRY_DSN is set) ---
 sentry-sdk==2.19.2
+
+# --- Numerical / attribution ---
+numpy>=1.26.0

@@ -12,6 +12,7 @@ import {
   Snackbar,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesomeRounded';
@@ -19,6 +20,9 @@ import SyncIcon from '@mui/icons-material/SyncRounded';
 import SendIcon from '@mui/icons-material/SendRounded';
 import AddIcon from '@mui/icons-material/Add';
 import ChatRoundedIcon from '@mui/icons-material/ChatRounded';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as ReTooltip } from 'recharts';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
@@ -99,8 +103,17 @@ interface Overview {
   avg_response_minutes: number | null;
 }
 
+interface ChannelStatus {
+  platform: string;
+  connected: boolean;
+  account_id: string | null;
+  display_name: string | null;
+  reason: string | null;
+}
+
 const PLATFORMS = ['linkedin', 'instagram', 'x', 'facebook'];
 const STATUSES = ['unread', 'open', 'replied', 'archived'];
+const SENTIMENTS_LIST = ['positive', 'neutral', 'negative'];
 
 const SENTIMENT_CHIP: Record<string, { bg: string; fg: string; label: string }> = {
   positive: { bg: BRAND.tealSoft, fg: BRAND.tealDeep, label: 'Positive' },
@@ -163,7 +176,9 @@ export default function SocialInboxPage() {
   const [platformFilter, setPlatformFilter] = useState('');
   const [kindFilter, setKindFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sentimentFilter, setSentimentFilter] = useState('');
 
+  const [channels, setChannels] = useState<ChannelStatus[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ItemDetail | null>(null);
   const [composer, setComposer] = useState('');
@@ -179,6 +194,7 @@ export default function SocialInboxPage() {
     if (platformFilter) qs.set('platform', platformFilter);
     if (kindFilter) qs.set('kind', kindFilter);
     if (statusFilter) qs.set('status', statusFilter);
+    if (sentimentFilter) qs.set('sentiment', sentimentFilter);
     const suffix = qs.toString() ? `?${qs.toString()}` : '';
     return api<InboxItem[]>(`/social-inbox/items${suffix}`, { workspace: true });
   }, [platformFilter, kindFilter, statusFilter]);
@@ -187,16 +203,18 @@ export default function SocialInboxPage() {
     setLoading(true);
     setErr(null);
     try {
-      const [it, kw, hs, ov] = await Promise.all([
+      const [it, kw, hs, ov, ch] = await Promise.all([
         loadItems(),
         api<Keyword[]>('/social-inbox/keywords', { workspace: true }),
         api<Hit[]>('/social-inbox/listening', { workspace: true }),
         api<Overview>('/social-inbox/overview', { workspace: true }),
+        api<ChannelStatus[]>('/social-inbox/channels', { workspace: true }).catch(() => [] as ChannelStatus[]),
       ]);
       setItems(it);
       setKeywords(kw);
       setHits(hs);
       setOverview(ov);
+      setChannels(ch);
       if (it.length && !selectedId) setSelectedId(it[0].id);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to load inbox');
@@ -219,7 +237,7 @@ export default function SocialInboxPage() {
       })
       .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [platformFilter, kindFilter, statusFilter]);
+  }, [platformFilter, kindFilter, statusFilter, sentimentFilter]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -242,11 +260,12 @@ export default function SocialInboxPage() {
     setSyncing(true);
     setErr(null);
     try {
-      const r = await api<{ connected_accounts: number; fetched: number }>(
+      const r = await api<{ connected_accounts: number; fetched: number; platforms: { platform: string; status: string; fetched?: number }[] }>(
         '/social-inbox/sync',
         { method: 'POST', workspace: true },
       );
-      setToast(`Sync complete — ${r.connected_accounts} connected account(s), ${r.fetched} new`);
+      const statusSummary = r.platforms.map((p) => `${cap(p.platform)}: ${p.status}${p.fetched ? ` (${p.fetched} new)` : ''}`).join(', ');
+      setToast(`Sync complete — ${r.connected_accounts} account(s), ${r.fetched} new. ${statusSummary || 'No connected channels.'}`);
       await load();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Sync failed');
@@ -286,7 +305,9 @@ export default function SocialInboxPage() {
       setComposer('');
       setToast(
         send
-          ? `Reply ${r.delivery === 'provider_not_configured' ? 'queued (no live connector)' : r.delivery}`
+          ? r.delivery === 'sent'
+            ? 'Reply sent to platform'
+            : `Reply saved — channel status: ${r.delivery}`
           : 'Draft saved',
       );
       await refreshDetail();
@@ -367,6 +388,37 @@ export default function SocialInboxPage() {
   }
 
   const selected = detail?.item || items.find((i) => i.id === selectedId) || null;
+  const selectedPlatformConnected = selected
+    ? channels.some((ch) => ch.platform === selected.platform && ch.connected)
+    : false;
+
+  // Volume chart data: items per day for the last 14 days
+  const volumeData = useMemo(() => {
+    const days: Record<string, Record<string, number>> = {};
+    const now = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      days[key] = { positive: 0, neutral: 0, negative: 0, total: 0 };
+    }
+    for (const it of items) {
+      const d = new Date(it.received_at || it.created_at);
+      const key = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      if (days[key]) {
+        days[key].total += 1;
+        const s = it.sentiment || 'neutral';
+        if (s in days[key]) days[key][s] += 1;
+      }
+    }
+    return Object.entries(days).map(([name, vals]) => ({
+      name,
+      positive: vals.positive,
+      neutral: vals.neutral,
+      negative: vals.negative,
+      total: vals.total,
+    }));
+  }, [items]);
 
   return (
     <Box>
@@ -428,6 +480,28 @@ export default function SocialInboxPage() {
           </Button>
         </Stack>
       </Stack>
+
+      {/* Channel status badges */}
+      {channels.length > 0 && (
+        <Stack direction="row" spacing={1} flexWrap="wrap" rowGap={1} sx={{ mb: 2, px: 0.5 }}>
+          {channels.map((ch) => (
+            <Chip
+              key={ch.platform}
+              icon={ch.connected
+                ? <CheckCircleOutlineIcon sx={{ fontSize: 14 }} />
+                : <LinkOffIcon sx={{ fontSize: 14 }} />
+              }
+              label={`${cap(ch.platform)}${ch.display_name ? ` (${ch.display_name})` : ''}${ch.connected ? '' : ` — ${ch.reason || 'not connected'}`}`}
+              size="small"
+              sx={{
+                fontWeight: 700, fontSize: 11.5,
+                bgcolor: ch.connected ? BRAND.tealSoft : 'rgba(14,17,22,0.05)',
+                color: ch.connected ? BRAND.tealDeep : SUBTLE,
+              }}
+            />
+          ))}
+        </Stack>
+      )}
 
       {/* KPI cards */}
       <Stack direction="row" spacing={2} flexWrap="wrap" rowGap={2} sx={{ mb: 2.5, px: 0.5 }}>
@@ -491,6 +565,13 @@ export default function SocialInboxPage() {
               >
                 <MenuItem value="">All</MenuItem>
                 {STATUSES.map((s) => <MenuItem key={s} value={s}>{cap(s)}</MenuItem>)}
+              </TextField>
+              <TextField
+                select size="small" label="Sentiment" value={sentimentFilter}
+                onChange={(e) => setSentimentFilter(e.target.value)} sx={{ flex: 1 }}
+              >
+                <MenuItem value="">All</MenuItem>
+                {SENTIMENTS_LIST.map((s) => <MenuItem key={s} value={s}>{cap(s)}</MenuItem>)}
               </TextField>
             </Stack>
 
@@ -694,14 +775,18 @@ export default function SocialInboxPage() {
                     <Button onClick={() => sendReply(false)} disabled={sending || !composer.trim()} sx={ghostPillSx}>
                       Save draft
                     </Button>
-                    <Button
-                      startIcon={sending ? <CircularProgress size={15} sx={{ color: '#fff' }} /> : <SendIcon />}
-                      onClick={() => sendReply(true)}
-                      disabled={sending || !composer.trim()}
-                      sx={inkPillSx}
-                    >
-                      Send
-                    </Button>
+                    <Tooltip title={selectedPlatformConnected ? '' : `${cap(selected?.platform || '')} channel not connected — connect credentials to send`}>
+                      <span>
+                        <Button
+                          startIcon={sending ? <CircularProgress size={15} sx={{ color: '#fff' }} /> : <SendIcon />}
+                          onClick={() => sendReply(true)}
+                          disabled={sending || !composer.trim()}
+                          sx={inkPillSx}
+                        >
+                          {selectedPlatformConnected ? 'Send' : 'Send (not connected)'}
+                        </Button>
+                      </span>
+                    </Tooltip>
                   </Stack>
                 </Box>
               </>
@@ -785,6 +870,26 @@ export default function SocialInboxPage() {
       ) : (
         /* OVERVIEW */
         <Box sx={{ px: 0.5 }}>
+          {/* Volume chart */}
+          <Box sx={{ bgcolor: '#fff', border: `1px solid ${LINE}`, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, p: 3, mb: 2.5 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: 16, color: INK, mb: 2 }}>Inbox volume (14 days)</Typography>
+            {volumeData.some((d) => d.total > 0) ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={volumeData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={LINE} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: SUBTLE }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: SUBTLE }} />
+                  <ReTooltip />
+                  <Bar dataKey="positive" stackId="a" fill={BRAND.tealDeep} name="Positive" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="neutral" stackId="a" fill={SUBTLE} name="Neutral" />
+                  <Bar dataKey="negative" stackId="a" fill={BRAND.pink} name="Negative" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <Typography sx={{ color: SUBTLE, fontSize: 14 }}>No data yet. Sync your inbox to populate the chart.</Typography>
+            )}
+          </Box>
+
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems="flex-start">
             <Box sx={{ flex: 1, width: '100%', bgcolor: '#fff', border: `1px solid ${LINE}`, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, p: 3 }}>
               <Typography sx={{ fontWeight: 800, fontSize: 16, color: INK, mb: 2 }}>By sentiment</Typography>

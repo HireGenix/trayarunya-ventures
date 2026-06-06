@@ -706,12 +706,18 @@ export const Content = {
     id: string,
     body: Partial<Pick<ContentItem, 'title' | 'body' | 'status' | 'platform' | 'variants' | 'meta'>>,
   ) => api<ContentItem>(`/content/${id}`, { method: 'PATCH', body, workspace: true }),
+  createDraft: (body: { title?: string; body?: string; platform?: string | null }) =>
+    api<ContentItem>('/content/draft', { method: 'POST', body, workspace: true }),
   remove: (id: string) =>
     api<void>(`/content/${id}`, { method: 'DELETE', workspace: true }),
   approve: (id: string) =>
     api<ContentItem>(`/content/${id}/approve`, { method: 'POST', workspace: true }),
   unapprove: (id: string) =>
     api<ContentItem>(`/content/${id}/unapprove`, { method: 'POST', workspace: true }),
+  requestChanges: (id: string, note?: string) =>
+    api<ContentItem>(`/content/${id}/request-changes`, { method: 'POST', body: { note }, workspace: true }),
+  listByStatus: (status: string) =>
+    api<ContentItem[]>(`/content?status=${encodeURIComponent(status)}`, { workspace: true }),
 };
 
 // ---------- Content Calendar (date-aware, multi-platform) ----------
@@ -882,6 +888,42 @@ export const Calendar = {
         workspace: true,
       }),
     ),
+};
+
+// ---------- Unified Calendar Feed ----------
+
+export interface CalendarFeedItem {
+  id: string;
+  source_type: 'content' | 'social' | 'email';
+  source_id: string;
+  title: string;
+  channel: string;
+  scheduled_at: string | null;
+  status: 'draft' | 'scheduled' | 'published' | 'failed';
+  meta: Record<string, unknown> | null;
+}
+
+export interface CalendarFeedResponse {
+  items: CalendarFeedItem[];
+  gaps: string[];
+}
+
+export const CalendarFeed = {
+  get: (start: string, end: string, opts?: {
+    channels?: string;
+    source_types?: string;
+    statuses?: string;
+  }) => {
+    const params = new URLSearchParams({ start, end });
+    if (opts?.channels) params.set('channels', opts.channels);
+    if (opts?.source_types) params.set('source_types', opts.source_types);
+    if (opts?.statuses) params.set('statuses', opts.statuses);
+    return api<CalendarFeedResponse>(`/calendar/feed?${params}`, { workspace: true });
+  },
+  reschedule: (body: { source_type: string; source_id: string; new_scheduled_at: string }) =>
+    api<CalendarFeedItem>('/calendar/feed/reschedule', { method: 'POST', body, workspace: true }),
+  quickAdd: (body: { title: string; scheduled_at: string; platform?: string; content_type?: string }) =>
+    api<CalendarFeedItem>('/calendar/feed/quick-add', { method: 'POST', body, workspace: true }),
 };
 
 // ---------- Image generation (Canva/Gamma-style social graphics) ----------
@@ -1083,8 +1125,16 @@ export interface Schedule {
   scheduled_at: string;
   status: string;
   external_post_id: string | null;
+  permalink: string | null;
   error: string | null;
   created_at: string;
+}
+
+export interface ChannelStatus {
+  platform: string;
+  connected: boolean;
+  account_id: string | null;
+  display_name: string | null;
 }
 
 export const Social = {
@@ -1122,6 +1172,18 @@ export const Social = {
     api<void>(`/social/schedules/${id}`, { method: 'DELETE', workspace: true }),
   publishNow: (body: { content_item_id: string; social_account_id: string }) =>
     api<Schedule>('/social/publish', { method: 'POST', body, workspace: true }),
+  channelStatus: () =>
+    api<ChannelStatus[]>('/social/channels/status', { workspace: true }),
+  postStatus: (scheduleId: string) =>
+    api<{
+      id: string;
+      status: string;
+      external_post_id: string | null;
+      permalink: string | null;
+      error: string | null;
+      platform: string;
+      connected: boolean;
+    }>(`/social/schedules/${scheduleId}/status`, { workspace: true }),
 };
 
 // ---------- M5: Ads ----------
@@ -1167,6 +1229,9 @@ export interface Campaign {
   assets: Record<string, unknown> | null;
   recommendations: CampaignRecommendations | null;
   metrics_synced_at: string | null;
+  launch_error: string | null;
+  platform_status: string | null;
+  launched_at: string | null;
   created_at: string;
 }
 
@@ -1299,6 +1364,51 @@ export const Ads = {
       method: 'POST',
       workspace: true,
     }),
+  connectionStatus: (platform: string) =>
+    api<{
+      connected: boolean;
+      platform: string | null;
+      status: string;
+      message: string;
+      has_credentials: boolean;
+      can_launch: boolean;
+      external_id?: string;
+      is_grant?: boolean;
+    }>(`/ads/${platform}/connection`, { workspace: true }),
+  validateDraft: (id: string) =>
+    api<{
+      valid: boolean;
+      errors: { field: string; message: string; severity: string }[];
+      warnings: { field: string; message: string; severity: string }[];
+    }>(`/ads/campaigns/${id}/validate`, { method: 'POST', workspace: true }),
+  updateDraft: (
+    id: string,
+    body: {
+      name?: string;
+      objective?: string;
+      daily_budget?: number;
+      plan?: Record<string, unknown>;
+      assets?: Record<string, unknown>;
+    },
+  ) => api<Campaign>(`/ads/campaigns/${id}/draft`, { method: 'PATCH', body, workspace: true }),
+  launchCampaign: (id: string) =>
+    api<{
+      success: boolean;
+      external_id?: string;
+      platform_status?: string;
+      error?: string;
+      detail?: string;
+      validation_errors?: { field: string; message: string; severity: string }[];
+      warnings?: { field: string; message: string; severity: string }[];
+      campaign?: Campaign;
+    }>(`/ads/campaigns/${id}/launch`, { method: 'POST', workspace: true }),
+  syncStatus: (id: string) =>
+    api<{
+      synced: boolean;
+      status: string;
+      name?: string;
+      detail?: string;
+    }>(`/ads/campaigns/${id}/sync-status`, { method: 'POST', workspace: true }),
 };
 
 // ---------- M6: Analytics + Billing ----------
@@ -1361,6 +1471,17 @@ export interface NextMovesResponse {
   generated: boolean;
 }
 
+// Enterprise analytics response types
+export interface CohortRow { cohort: string; size: number; retention: (number | null)[] }
+export interface CohortRetentionResponse { cohorts: CohortRow[]; periods: number; granularity: string; low_data?: boolean; note?: string }
+export interface FunnelStep { key: string; label: string; count: number; rate: number; drop_off: number; step_conversion: number; median_time_seconds: number | null }
+export interface FunnelResponse { steps: FunnelStep[]; total_visitors: number; overall_conversion: number; days: number; low_data?: boolean; note?: string }
+export interface Segment { segment: string; events: number; share: number; unique_visitors: number; total_value: number }
+export interface SegmentationResponse { dimension: string; segments: Segment[]; total_events: number; days: number; low_data?: boolean; insufficient_data?: boolean; note?: string }
+export interface DerivedKpisResponse { cac: number | null; ltv: number | null; ltv_cac_ratio: number | null; payback_months: number | null; conversion_velocity_seconds: number | null; new_customers: number; total_spend: number; total_revenue: number; paying_customers: number; days: number; definitions: Record<string, string>; flags: Record<string, unknown>; low_data?: boolean }
+export interface AnomalyPoint { date: string; value: number; z: number | null; baseline_mean: number | null; anomaly: boolean }
+export interface AnomalyResponse { series: AnomalyPoint[]; metric: string; days: number; window: number; anomaly_count: number; anomaly_dates: string[]; low_data?: boolean; note?: string; insufficient_data?: boolean }
+
 export const Analytics = {
   summary: () => api<AnalyticsSummary>('/analytics/summary', { workspace: true }),
   ingest: (body: {
@@ -1383,6 +1504,32 @@ export const Analytics = {
   nextMoves: (days = 30, refresh = false) =>
     api<NextMovesResponse>(
       `/analytics/next-moves?days=${days}&refresh=${refresh}`,
+      { workspace: true },
+    ),
+  // Enterprise analytics
+  cohortRetention: (granularity = 'week', periods = 8, days = 180) =>
+    api<CohortRetentionResponse>(
+      `/analytics/enterprise/cohort-retention?granularity=${granularity}&periods=${periods}&days=${days}`,
+      { workspace: true },
+    ),
+  funnel: (days = 30, steps?: string) =>
+    api<FunnelResponse>(
+      `/analytics/enterprise/funnel?days=${days}${steps ? `&steps=${steps}` : ''}`,
+      { workspace: true },
+    ),
+  segmentation: (dimension = 'channel', days = 30) =>
+    api<SegmentationResponse>(
+      `/analytics/enterprise/segmentation?dimension=${dimension}&days=${days}`,
+      { workspace: true },
+    ),
+  kpis: (days = 90) =>
+    api<DerivedKpisResponse>(
+      `/analytics/enterprise/kpis?days=${days}`,
+      { workspace: true },
+    ),
+  anomaly: (metric = 'events', days = 60, window = 7) =>
+    api<AnomalyResponse>(
+      `/analytics/enterprise/anomaly?metric=${metric}&days=${days}&window=${window}`,
       { workspace: true },
     ),
 };
@@ -1611,6 +1758,53 @@ export interface CompetitorWatch {
   last_snapshot?: Record<string, unknown> | null;
   events?: WatchEvent[];
 }
+export interface WatchTargetItem {
+  id: string;
+  watch_id: string;
+  url: string;
+  label: string | null;
+  active: boolean;
+  status: string;
+  last_checked_at: string | null;
+  last_content_hash: string | null;
+  check_interval_seconds: number;
+  created_at: string;
+}
+export interface WatchSnapshotItem {
+  id: string;
+  target_id: string;
+  content_hash: string;
+  title: string | null;
+  meta_description: string | null;
+  h1s: string[] | null;
+  headline: string | null;
+  pricing_signals: string[] | null;
+  raw_text_length: number | null;
+  fetched_at: string;
+}
+export interface WatchDiffItem {
+  id: string;
+  target_id: string;
+  old_snapshot_id: string | null;
+  new_snapshot_id: string | null;
+  classification: string;
+  summary: string | null;
+  detail: Record<string, unknown> | null;
+  importance: WatchImportance;
+  detected_at: string;
+}
+export interface WatchDiffDetail extends WatchDiffItem {
+  workspace_id: string;
+  old_snapshot: Record<string, unknown> | null;
+  new_snapshot: Record<string, unknown> | null;
+}
+export interface WatchTimelinePoint {
+  date: string;
+  changes: number;
+  high: number;
+  medium: number;
+  low: number;
+}
 export const Watchtower = {
   list: () => api<CompetitorWatch[]>('/watchtower', { workspace: true }),
   create: (body: { name: string; website?: string; social_handles?: Record<string, string>; seed?: boolean }) =>
@@ -1627,6 +1821,32 @@ export const Watchtower = {
   update: (id: string, body: Partial<Pick<CompetitorWatch, 'name' | 'website' | 'social_handles' | 'active'>>) =>
     api<CompetitorWatch>(`/watchtower/${id}`, { method: 'PATCH', body, workspace: true }),
   remove: (id: string) => api<void>(`/watchtower/${id}`, { method: 'DELETE', workspace: true }),
+};
+
+export const WatchtowerEnterprise = {
+  listTargets: (watchId: string) =>
+    api<WatchTargetItem[]>(`/watchtower/${watchId}/targets`, { workspace: true }),
+  createTarget: (watchId: string, body: { url: string; label?: string }) =>
+    api<WatchTargetItem>(`/watchtower/${watchId}/targets`, { method: 'POST', body, workspace: true }),
+  checkTarget: (targetId: string) =>
+    runAITask('target_scan', () =>
+      api<{ target_id: string; ok: boolean; changed: boolean; diff_id: string | null }>(
+        `/watchtower/targets/${targetId}/check`,
+        { method: 'POST', workspace: true },
+      ),
+    ),
+  targetSnapshots: (targetId: string, limit = 20) =>
+    api<WatchSnapshotItem[]>(`/watchtower/targets/${targetId}/snapshots?limit=${limit}`, { workspace: true }),
+  targetDiffs: (targetId: string, limit = 20) =>
+    api<WatchDiffItem[]>(`/watchtower/targets/${targetId}/diffs?limit=${limit}`, { workspace: true }),
+  diffDetail: (diffId: string) =>
+    api<WatchDiffDetail>(`/watchtower/diffs/${diffId}`, { workspace: true }),
+  timeline: (watchId: string, days = 90) =>
+    api<WatchTimelinePoint[]>(`/watchtower/${watchId}/timeline?days=${days}`, { workspace: true }),
+  updateTarget: (targetId: string, body: { active?: boolean; label?: string }) =>
+    api<WatchTargetItem>(`/watchtower/targets/${targetId}`, { method: 'PATCH', body, workspace: true }),
+  removeTarget: (targetId: string) =>
+    api<void>(`/watchtower/targets/${targetId}`, { method: 'DELETE', workspace: true }),
 };
 
 // ---------- B2B ABM ----------
@@ -1651,6 +1871,43 @@ export interface AbmAccount {
   firmographics?: Record<string, unknown> | null;
   personas?: Persona[] | null;
   assets?: Record<string, unknown> | null;
+  fit_score?: number | null;
+  intent_score?: number | null;
+  fit_factors?: Record<string, { score: number; weight: number; reason: string }> | null;
+}
+export interface AbmPlay {
+  id: string;
+  name: string;
+  description?: string | null;
+  status: string;
+  step_summary?: { ordinal: number; channel: string; subject?: string }[] | null;
+  created_at?: string | null;
+}
+export interface AbmPlayStep {
+  id: string;
+  ordinal: number;
+  channel: string;
+  subject?: string | null;
+  body?: string | null;
+  delay_days: number;
+  config?: Record<string, unknown> | null;
+}
+export interface AbmEnrollment {
+  id: string;
+  play_id: string;
+  account_id: string;
+  status: string;
+  current_step: number;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+export interface AbmMatrixPoint {
+  id: string;
+  company: string;
+  tier: AbmTier;
+  stage: AbmStage;
+  fit_score: number;
+  intent_score: number;
 }
 export const Abm = {
   listAccounts: (params?: { stage?: AbmStage; tier?: AbmTier }) => {
@@ -1676,6 +1933,34 @@ export const Abm = {
     runAITask('abm_assets', () =>
       api<Record<string, unknown>>(`/abm/accounts/${id}/assets`, { method: 'POST', workspace: true }),
     ),
+  scoreAll: () =>
+    api<{ scored: number; tier_distribution: Record<string, number>; accounts: unknown[] }>(
+      '/abm/accounts/score-all', { method: 'POST', workspace: true },
+    ),
+  getAccountScore: (id: string) =>
+    api<Record<string, unknown>>(`/abm/accounts/${id}/score`, { workspace: true }),
+  priorityMatrix: () =>
+    api<AbmMatrixPoint[]>('/abm/priority-matrix', { workspace: true }),
+  recommendPlay: (id: string) =>
+    runAITask('abm_recommend_play', () =>
+      api<Record<string, unknown>>(`/abm/accounts/${id}/recommend-play`, { method: 'POST', workspace: true }),
+    ),
+  listPlays: () => api<AbmPlay[]>('/abm/plays', { workspace: true }),
+  createPlay: (body: { name: string; description?: string; steps?: { channel: string; subject?: string; body?: string; delay_days?: number }[] }) =>
+    api<AbmPlay>('/abm/plays', { method: 'POST', body, workspace: true }),
+  getPlay: (id: string) => api<AbmPlay>(`/abm/plays/${id}`, { workspace: true }),
+  updatePlay: (id: string, body: { name?: string; description?: string; status?: string }) =>
+    api<AbmPlay>(`/abm/plays/${id}`, { method: 'PATCH', body, workspace: true }),
+  deletePlay: (id: string) => api<void>(`/abm/plays/${id}`, { method: 'DELETE', workspace: true }),
+  getPlaySteps: (id: string) => api<AbmPlayStep[]>(`/abm/plays/${id}/steps`, { workspace: true }),
+  enrollAccount: (playId: string, accountId: string) =>
+    api<AbmEnrollment>(`/abm/plays/${playId}/enroll`, { method: 'POST', body: { account_id: accountId }, workspace: true }),
+  listPlayEnrollments: (playId: string) =>
+    api<AbmEnrollment[]>(`/abm/plays/${playId}/enrollments`, { workspace: true }),
+  listAccountEnrollments: (accountId: string) =>
+    api<AbmEnrollment[]>(`/abm/accounts/${accountId}/enrollments`, { workspace: true }),
+  advanceEnrollment: (enrollmentId: string, action: string = 'advance') =>
+    api<AbmEnrollment>(`/abm/enrollments/${enrollmentId}`, { method: 'PATCH', body: { action }, workspace: true }),
 };
 
 // ---------- Creative Intelligence ----------
@@ -1707,6 +1992,162 @@ export const CreativeIntel = {
       `/creative-intel/recommendations?enrich=${enrich}`,
       { workspace: true },
     ),
+};
+
+// ---------- Content Optimization / SERP Editor ----------
+export interface TargetTerm {
+  term: string;
+  suggested_count: number;
+  competitor_avg: number;
+  importance: number;
+}
+export interface SerpResearch {
+  keyword: string;
+  target_terms: TargetTerm[];
+  recommended_word_count: number;
+  competitor_word_counts: number[];
+  headings: string[];
+  questions: string[];
+  competitors_analyzed: number;
+  low_confidence: boolean;
+}
+export interface TermScore {
+  term: string;
+  target_count: number;
+  actual_count: number;
+  hit: boolean;
+  over: boolean;
+}
+export interface ContentScoreResult {
+  overall: number;
+  term_coverage: number;
+  readability: number;
+  word_count: number;
+  target_word_count: number;
+  word_count_score: number;
+  term_scores: TermScore[];
+  gaps: string[];
+}
+export interface BrandVoiceProfile {
+  fingerprint: Record<string, unknown>;
+  sample_count: number;
+  brand_voice_config: Record<string, unknown> | null;
+}
+export interface VoiceScoreResult {
+  score: number;
+  deviations: string[];
+}
+export interface RepurposedVariant {
+  channel: string;
+  label: string;
+  title: string;
+  body: string;
+  char_count: number;
+  meta: Record<string, unknown>;
+}
+export interface ChannelInfo {
+  key: string;
+  label: string;
+  max_chars: number;
+}
+export interface TemplateVariable {
+  name: string;
+  label: string;
+  placeholder: string;
+  required: boolean;
+}
+export interface ContentTemplate {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  content_type: string;
+  variables: TemplateVariable[];
+  system_prompt: string;
+  user_prompt_template: string;
+}
+export const ContentOptimize = {
+  serpResearch: (keyword: string, limit = 8) =>
+    runAITask('serp_research', () =>
+      api<SerpResearch>('/content-optimize/serp-research', { method: 'POST', body: { keyword, limit }, workspace: true }),
+    ),
+  score: (text: string, keyword: string) =>
+    api<ContentScoreResult>('/content-optimize/score', { method: 'POST', body: { text, keyword }, workspace: true }),
+  inlineAI: (body: { text: string; command: string; keyword?: string; target_terms?: string[]; provider?: string }) =>
+    runAITask('inline_ai', () =>
+      api<{ result: string; command: string }>('/content-optimize/inline-ai', { method: 'POST', body, workspace: true }),
+    ),
+  brandVoice: () =>
+    api<BrandVoiceProfile>('/content-optimize/brand-voice', { workspace: true }),
+  brandVoiceScore: (text: string) =>
+    api<VoiceScoreResult>('/content-optimize/brand-voice/score', { method: 'POST', body: { text }, workspace: true }),
+  repurposeChannels: () =>
+    api<{ channels: ChannelInfo[] }>('/content-optimize/repurpose/channels', { workspace: true }),
+  repurpose: (body: { content_item_id?: string; source_text?: string; source_title?: string; channels: string[]; provider?: string }) =>
+    runAITask('repurpose', () =>
+      api<{ source_title: string; channels: string[]; variants: RepurposedVariant[] }>('/content-optimize/repurpose', { method: 'POST', body, workspace: true }),
+    ),
+  templates: () =>
+    api<{ templates: ContentTemplate[] }>('/content-optimize/templates', { workspace: true }),
+  templateGet: (id: string) =>
+    api<ContentTemplate>(`/content-optimize/templates/${id}`, { workspace: true }),
+  templateGenerate: (body: { template_id: string; variables: Record<string, string>; provider?: string }) =>
+    runAITask('template_generate', () =>
+      api<{ title: string; body: string; content_type: string; template_id: string }>('/content-optimize/templates/generate', { method: 'POST', body, workspace: true }),
+    ),
+  bulkGenerate: (body: { template_id: string; rows: Record<string, string>[]; provider?: string }) =>
+    runAITask('bulk_generate', () =>
+      api<{ results: { title: string; body: string; error?: string }[]; total: number }>('/content-optimize/templates/bulk-generate', { method: 'POST', body, workspace: true }),
+    ),
+  templateCreate: (body: { template_key: string; name: string; category?: string; description?: string; content_type?: string; variables?: Record<string, string>[]; system_prompt?: string; user_prompt_template?: string }) =>
+    api<ContentTemplate>('/content-optimize/templates', { method: 'POST', body, workspace: true }),
+  templateUpdate: (id: string, body: Partial<{ name: string; category: string; description: string; content_type: string; variables: Record<string, string>[]; system_prompt: string; user_prompt_template: string }>) =>
+    api<ContentTemplate>(`/content-optimize/templates/${id}`, { method: 'PUT', body, workspace: true }),
+  templateDelete: (id: string) =>
+    api<void>(`/content-optimize/templates/${id}`, { method: 'DELETE', workspace: true }),
+  briefGenerate: (body: { keyword: string; content_item_id?: string }) =>
+    runAITask('brief_generate', () =>
+      api<ContentBriefResult>('/content-optimize/brief/generate', { method: 'POST', body, workspace: true }),
+    ),
+};
+
+// ---------- Content Versions ----------
+export interface ContentVersion {
+  id: string;
+  content_item_id: string;
+  version: number;
+  title: string | null;
+  body: string | null;
+  body_preview?: string | null;
+  author_name: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface ContentBriefOutline {
+  level: string;
+  text: string;
+}
+export interface ContentBriefResult {
+  status: string;
+  keyword: string;
+  target_audience: string;
+  search_intent: string;
+  outline: ContentBriefOutline[];
+  key_terms: TargetTerm[];
+  competitor_angles: string[];
+  suggested_meta_title: string;
+  suggested_meta_description: string;
+  internal_link_targets: string[];
+}
+
+export const ContentVersions = {
+  list: (itemId: string) =>
+    api<ContentVersion[]>(`/content/${itemId}/versions`, { workspace: true }),
+  get: (itemId: string, versionId: string) =>
+    api<ContentVersion>(`/content/${itemId}/versions/${versionId}`, { workspace: true }),
+  restore: (itemId: string, versionId: string) =>
+    api<ContentItem>(`/content/${itemId}/versions/${versionId}/restore`, { method: 'POST', workspace: true }),
 };
 
 // ---------- Campaign Builder ----------
@@ -1854,6 +2295,30 @@ export interface ForecastSummary {
   projected: Record<string, { date: string; value: number; lower: number; upper: number }[]>;
   projected_totals: Record<string, { total: number; slope_per_day: number; residual_std: number }>;
 }
+export interface AccuracyInfo {
+  mape: number | null;
+  mae: number | null;
+  rmse: number | null;
+  holdout: number | null;
+  model: string | null;
+  insufficient_history: boolean;
+}
+export interface SeasonalityInfo {
+  detected_period: number | null;
+  period_used: number | null;
+  mode: string | null;
+  seasonal: boolean;
+}
+export interface AdvancedForecastSummary extends ForecastSummary {
+  model_used: Record<string, string>;
+  accuracy: Record<string, AccuracyInfo>;
+  seasonality: Record<string, SeasonalityInfo>;
+}
+export interface ModelComparison {
+  holt_winters: { mape?: number | null; mae?: number | null; rmse?: number | null; insufficient_history?: boolean };
+  linear: { mape?: number | null; mae?: number | null; rmse?: number | null; insufficient_history?: boolean };
+  recommendation: string;
+}
 export interface BenchmarksResponse {
   items: { id: string; industry: string | null; channel: string | null; metric: string; p50: number | null; p75: number | null; p90: number | null; sample_size: number }[];
   note: string | null;
@@ -1864,6 +2329,16 @@ export const Forecast = {
     api<ForecastSummary>(`/forecast/summary?horizon_days=${horizonDays}&lookback_days=${lookbackDays}`, {
       workspace: true,
     }),
+  advancedSummary: (horizonDays = 30, lookbackDays = 90, model = 'auto', period?: number) => {
+    const q = new URLSearchParams({ horizon_days: String(horizonDays), lookback_days: String(lookbackDays), model });
+    if (period != null) q.set('period', String(period));
+    return api<AdvancedForecastSummary>(`/forecast/summary/advanced?${q}`, { workspace: true });
+  },
+  compare: (lookbackDays = 90, horizonDays = 30, metric = 'conversions', period?: number) => {
+    const q = new URLSearchParams({ lookback_days: String(lookbackDays), horizon_days: String(horizonDays), metric });
+    if (period != null) q.set('period', String(period));
+    return api<ModelComparison>(`/forecast/compare?${q}`, { workspace: true });
+  },
   benchmarks: (industry?: string, channel?: string) => {
     const q = new URLSearchParams();
     if (industry) q.set('industry', industry);
@@ -1907,7 +2382,7 @@ export interface AttributionChannel {
   revenue: number;
   pipeline: number;
   cost: number;
-  attributed_revenue: { first_touch: number; last_touch: number; linear: number };
+  attributed_revenue: Record<string, number>;
   roi_linear: number | null;
   roi_last_touch: number | null;
 }
@@ -1923,6 +2398,23 @@ export interface AttributionSummary {
     leads: number;
     blended_roi: number | null;
   };
+  low_data?: Record<string, boolean>;
+}
+
+export interface PathExplorerData {
+  top_paths: { path: string[]; conversions: number; value: number }[];
+  total_converting_paths: number;
+  path_length_distribution: { length: number; count: number }[];
+  time_to_convert_distribution: { range: string; count: number }[];
+  avg_path_length: number;
+  avg_time_to_convert_days: number;
+}
+
+export interface ModelComparisonData {
+  channels: Record<string, number | string>[];
+  models: string[];
+  model_labels: Record<string, string>;
+  low_data: Record<string, boolean>;
 }
 
 export interface RevenueEventInput {
@@ -1937,10 +2429,24 @@ export interface RevenueEventInput {
 }
 
 export const Attribution = {
-  summary: (since?: string) =>
-    api<AttributionSummary>(`/attribution/summary${since ? `?since=${encodeURIComponent(since)}` : ''}`, {
+  summary: (since?: string, halfLifeDays?: number) => {
+    const q = new URLSearchParams();
+    if (since) q.set('since', since);
+    if (halfLifeDays != null) q.set('half_life_days', String(halfLifeDays));
+    const qs = q.toString();
+    return api<AttributionSummary>(`/attribution/summary${qs ? `?${qs}` : ''}`, { workspace: true });
+  },
+  paths: (since?: string) =>
+    api<PathExplorerData>(`/attribution/paths${since ? `?since=${encodeURIComponent(since)}` : ''}`, {
       workspace: true,
     }),
+  comparison: (since?: string, halfLifeDays?: number) => {
+    const q = new URLSearchParams();
+    if (since) q.set('since', since);
+    if (halfLifeDays != null) q.set('half_life_days', String(halfLifeDays));
+    const qs = q.toString();
+    return api<ModelComparisonData>(`/attribution/comparison${qs ? `?${qs}` : ''}`, { workspace: true });
+  },
   events: (params?: { channel?: string; stage?: string; limit?: number }) => {
     const q = new URLSearchParams();
     if (params?.channel) q.set('channel', params.channel);
@@ -2518,6 +3024,11 @@ export interface DeckTheme {
   style?: string;
   logo_url?: string;
   brand_name?: string;
+  heading_font?: string;
+  body_font?: string;
+  accent_style?: string;
+  theme_id?: string;
+  theme_name?: string;
 }
 export interface DeckSlide {
   id: string;
@@ -2541,6 +3052,10 @@ export interface Deck {
   updated_at: string;
   slide_count?: number;
   slides?: DeckSlide[];
+  share_enabled?: boolean;
+  share_token?: string;
+  expires_at?: string | null;
+  require_email?: boolean;
 }
 export interface DeckGenerateBody {
   topic: string;
@@ -2551,6 +3066,121 @@ export interface DeckGenerateBody {
   model_key?: string;
   image_provider?: string;
   image_source?: string;
+}
+export interface DeckComment {
+  id: string;
+  deck_id: string;
+  slide_index: number;
+  body: string;
+  author: string;
+  resolved: boolean;
+  parent_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+export interface DeckVersion {
+  id: string;
+  deck_id: string;
+  version_number: number;
+  label?: string;
+  slides_snapshot: any;
+  theme_snapshot?: any;
+  created_by: string;
+  created_at: string;
+}
+export interface DeckAsyncJob {
+  job_id: string;
+  deck_id: string;
+  status: string;
+}
+export interface ThemeGalleryItem {
+  id: string;
+  name: string;
+  description: string;
+  preview: DeckTheme;
+}
+
+export interface DeckShareMeta {
+  title: string;
+  slide_count: number;
+  require_email: boolean;
+  require_password: boolean;
+  expired: boolean;
+}
+
+export interface DeckShareSettings {
+  require_email?: boolean;
+  password?: string | null;
+  expires_at?: string | null;
+}
+
+export interface DeckShareResult {
+  share_token: string;
+  share_url: string;
+  require_email: boolean;
+  has_password: boolean;
+  expires_at: string | null;
+}
+
+export interface DeckViewSession {
+  session_id: string;
+}
+
+export interface DeckHeartbeat {
+  session_id: string;
+  slide_index: number;
+  delta_seconds: number;
+}
+
+export interface DeckSlideAnalytics {
+  slide_index: number;
+  total_seconds: number;
+  view_count: number;
+}
+
+export interface DeckViewerRow {
+  session_id: string;
+  viewer_email: string | null;
+  started_at: string;
+  last_seen_at: string;
+  total_seconds: number;
+}
+
+export interface DeckAnalytics {
+  unique_viewers: number;
+  total_views: number;
+  avg_seconds: number;
+  completion_rate: number;
+  per_slide: DeckSlideAnalytics[];
+  recent_viewers: DeckViewerRow[];
+}
+
+export interface DeckOutlineSlide {
+  title: string;
+  intent: string;
+  layout: string;
+}
+
+export interface DeckOutline {
+  slides: DeckOutlineSlide[];
+}
+
+export interface DeckTemplate {
+  id: string;
+  name: string;
+  description: string;
+  slide_count: number;
+  category: string;
+  outline: DeckOutlineSlide[];
+}
+
+export interface BrandKit {
+  logo_url: string | null;
+  primary_color: string | null;
+  accent_color: string | null;
+  brand_name: string | null;
+  mission: string | null;
+  fonts: Record<string, string> | null;
 }
 
 function deckExportUrl(id: string, kind: 'pdf' | 'pptx'): string {
@@ -2583,6 +3213,22 @@ async function downloadDeck(id: string, kind: 'pdf' | 'pptx', filename: string):
   a.click();
   a.remove();
   window.URL.revokeObjectURL(url);
+}
+
+async function publicApi<T>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
+  const base = process.env.NEXT_PUBLIC_API_URL || '';
+  const res = await fetch(`${base}/p/decks${path}`, {
+    method: opts.method || 'GET',
+    headers: opts.body ? { 'Content-Type': 'application/json' } : {},
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  if (!res.ok) {
+    let detail = `Request failed (${res.status})`;
+    try { const d = await res.json(); detail = d.detail || detail; } catch { /* ignore */ }
+    throw new ApiError(res.status, detail);
+  }
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
 }
 
 export const Decks = {
@@ -2623,6 +3269,66 @@ export const Decks = {
   ) => api<Deck>(`/decks/${deckId}/slides`, { method: 'POST', body, workspace: true }),
   exportPdf: (id: string, filename: string) => downloadDeck(id, 'pdf', filename),
   exportPptx: (id: string, filename: string) => downloadDeck(id, 'pptx', filename),
+  themeGallery: () => api<ThemeGalleryItem[]>('/decks/themes/gallery', { workspace: true }),
+  applyTheme: (deckId: string, themeId: string) =>
+    api<Deck>(`/decks/${deckId}/theme`, { method: 'POST', body: { theme_id: themeId }, workspace: true }),
+  listComments: (deckId: string) =>
+    api<DeckComment[]>(`/decks/${deckId}/comments`, { workspace: true }),
+  createComment: (
+    deckId: string,
+    body: { slide_index: number; body: string; parent_id?: string },
+  ) => api<DeckComment>(`/decks/${deckId}/comments`, { method: 'POST', body, workspace: true }),
+  resolveComment: (deckId: string, commentId: string) =>
+    api<DeckComment>(`/decks/${deckId}/comments/${commentId}/resolve`, { method: 'POST', workspace: true }),
+  listVersions: (deckId: string) =>
+    api<DeckVersion[]>(`/decks/${deckId}/versions`, { workspace: true }),
+  saveVersion: (deckId: string, label?: string) =>
+    api<DeckVersion>(`/decks/${deckId}/versions`, { method: 'POST', body: { label: label || '' }, workspace: true }),
+  restoreVersion: (deckId: string, versionId: string) =>
+    api<Deck>(`/decks/${deckId}/versions/${versionId}/restore`, { method: 'POST', workspace: true }),
+  enableSharing: (deckId: string) =>
+    api<{ share_token: string; share_url: string }>(`/decks/${deckId}/share`, { method: 'POST', workspace: true }),
+  disableSharing: (deckId: string) =>
+    api<void>(`/decks/${deckId}/share`, { method: 'DELETE', workspace: true }),
+  generateAsync: (body: DeckGenerateBody & { theme_id?: string }) =>
+    api<DeckAsyncJob>('/decks/generate-async', { method: 'POST', body, workspace: true }),
+  jobStatus: (deckId: string) =>
+    api<{ status: string; progress?: number; deck_id: string }>(`/decks/${deckId}/status`, { workspace: true }),
+  // Share settings (enhanced)
+  updateShareSettings: (deckId: string, body: DeckShareSettings) =>
+    api<DeckShareResult>(`/decks/${deckId}/share/settings`, { method: 'PUT', body, workspace: true }),
+  // Analytics (authed)
+  analytics: (deckId: string) =>
+    api<DeckAnalytics>(`/decks/${deckId}/analytics`, { workspace: true }),
+  // Outline-first generation
+  generateOutline: (body: { topic: string; audience?: string; tone?: string; slide_count?: number; model_key?: string }) =>
+    api<DeckOutline>('/decks/outline', { method: 'POST', body, workspace: true }),
+  generateFromOutline: (body: {
+    outline: DeckOutlineSlide[];
+    topic: string;
+    audience?: string;
+    tone?: string;
+    style?: string;
+    model_key?: string;
+    image_provider?: string;
+    image_source?: string;
+    theme_id?: string;
+  }) => api<Deck>('/decks/generate-from-outline', { method: 'POST', body, workspace: true }),
+  // Brand kit
+  brandKit: () => api<BrandKit>('/decks/brand-kit', { workspace: true }),
+  // Templates
+  templates: () => api<DeckTemplate[]>('/decks/templates', { workspace: true }),
+};
+
+export const DeckPublic = {
+  meta: (token: string) => publicApi<DeckShareMeta>(`/shared/${token}/meta`),
+  get: (token: string) => publicApi<Deck>(`/shared/${token}`),
+  unlock: (token: string, body: { email?: string; password?: string }) =>
+    publicApi<Deck>(`/shared/${token}/unlock`, { method: 'POST', body }),
+  recordView: (token: string) =>
+    publicApi<DeckViewSession>(`/shared/${token}/view`, { method: 'POST', body: {} }),
+  heartbeat: (token: string, body: DeckHeartbeat) =>
+    publicApi<void>(`/shared/${token}/heartbeat`, { method: 'POST', body }),
 };
 
 // ---------- Platform admin (superuser) ----------

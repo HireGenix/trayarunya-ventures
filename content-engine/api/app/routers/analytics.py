@@ -167,6 +167,77 @@ async def refresh_metrics(
     return RefreshResult(refreshed=n)
 
 
+# ---------------------------------------------------------------------------
+# Enterprise analytics endpoints (GA4 / Amplitude class)
+# ---------------------------------------------------------------------------
+
+
+class CohortRetentionRequest(BaseModel):
+    granularity: str = "week"
+    periods: int = 8
+    days: int = 180
+
+
+@router.get("/enterprise/cohort-retention")
+async def cohort_retention_endpoint(
+    granularity: str = Query(default="week", pattern="^(week|month)$"),
+    periods: int = Query(default=8, ge=2, le=24),
+    days: int = Query(default=180, ge=7, le=730),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.analytics_enterprise import cohort_retention
+    return await cohort_retention(db, ctx.workspace.id, granularity=granularity,
+                                  periods=periods, days=days)
+
+
+@router.get("/enterprise/funnel")
+async def funnel_analysis_endpoint(
+    days: int = Query(default=30, ge=1, le=365),
+    steps: str | None = Query(default=None, description="Comma-separated event types for custom funnel"),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.analytics_enterprise import funnel_analysis
+    step_list = [s.strip() for s in steps.split(",") if s.strip()] if steps else None
+    return await funnel_analysis(db, ctx.workspace.id, days=days, steps=step_list)
+
+
+@router.get("/enterprise/segmentation")
+async def segmentation_endpoint(
+    dimension: str = Query(default="channel"),
+    days: int = Query(default=30, ge=1, le=365),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.analytics_enterprise import segmentation_breakdown
+    return await segmentation_breakdown(db, ctx.workspace.id,
+                                         dimension=dimension, days=days)
+
+
+@router.get("/enterprise/kpis")
+async def derived_kpis_endpoint(
+    days: int = Query(default=90, ge=7, le=730),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.analytics_enterprise import derived_kpis
+    return await derived_kpis(db, ctx.workspace.id, days=days)
+
+
+@router.get("/enterprise/anomaly")
+async def trend_anomaly_endpoint(
+    metric: str = Query(default="events"),
+    days: int = Query(default=60, ge=7, le=365),
+    window: int = Query(default=7, ge=3, le=30),
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.analytics_enterprise import trend_anomaly
+    return await trend_anomaly(db, ctx.workspace.id, metric=metric,
+                                days=days, window=window)
+
+
 @router.get("/posts", response_model=list[PostStat])
 async def post_stats(
     days: int = Query(default=30, ge=1, le=365),

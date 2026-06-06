@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import enum
 import uuid
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Date, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -37,6 +37,8 @@ class AdAccount(Base, UUIDMixin, TimestampMixin):
     external_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
     name: Mapped[str | None] = mapped_column(String(300), nullable=True)
     is_grant: Mapped[bool] = mapped_column(default=False, nullable=False)
+    connected: Mapped[bool] = mapped_column(default=False, nullable=False)
+    currency: Mapped[str] = mapped_column(String(8), default="USD", nullable=False)
     access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -63,6 +65,15 @@ class Campaign(Base, UUIDMixin, TimestampMixin):
     external_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
     plan: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     assets: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    recommendations: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    metrics_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    launch_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    platform_status: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    launched_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class Metric(Base, UUIDMixin, TimestampMixin):

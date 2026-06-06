@@ -168,6 +168,18 @@ class ObserveIn(BaseModel):
     persist: bool = True
 
 
+class LiveObserveIn(BaseModel):
+    objective: str | None = None
+    images: list[str] | None = None
+    dom_text: str | None = None
+    dom: dict[str, Any] | None = None
+    account_id: uuid.UUID | None = None
+    lead_id: uuid.UUID | None = None
+    profile_url: str | None = Field(default=None, max_length=600)
+    profile_name: str | None = Field(default=None, max_length=240)
+    persist: bool = True
+
+
 class TaskIn(BaseModel):
     task_type: str = "research"
     title: str = Field(min_length=1, max_length=240)
@@ -420,7 +432,7 @@ async def update_account(
     return AccountOut.model_validate(acc)
 
 
-@router.delete("/accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_account(
     account_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(require_role(*_MUTATE)),
@@ -596,7 +608,7 @@ async def update_lead(
     return LeadOut.model_validate(lead)
 
 
-@router.delete("/leads/{lead_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/leads/{lead_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_lead(
     lead_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(require_role(*_MUTATE)),
@@ -736,6 +748,109 @@ async def observe_lead(
         await db.refresh(obs)
         observation_id = str(obs.id)
     return {"observation_id": observation_id, "result": result}
+
+
+def _normalize_profile_url(url: str | None) -> str | None:
+    if not url:
+        return None
+    u = url.strip().lower().split("?")[0].rstrip("/")
+    return u or None
+
+
+async def _match_lead_for_live(
+    db: AsyncSession,
+    ctx: WorkspaceContext,
+    data: "LiveObserveIn",
+) -> LinkedInLead | None:
+    """Best-effort: find the pipeline lead the human is currently viewing."""
+    if data.lead_id is not None:
+        lead = await db.get(LinkedInLead, data.lead_id)
+        if lead and lead.workspace_id == ctx.workspace.id:
+            return lead
+    dom_url = data.dom.get("url") if isinstance(data.dom, dict) else None
+    target_url = _normalize_profile_url(data.profile_url or dom_url)
+    if target_url and "/in/" in target_url:
+        res = await db.execute(
+            select(LinkedInLead).where(
+                LinkedInLead.workspace_id == ctx.workspace.id,
+                func.lower(LinkedInLead.profile_url).like(f"%{target_url.split('/in/')[-1]}%"),
+            ).limit(1)
+        )
+        lead = res.scalar_one_or_none()
+        if lead:
+            return lead
+    dom_name = data.dom.get("name") if isinstance(data.dom, dict) else None
+    target_name = (data.profile_name or dom_name or "").strip()
+    if target_name:
+        res = await db.execute(
+            select(LinkedInLead).where(
+                LinkedInLead.workspace_id == ctx.workspace.id,
+                func.lower(LinkedInLead.full_name) == target_name.lower(),
+            ).limit(1)
+        )
+        lead = res.scalar_one_or_none()
+        if lead:
+            return lead
+    return None
+
+
+@router.post("/live/observe")
+async def observe_live(
+    data: LiveObserveIn,
+    ctx: WorkspaceContext = Depends(get_workspace_ctx),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Objective-driven, lead-optional live guidance for the desktop copilot.
+
+    Reads whatever the human is viewing (screenshot + DOM), optionally enriches with a
+    matched pipeline lead, and returns one policy-safe next action. AI only guides.
+    """
+    lead = await _match_lead_for_live(db, ctx, data)
+    account = None
+    account_id = data.account_id or (lead.account_id if lead else None)
+    if account_id is not None:
+        acc = await db.get(LinkedInAccount, account_id)
+        if acc and acc.workspace_id == ctx.workspace.id:
+            account = acc
+    result = await svc.observe_live_screen(
+        objective=data.objective or (account.objective if account else "") or "",
+        images=data.images,
+        dom_text=data.dom_text,
+        dom=data.dom,
+        lead=_lead_dict(lead) if lead else None,
+        account=_account_dict(account),
+    )
+    observation_id = None
+    if data.persist and lead is not None:
+        obs = LeadObservation(
+            workspace_id=ctx.workspace.id,
+            lead_id=lead.id,
+            account_id=lead.account_id,
+            source="vision" if data.images else "dom",
+            snapshot={
+                "dom_text": (data.dom_text or "")[:8000],
+                "image_count": len(data.images or []),
+                "page_type": result.get("page_type"),
+            },
+            ai_summary=result.get("reasoning"),
+            signals=result.get("signals"),
+            recommended_action={
+                "title": result.get("action"),
+                "detail": result.get("reasoning"),
+                "suggested_copy": result.get("copy"),
+            },
+            created_by_id=ctx.user.id,
+        )
+        db.add(obs)
+        lead.last_action_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(obs)
+        observation_id = str(obs.id)
+    return {
+        "observation_id": observation_id,
+        "matched_lead": _lead_dict(lead) if lead else None,
+        **result,
+    }
 
 
 @router.get("/leads/{lead_id}/observations")
@@ -1009,7 +1124,7 @@ async def update_sequence(
     return _sequence_out(seq, list(steps))
 
 
-@router.delete("/sequences/{sequence_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/sequences/{sequence_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_sequence(
     sequence_id: uuid.UUID,
     ctx: WorkspaceContext = Depends(require_role(*_MUTATE)),

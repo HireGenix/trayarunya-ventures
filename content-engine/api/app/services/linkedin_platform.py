@@ -313,6 +313,186 @@ async def analyze_live_view(
 
 
 # ---------------------------------------------------------------------------
+# Live co-pilot (objective-driven, lead-optional screen observation)
+# ---------------------------------------------------------------------------
+
+_PRIORITY_BY_PAGE = {
+    "profile": "high",
+    "messaging": "high",
+    "search": "medium",
+    "feed": "medium",
+    "notifications": "medium",
+    "other": "low",
+}
+
+
+def _page_type_from_dom(dom: dict[str, Any] | None, dom_text: str | None) -> str:
+    """Best-effort classification of the visible LinkedIn page."""
+    if isinstance(dom, dict) and dom.get("pageType"):
+        return str(dom["pageType"])
+    url = ""
+    if isinstance(dom, dict):
+        url = str(dom.get("url") or "")
+    blob = f"{url}\n{dom_text or ''}".lower()
+    if "/in/" in blob:
+        return "profile"
+    if "/messaging" in blob:
+        return "messaging"
+    if "/search" in blob:
+        return "search"
+    if "/feed" in blob or "start a post" in blob:
+        return "feed"
+    if "/notifications" in blob:
+        return "notifications"
+    return "other"
+
+
+def _live_fallback(objective: str, page_type: str, lead: dict[str, Any] | None) -> dict[str, Any]:
+    """Deterministic guidance when the vision model is unavailable."""
+    guides = {
+        "profile": (
+            "Review this profile",
+            "Read their headline, recent activity and About. Look for a genuine hook (a recent post, "
+            "shared interest or pain) before any outreach. If warm, send a personalized connection note.",
+        ),
+        "search": (
+            "Qualify search results",
+            "Open promising profiles one at a time. Skip poor-fit results. Add strong matches to your "
+            "pipeline before engaging — quality over volume.",
+        ),
+        "feed": (
+            "Engage to warm up",
+            "Leave 2-3 thoughtful comments on target-account posts. Comments build familiarity so future "
+            "connection requests land warmer.",
+        ),
+        "messaging": (
+            "Continue the conversation",
+            "Reply with genuine curiosity tied to their world. Ask one relevant question; avoid pitching "
+            "until pain and fit are clear.",
+        ),
+        "notifications": (
+            "Act on warm signals",
+            "Respond to people who engaged with you — they are your warmest inbound. Thank, reply, and open "
+            "a real conversation.",
+        ),
+        "other": (
+            "Pick a high-intent surface",
+            "Move to a target profile, your search list, or the feed of your ICP to take a meaningful "
+            "relationship-building action.",
+        ),
+    }
+    title, detail = guides.get(page_type, guides["other"])
+    copy = None
+    if page_type == "profile" and lead:
+        copy = _personalized_copy(lead, "connect")
+    return {
+        "action": title,
+        "reasoning": f"{detail} (Objective: {objective})",
+        "copy": copy,
+        "policy_note": (
+            "Manual action only — AI guides, you perform every action inside LinkedIn to stay policy-safe."
+        ),
+        "priority": _PRIORITY_BY_PAGE.get(page_type, "low"),
+        "page_type": page_type,
+        "ai_mode": "deterministic",
+    }
+
+
+def _normalize_live_result(raw: dict[str, Any], page_type: str) -> dict[str, Any]:
+    """Coerce an LLM/vision response into the desktop UI contract."""
+    action = raw.get("action") or raw.get("title")
+    reasoning = raw.get("reasoning") or raw.get("detail") or raw.get("summary")
+    copy = raw.get("copy") or raw.get("suggested_copy")
+    rec = raw.get("recommended_action")
+    if isinstance(rec, dict):
+        action = action or rec.get("title")
+        reasoning = reasoning or rec.get("detail")
+        copy = copy or rec.get("suggested_copy")
+    priority = raw.get("priority")
+    if priority not in ("high", "medium", "low"):
+        priority = _PRIORITY_BY_PAGE.get(page_type, "medium")
+    return {
+        "action": action or "Review the current view",
+        "reasoning": reasoning or "Take the most relevant manual next step for your objective.",
+        "copy": copy,
+        "policy_note": raw.get("policy_note")
+        or "Manual action only — AI guides, you perform every action inside LinkedIn.",
+        "priority": priority,
+        "signals": raw.get("signals"),
+        "page_type": page_type,
+    }
+
+
+async def observe_live_screen(
+    objective: str,
+    images: list[str] | None = None,
+    dom_text: str | None = None,
+    dom: dict[str, Any] | None = None,
+    lead: dict[str, Any] | None = None,
+    account: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Objective-driven guidance for whatever the human is currently viewing on LinkedIn.
+
+    Unlike ``analyze_live_view`` this does not require a specific lead — it reads the visible
+    page, optionally enriched with a matched pipeline lead, and returns one policy-safe next
+    action in the desktop UI contract: ``{action, reasoning, copy, policy_note, priority}``.
+    """
+    objective = (objective or "Build relationships and generate qualified B2B leads").strip()
+    images = images or []
+    page_type = _page_type_from_dom(dom, dom_text)
+    fallback = _live_fallback(objective, page_type, lead)
+
+    if not images or not vision_configured():
+        if dom_text:
+            try:
+                system = (
+                    "You are an AI LinkedIn co-pilot guiding a human while THEY browse. You never click or "
+                    "automate. Read the page text, weigh it against the user's objective, and return ONE "
+                    "policy-safe manual next action. Return STRICT JSON only."
+                )
+                user = (
+                    f"USER OBJECTIVE: {objective}\n"
+                    f"PAGE TYPE: {page_type}\n"
+                    f"MATCHED LEAD (may be empty): {json.dumps(lead or {}, ensure_ascii=False, default=str)[:2500]}\n\n"
+                    f"VISIBLE PAGE TEXT:\n{dom_text[:6000]}\n\n"
+                    "Return JSON: {action, reasoning, copy (personalized draft or null), priority "
+                    "(high|medium|low), policy_note, signals}."
+                )
+                raw = await complete_json([{"role": "user", "content": user}], system)
+                if isinstance(raw, dict) and not raw.get("_parse_error"):
+                    out = _normalize_live_result(raw, page_type)
+                    out["ai_mode"] = "llm_text"
+                    return out
+            except Exception:  # noqa: BLE001
+                pass
+        return fallback
+
+    system = (
+        "You are an AI LinkedIn co-pilot watching a human's screen while THEY browse LinkedIn. "
+        "You never click or automate. You read the screenshot + page text, weigh them against the "
+        "user's stated objective, and tell the human the single best next MANUAL action (plus a "
+        "personalized draft when messaging). Stay strictly within LinkedIn policy. Return STRICT JSON only."
+    )
+    text = (
+        f"USER OBJECTIVE: {objective}\n"
+        f"PAGE TYPE: {page_type}\n"
+        f"MATCHED LEAD (may be empty): {json.dumps(lead or {}, ensure_ascii=False, default=str)[:2500]}\n\n"
+        f"VISIBLE PAGE TEXT (DOM):\n{(dom_text or '')[:5000]}\n\n"
+        "Return JSON: {action, reasoning, copy (personalized draft or null), priority (high|medium|low), "
+        "policy_note, signals {open_to_work, recently_posted, mutual_topics, seniority, intent_level}}."
+    )
+    try:
+        raw = await complete_vision_json(text, images, system)
+    except Exception:  # noqa: BLE001
+        return fallback
+    if not isinstance(raw, dict) or raw.get("_parse_error"):
+        return fallback
+    out = _normalize_live_result(raw, page_type)
+    out["ai_mode"] = "vision"
+    return out
+
+
+# ---------------------------------------------------------------------------
 # CSV import
 # ---------------------------------------------------------------------------
 

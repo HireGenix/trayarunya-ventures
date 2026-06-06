@@ -1,54 +1,36 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
   Card,
   CardContent,
-  Checkbox,
   Chip,
   CircularProgress,
-  Drawer,
-  FormControlLabel,
   IconButton,
-  ListItemText,
   MenuItem,
-  OutlinedInput,
   Select,
   Stack,
-  Switch,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import AddIcon from '@mui/icons-material/Add';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
-import CloseIcon from '@mui/icons-material/Close';
-import LaunchIcon from '@mui/icons-material/Launch';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
-import BoltIcon from '@mui/icons-material/Bolt';
-import LayersIcon from '@mui/icons-material/Layers';
-import TuneIcon from '@mui/icons-material/Tune';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ViewWeekIcon from '@mui/icons-material/ViewWeek';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import TodayIcon from '@mui/icons-material/Today';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import {
-  Calendar,
+  CalendarFeed,
   ALL_PLATFORMS,
-  AI_MODELS,
-  IMAGE_MODELS,
-  IMAGE_STYLES,
-  assetUrl,
-  type ContentCalendar,
-  type CalendarEntry,
+  type CalendarFeedItem,
 } from '@/lib/api';
-import { useAIModels } from '@/lib/useAIModels';
-import { useConfirm } from '@/components/ConfirmDialog';
 import {
   PremiumDialog,
   DialogHero,
@@ -62,9 +44,34 @@ import {
 } from '@/components/PremiumDialog';
 import { BRAND } from '@/theme/theme';
 
-/* ============================ helpers ============================ */
+/* ======================== Constants ======================== */
+
+const INK = '#0E1116';
+const SUBTLE = '#6B7280';
+
+const STATUS_COLORS: Record<string, string> = {
+  draft: '#6B7280',
+  scheduled: BRAND.amber,
+  published: BRAND.teal,
+  failed: BRAND.pink,
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Draft',
+  scheduled: 'Scheduled',
+  published: 'Published',
+  failed: 'Failed',
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  content: 'Content',
+  social: 'Social',
+  email: 'Email',
+};
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/* ======================== Helpers ======================== */
 
 function ymd(d: Date): string {
   const y = d.getFullYear();
@@ -73,15 +80,10 @@ function ymd(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function todayISO(): string {
-  return ymd(new Date());
-}
-
-/** Build the 6-week grid (42 cells) for the month containing `cursor`. */
 function monthGrid(cursor: Date): Date[] {
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const start = new Date(first);
-  start.setDate(1 - first.getDay()); // back up to Sunday
+  start.setDate(1 - first.getDay());
   return Array.from({ length: 42 }, (_, i) => {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
@@ -89,1054 +91,725 @@ function monthGrid(cursor: Date): Date[] {
   });
 }
 
-const FORMAT_COLOR: Record<string, string> = {
-  carousel: '#7C3AED',
-  pdf: '#DB2777',
-  article: '#2563EB',
-  newsletter: '#0891B2',
-  static: '#F59E0B',
-  single: '#F59E0B',
-  text: '#64748B',
-  video_script: '#16A34A',
-};
-
-function entryColor(e: CalendarEntry): string {
-  return FORMAT_COLOR[(e.format || '').toLowerCase()] || '#64748B';
+function weekGrid(cursor: Date): Date[] {
+  const d = new Date(cursor);
+  d.setDate(d.getDate() - d.getDay());
+  return Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(d);
+    day.setDate(d.getDate() + i);
+    return day;
+  });
 }
 
-function groupByDate(entries: CalendarEntry[]): Map<string, CalendarEntry[]> {
-  const map = new Map<string, CalendarEntry[]>();
-  for (const e of entries) {
-    const arr = map.get(e.date) || [];
-    arr.push(e);
-    map.set(e.date, arr);
+function feedRange(cursor: Date, view: 'month' | 'week'): { start: string; end: string } {
+  if (view === 'week') {
+    const days = weekGrid(cursor);
+    return { start: ymd(days[0]), end: ymd(days[6]) };
   }
-  return map;
+  const days = monthGrid(cursor);
+  return { start: ymd(days[0]), end: ymd(days[41]) };
 }
 
-/** Tiny SVG progress ring (generated / total). */
-function ProgressRing({
-  value,
-  total,
-  size = 30,
-  stroke = 3.5,
-  color = BRAND.teal,
-}: {
-  value: number;
-  total: number;
-  size?: number;
-  stroke?: number;
-  color?: string;
-}) {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const pct = total > 0 ? value / total : 0;
-  const done = pct >= 1;
+function groupByDate(items: CalendarFeedItem[]): Record<string, CalendarFeedItem[]> {
+  const m: Record<string, CalendarFeedItem[]> = {};
+  for (const it of items) {
+    const d = it.scheduled_at?.slice(0, 10) || 'unknown';
+    (m[d] ??= []).push(it);
+  }
+  return m;
+}
+
+/* ======================== Sub-components ======================== */
+
+function StatusDot({ status }: { status: string }) {
   return (
-    <Box sx={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth={stroke} />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={done ? BRAND.tealDeep : color}
-          strokeWidth={stroke}
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - pct)}
-          strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset .4s ease' }}
-        />
-      </svg>
-      <Box
-        sx={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: size * 0.3,
-          fontWeight: 800,
-          color: done ? BRAND.tealDeep : 'text.secondary',
-        }}
-      >
-        {done ? '✓' : `${value}`}
-      </Box>
+    <Box
+      sx={{
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        bgcolor: STATUS_COLORS[status] || SUBTLE,
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+/* ---- Day cell for month grid ---- */
+function DayCell({
+  date,
+  items,
+  isToday,
+  isCurrentMonth,
+  isGap,
+  onClick,
+  onDrop,
+}: {
+  date: Date;
+  items: CalendarFeedItem[];
+  isToday: boolean;
+  isCurrentMonth: boolean;
+  isGap: boolean;
+  onClick: () => void;
+  onDrop: (item: CalendarFeedItem) => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+  const handleDragLeave = () => setDragOver(false);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      if (data?.id) onDrop(data as CalendarFeedItem);
+    } catch { /* ignore bad drag data */ }
+  };
+
+  return (
+    <Box
+      onClick={onClick}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      sx={{
+        minHeight: 90,
+        p: 0.5,
+        border: '1px solid',
+        borderColor: dragOver ? BRAND.amber : 'divider',
+        bgcolor: dragOver ? BRAND.amberSoft : isToday ? '#FFFFF0' : 'background.paper',
+        borderRadius: 1.5,
+        cursor: 'pointer',
+        opacity: isCurrentMonth ? 1 : 0.4,
+        transition: 'border-color 0.15s, background 0.15s',
+        '&:hover': { borderColor: BRAND.teal, bgcolor: BRAND.tealSoft },
+        position: 'relative',
+      }}
+    >
+      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ px: 0.5 }}>
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: isToday ? 800 : 600,
+            color: isToday ? BRAND.tealDeep : isCurrentMonth ? INK : SUBTLE,
+            fontSize: 12,
+          }}
+        >
+          {date.getDate()}
+        </Typography>
+        {isGap && (
+          <WarningAmberIcon sx={{ fontSize: 12, color: BRAND.amber, ml: 'auto' }} />
+        )}
+      </Stack>
+      <Stack spacing={0.25} sx={{ mt: 0.25, px: 0.25 }}>
+        {items.slice(0, 3).map((it) => (
+          <Box
+            key={it.id}
+            draggable
+            onDragStart={(e) => {
+              e.stopPropagation();
+              e.dataTransfer.setData('text/plain', JSON.stringify(it));
+            }}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              px: 0.5,
+              py: 0.2,
+              borderRadius: 0.75,
+              bgcolor: `${STATUS_COLORS[it.status] || SUBTLE}18`,
+              borderLeft: `3px solid ${STATUS_COLORS[it.status] || SUBTLE}`,
+              cursor: 'grab',
+              overflow: 'hidden',
+              '&:active': { cursor: 'grabbing' },
+            }}
+          >
+            <StatusDot status={it.status} />
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{ fontSize: 10, fontWeight: 600, color: INK, lineHeight: 1.2 }}
+            >
+              {it.title}
+            </Typography>
+          </Box>
+        ))}
+        {items.length > 3 && (
+          <Typography variant="caption" sx={{ fontSize: 9, color: SUBTLE, pl: 0.5 }}>
+            +{items.length - 3} more
+          </Typography>
+        )}
+      </Stack>
     </Box>
   );
 }
 
-interface CalStats {
-  total: number;
-  generated: number;
-  platforms: number;
-  days: number;
-}
-
-function calStats(cal: ContentCalendar | null): CalStats {
-  if (!cal) return { total: 0, generated: 0, platforms: 0, days: 0 };
-  const entries = cal.entries || [];
-  const platforms = new Set(entries.map((e) => e.platform));
-  const days = new Set(entries.map((e) => e.date));
-  return {
-    total: entries.length,
-    generated: entries.filter((e) => e.status === 'generated').length,
-    platforms: platforms.size,
-    days: days.size,
-  };
-}
-
-/* ============================ create dialog ============================ */
-
-function CreateCalendarDialog({
-  open,
-  provider,
-  onClose,
-  onCreated,
+/* ---- Week view row ---- */
+function WeekDayColumn({
+  date,
+  items,
+  isToday,
+  isGap,
+  onClick,
+  onDrop,
 }: {
-  open: boolean;
-  provider: string;
-  onClose: () => void;
-  onCreated: (cal: ContentCalendar) => void;
+  date: Date;
+  items: CalendarFeedItem[];
+  isToday: boolean;
+  isGap: boolean;
+  onClick: () => void;
+  onDrop: (item: CalendarFeedItem) => void;
 }) {
-  const [client, setClient] = useState('');
-  const [goal, setGoal] = useState('');
-  const [platforms, setPlatforms] = useState<string[]>([...ALL_PLATFORMS]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [dragOver, setDragOver] = useState(false);
 
-  const create = async () => {
-    setBusy(true);
-    setError('');
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setDragOver(true); };
+  const handleDragLeave = () => setDragOver(false);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
     try {
-      const cal = await Calendar.generate({
-        client_name: client.trim() || undefined,
-        goal: goal.trim() || undefined,
-        platforms,
-        start_date: todayISO(),
-        provider,
-      });
-      onCreated(cal);
-      onClose();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Calendar generation failed');
-    } finally {
-      setBusy(false);
-    }
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      if (data?.id) onDrop(data as CalendarFeedItem);
+    } catch { /* ignore */ }
   };
 
   return (
-    <PremiumDialog open={open} onClose={busy ? () => {} : onClose} maxWidth="sm">
+    <Box
+      onClick={onClick}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      sx={{
+        flex: 1,
+        minHeight: 220,
+        p: 1,
+        border: '1px solid',
+        borderColor: dragOver ? BRAND.amber : 'divider',
+        bgcolor: dragOver ? BRAND.amberSoft : isToday ? '#FFFFF0' : 'background.paper',
+        borderRadius: 1.5,
+        cursor: 'pointer',
+        transition: 'border-color 0.15s',
+        '&:hover': { borderColor: BRAND.teal },
+      }}
+    >
+      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1 }}>
+        <Typography variant="caption" sx={{ fontWeight: isToday ? 800 : 600, color: isToday ? BRAND.tealDeep : INK, fontSize: 13 }}>
+          {WEEKDAYS[date.getDay()]} {date.getDate()}
+        </Typography>
+        {isGap && <WarningAmberIcon sx={{ fontSize: 13, color: BRAND.amber }} />}
+      </Stack>
+      <Stack spacing={0.5}>
+        {items.map((it) => (
+          <Box
+            key={it.id}
+            draggable
+            onDragStart={(e) => {
+              e.stopPropagation();
+              e.dataTransfer.setData('text/plain', JSON.stringify(it));
+            }}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              px: 1,
+              py: 0.5,
+              borderRadius: 1,
+              bgcolor: `${STATUS_COLORS[it.status] || SUBTLE}18`,
+              borderLeft: `3px solid ${STATUS_COLORS[it.status] || SUBTLE}`,
+              cursor: 'grab',
+              '&:active': { cursor: 'grabbing' },
+            }}
+          >
+            <StatusDot status={it.status} />
+            <Stack sx={{ overflow: 'hidden', flex: 1 }}>
+              <Typography variant="caption" noWrap sx={{ fontWeight: 600, color: INK, fontSize: 11 }}>
+                {it.title}
+              </Typography>
+              <Typography variant="caption" noWrap sx={{ fontSize: 10, color: SUBTLE }}>
+                {it.channel} / {SOURCE_LABELS[it.source_type] || it.source_type}
+              </Typography>
+            </Stack>
+          </Box>
+        ))}
+        {items.length === 0 && (
+          <Typography variant="caption" sx={{ color: SUBTLE, fontStyle: 'italic', fontSize: 11 }}>
+            No items
+          </Typography>
+        )}
+      </Stack>
+    </Box>
+  );
+}
+
+/* ---- Day Detail Drawer ---- */
+function DayDetailDrawer({
+  date,
+  items,
+  onClose,
+  onQuickAdd,
+  quickAddLoading,
+}: {
+  date: string | null;
+  items: CalendarFeedItem[];
+  onClose: () => void;
+  onQuickAdd: (title: string, platform: string, contentType: string) => void;
+  quickAddLoading: boolean;
+}) {
+  const [title, setTitle] = useState('');
+  const [platform, setPlatform] = useState('linkedin');
+  const [contentType, setContentType] = useState('social_post');
+
+  const handleAdd = () => {
+    if (!title.trim()) return;
+    onQuickAdd(title.trim(), platform, contentType);
+    setTitle('');
+  };
+
+  if (!date) return null;
+
+  const d = new Date(date + 'T00:00:00');
+  const label = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  return (
+    <PremiumDialog open maxWidth="sm" onClose={onClose}>
       <DialogHero
-        icon={<CalendarMonthRoundedIcon />}
-        title="New content calendar"
-        subtitle="Plan a month of date-aware, multi-platform ideas."
-        onClose={busy ? undefined : onClose}
+        icon={<CalendarMonthIcon />}
+        title={label}
+        subtitle={`${items.length} item${items.length !== 1 ? 's' : ''} scheduled`}
+        onClose={onClose}
       />
       <DialogBody>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        <SectionLabel>Brief</SectionLabel>
+        {items.length === 0 && (
+          <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+            No scheduled content for this day. Use Quick Add below to create one.
+          </Alert>
+        )}
+
+        <Stack spacing={1} sx={{ mb: 3 }}>
+          {items.map((it) => (
+            <Box
+              key={it.id}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                px: 1.5,
+                py: 1,
+                borderRadius: 1.5,
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: `${STATUS_COLORS[it.status] || SUBTLE}08`,
+              }}
+            >
+              <StatusDot status={it.status} />
+              <Stack sx={{ flex: 1, overflow: 'hidden' }}>
+                <Typography variant="body2" noWrap sx={{ fontWeight: 600, color: INK }}>
+                  {it.title}
+                </Typography>
+                <Typography variant="caption" sx={{ color: SUBTLE }}>
+                  {it.channel} / {SOURCE_LABELS[it.source_type] || it.source_type}
+                  {it.scheduled_at && ` / ${new Date(it.scheduled_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`}
+                </Typography>
+              </Stack>
+              <Chip
+                label={STATUS_LABELS[it.status] || it.status}
+                size="small"
+                sx={{
+                  bgcolor: `${STATUS_COLORS[it.status] || SUBTLE}20`,
+                  color: STATUS_COLORS[it.status] || SUBTLE,
+                  fontWeight: 700,
+                  fontSize: 10,
+                  height: 22,
+                }}
+              />
+            </Box>
+          ))}
+        </Stack>
+
+        <SectionLabel>Quick Add</SectionLabel>
         <FieldGrid>
           <FullSpan>
             <TextField
-              label="Client / brand name (optional)"
-              value={client}
-              onChange={(e) => setClient(e.target.value)}
-              fullWidth
               size="small"
+              fullWidth
+              placeholder="Content title..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             />
           </FullSpan>
-          <FullSpan>
-            <TextField
-              label="Primary goal (optional)"
-              placeholder="e.g. drive demo signups for the new hiring product"
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-              fullWidth
-              size="small"
-              multiline
-              minRows={2}
-            />
-          </FullSpan>
+          <Select size="small" value={platform} onChange={(e) => setPlatform(e.target.value)}>
+            {ALL_PLATFORMS.map((p) => (
+              <MenuItem key={p} value={p}>{p}</MenuItem>
+            ))}
+          </Select>
+          <Select size="small" value={contentType} onChange={(e) => setContentType(e.target.value)}>
+            {['social_post', 'thread', 'blog', 'newsletter', 'lead_magnet', 'ad_copy'].map((t) => (
+              <MenuItem key={t} value={t}>{t.replace('_', ' ')}</MenuItem>
+            ))}
+          </Select>
         </FieldGrid>
-
-        <SectionLabel sx={{ mt: 2.5 }}>Platforms</SectionLabel>
-        <Select
-          multiple
-          fullWidth
-          size="small"
-          value={platforms}
-          onChange={(e) =>
-            setPlatforms(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)
-          }
-          input={<OutlinedInput />}
-          renderValue={(sel) => (sel as string[]).join(', ')}
-        >
-          {ALL_PLATFORMS.map((p) => (
-            <MenuItem key={p} value={p}>
-              <Checkbox checked={platforms.indexOf(p) > -1} />
-              <ListItemText primary={p} />
-            </MenuItem>
-          ))}
-        </Select>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-          A full month of date-aware, multi-platform ideas will be planned from today. You then
-          generate each piece on its scheduled day.
-        </Typography>
       </DialogBody>
       <DialogFooter>
-        <Button onClick={onClose} disabled={busy} sx={ghostPillSx}>Cancel</Button>
+        <Button onClick={onClose} sx={ghostPillSx}>Close</Button>
         <Button
-          onClick={create}
-          disabled={busy || platforms.length === 0}
-          startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <AutoAwesomeRoundedIcon />}
+          onClick={handleAdd}
+          disabled={!title.trim() || quickAddLoading}
+          startIcon={quickAddLoading ? <CircularProgress size={14} /> : <AddIcon />}
           sx={inkPillSx}
         >
-          {busy ? 'Planning…' : 'Generate calendar'}
+          Add Item
         </Button>
       </DialogFooter>
     </PremiumDialog>
   );
 }
 
-/* ============================ day drawer ============================ */
-
-function DayDrawer({
-  date,
-  calendar,
-  settings,
-  onClose,
-  onUpdated,
-}: {
-  date: string | null;
-  calendar: ContentCalendar | null;
-  settings: { provider: string; withImage: boolean; imageStyle: string; imageModel: string; emailFormat: string };
-  onClose: () => void;
-  onUpdated: (cal: ContentCalendar) => void;
-}) {
-  const router = useRouter();
-  const [busyEntry, setBusyEntry] = useState<string | null>(null);
-  const [busyDay, setBusyDay] = useState(false);
-  const [error, setError] = useState('');
-  const [regenTarget, setRegenTarget] = useState<CalendarEntry | null>(null);
-  const [regenNote, setRegenNote] = useState('');
-
-  const entries = useMemo(() => {
-    if (!date || !calendar) return [];
-    return calendar.entries.filter((e) => e.date === date);
-  }, [date, calendar]);
-
-  const pending = useMemo(() => entries.filter((e) => e.status !== 'generated'), [entries]);
-
-  const generate = async (entry: CalendarEntry, notes?: string) => {
-    if (!calendar) return;
-    setBusyEntry(entry.id);
-    setError('');
-    try {
-      const updated = await Calendar.generateEntry(calendar.id, entry.id, {
-        provider: settings.provider,
-        notes: notes?.trim() || undefined,
-        with_image: settings.withImage,
-        image_style: settings.imageStyle,
-        image_provider: settings.imageModel,
-        email_format: entry.content_type === 'newsletter' ? settings.emailFormat : undefined,
-      });
-      onUpdated(updated);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Generation failed');
-    } finally {
-      setBusyEntry(null);
-    }
-  };
-
-  const openRegen = (entry: CalendarEntry) => {
-    setRegenNote('');
-    setRegenTarget(entry);
-  };
-
-  const confirmRegen = async () => {
-    if (!regenTarget) return;
-    const target = regenTarget;
-    const note = regenNote;
-    setRegenTarget(null);
-    await generate(target, note);
-  };
-
-  const generateAllDay = async () => {
-    if (!calendar || !date || pending.length === 0) return;
-    setBusyDay(true);
-    setError('');
-    try {
-      const updated = await Calendar.generateDay(calendar.id, {
-        date,
-        provider: settings.provider,
-        with_image: settings.withImage,
-        image_style: settings.imageStyle,
-        image_provider: settings.imageModel,
-        email_format: settings.emailFormat,
-      });
-      onUpdated(updated);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Day generation failed');
-    } finally {
-      setBusyDay(false);
-    }
-  };
-
-  const openInStudio = (entry: CalendarEntry) => {
-    if (entry.content_item_id) router.push(`/dashboard/studio?item=${entry.content_item_id}`);
-  };
-
-  const prettyDate = date
-    ? new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      })
-    : '';
-
-  return (
-    <Drawer anchor="right" open={!!date} onClose={onClose} PaperProps={{ sx: { width: { xs: '100%', sm: 480 } } }}>
-      {/* gradient header */}
-      <Box
-        sx={{
-          position: 'relative',
-          overflow: 'hidden',
-          px: 3,
-          py: 2.5,
-          color: '#fff',
-          background: 'linear-gradient(125deg, #11151B 0%, #1B2330 60%, #0E1A18 100%)',
-        }}
-      >
-        <Box sx={{ position: 'absolute', top: -60, right: -30, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,187,135,0.4), transparent 65%)' }} />
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ position: 'relative' }}>
-          <Box>
-            <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: '0.12em' }}>
-              Scheduled for
-            </Typography>
-            <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.2 }}>{prettyDate}</Typography>
-            {entries.length > 0 && (
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
-                {entries.length} {entries.length === 1 ? 'post' : 'posts'} planned
-              </Typography>
-            )}
-          </Box>
-          <IconButton onClick={onClose} sx={{ color: 'rgba(255,255,255,0.85)', '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' } }}>
-            <CloseIcon />
-          </IconButton>
-        </Stack>
-      </Box>
-
-      <Box sx={{ p: 3 }}>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-
-        {/* one-click: generate the whole day at once */}
-        {pending.length > 0 && (
-          <Box
-            sx={{
-              mb: 2.5,
-              p: 2,
-              borderRadius: 3,
-              border: '1px solid',
-              borderColor: 'divider',
-              background: 'linear-gradient(135deg, rgba(255,175,6,0.08), rgba(20,187,135,0.08))',
-            }}
-          >
-            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1.5}>
-              <Box>
-                <Typography fontWeight={800} sx={{ fontSize: 14 }}>
-                  Generate the whole day
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {pending.length} pending {pending.length === 1 ? 'post' : 'posts'} across all platforms — created in one go.
-                </Typography>
-              </Box>
-              <Button
-                variant="contained"
-                onClick={generateAllDay}
-                disabled={busyDay || busyEntry !== null}
-                startIcon={busyDay ? <CircularProgress size={16} color="inherit" /> : <AutoAwesomeIcon />}
-                sx={{ flexShrink: 0 }}
-              >
-                {busyDay ? 'Generating…' : 'Generate all'}
-              </Button>
-            </Stack>
-          </Box>
-        )}
-
-        {entries.length === 0 ? (
-          <Alert severity="info">Nothing scheduled for this day.</Alert>
-        ) : (
-          <Stack spacing={2}>
-            {entries.map((e) => {
-              const busy = busyEntry === e.id;
-              const generated = e.status === 'generated';
-              return (
-                <Card key={e.id} variant="outlined" sx={{ borderLeft: `4px solid ${entryColor(e)}` }}>
-                  <CardContent>
-                    <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.5 }}>
-                      <Chip size="small" label={e.platform} />
-                      <Chip size="small" label={e.content_type} variant="outlined" />
-                      {e.format && (
-                        <Chip
-                          size="small"
-                          label={e.format}
-                          sx={{ bgcolor: entryColor(e), color: '#fff' }}
-                        />
-                      )}
-                      {generated && <Chip size="small" color="success" label="generated" />}
-                    </Stack>
-
-                    <Typography fontWeight={700}>{e.title}</Typography>
-                    {e.hook && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                        {e.hook}
-                      </Typography>
-                    )}
-                    {e.notes && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                        {e.notes}
-                      </Typography>
-                    )}
-
-                    {generated && e.image_url && (
-                      <Box
-                        component="img"
-                        src={assetUrl(e.image_url)}
-                        alt=""
-                        sx={{ mt: 1.5, width: '100%', borderRadius: 1, display: 'block' }}
-                      />
-                    )}
-
-                    <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
-                      {generated ? (
-                        <Button
-                          size="small"
-                          variant="contained"
-                          startIcon={<LaunchIcon />}
-                          onClick={() => openInStudio(e)}
-                        >
-                          Open in Studio
-                        </Button>
-                      ) : (
-                        <Button
-                          size="small"
-                          variant="contained"
-                          disabled={busy || busyDay}
-                          startIcon={busy ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeIcon />}
-                          onClick={() => generate(e)}
-                        >
-                          {busy ? 'Generating…' : 'Generate content'}
-                        </Button>
-                      )}
-                      {generated && (
-                        <Button
-                          size="small"
-                          disabled={busy || busyDay}
-                          onClick={() => openRegen(e)}
-                          startIcon={busy ? <CircularProgress size={14} /> : undefined}
-                        >
-                          Regenerate
-                        </Button>
-                      )}
-                    </Stack>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </Stack>
-        )}
-      </Box>
-
-      <PremiumDialog
-        open={Boolean(regenTarget)}
-        onClose={() => setRegenTarget(null)}
-        maxWidth="md"
-      >
-        <DialogHero
-          icon={<AutoAwesomeRoundedIcon />}
-          title="Regenerate content"
-          subtitle="Tell the AI what to change, or leave blank to simply regenerate."
-          onClose={() => setRegenTarget(null)}
-        />
-        <DialogBody sx={{ p: 0 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, minHeight: { md: 280 } }}>
-            {/* ---------------- Instruction column ---------------- */}
-            <Box sx={{ px: { xs: 2.5, sm: 3.25 }, py: 3, borderRight: { md: '1px solid rgba(14,17,22,0.08)' } }}>
-              <SectionLabel>What to change</SectionLabel>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                {regenTarget?.title
-                  ? `Refine “${regenTarget.title}”, or leave blank to simply regenerate.`
-                  : 'Leave blank to simply regenerate.'}
-              </Typography>
-              <TextField
-                autoFocus
-                fullWidth
-                multiline
-                minRows={3}
-                maxRows={8}
-                placeholder="e.g. Make the tone more energetic, add a clear CTA, shorten to 2 lines, focus on first-time founders…"
-                value={regenNote}
-                onChange={(ev) => setRegenNote(ev.target.value)}
-              />
-            </Box>
-
-            {/* ---------------- Live preview column ---------------- */}
-            <Box sx={{ background: 'rgba(14,17,22,0.025)', px: { xs: 2.5, sm: 3 }, py: 2.5 }}>
-              <SectionLabel sx={{ mb: 1.5 }}>Current post</SectionLabel>
-              {regenTarget && (
-                <Box
-                  sx={{
-                    background: '#fff',
-                    borderRadius: '18px',
-                    border: '1px solid rgba(14,17,22,0.08)',
-                    boxShadow: '0 8px 30px -12px rgba(14,17,22,0.18)',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <Box sx={{ p: 2 }}>
-                    <Stack direction="row" spacing={0.75} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.5 }}>
-                      <Chip size="small" label={regenTarget.platform} />
-                      <Chip size="small" label={regenTarget.content_type} variant="outlined" />
-                      {regenTarget.format && <Chip size="small" label={regenTarget.format} sx={{ bgcolor: entryColor(regenTarget), color: '#fff' }} />}
-                    </Stack>
-                    {regenTarget.title && (
-                      <Typography sx={{ fontWeight: 800, fontSize: 14, color: BRAND.ink }}>{regenTarget.title}</Typography>
-                    )}
-                    {regenTarget.hook && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{regenTarget.hook}</Typography>
-                    )}
-                    {regenTarget.notes && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>{regenTarget.notes}</Typography>
-                    )}
-                  </Box>
-                  {regenTarget.image_url && (
-                    <Box component="img" src={assetUrl(regenTarget.image_url)} alt="" sx={{ width: '100%', display: 'block' }} />
-                  )}
-                </Box>
-              )}
-            </Box>
-          </Box>
-        </DialogBody>
-        <DialogFooter>
-          <Button onClick={() => setRegenTarget(null)} sx={ghostPillSx}>Cancel</Button>
-          <Button
-            startIcon={<AutoAwesomeRoundedIcon />}
-            onClick={confirmRegen}
-            sx={inkPillSx}
-          >
-            Regenerate
-          </Button>
-        </DialogFooter>
-      </PremiumDialog>
-    </Drawer>
-  );
-}
-
-/* ============================ page ============================ */
+/* ======================== Main Page ======================== */
 
 export default function CalendarPage() {
-  const confirm = useConfirm();
-  const [calendars, setCalendars] = useState<ContentCalendar[]>([]);
-  const [active, setActive] = useState<ContentCalendar | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<'month' | 'week'>('month');
   const [cursor, setCursor] = useState(new Date());
+  const [items, setItems] = useState<CalendarFeedItem[]>([]);
+  const [gaps, setGaps] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filters
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterChannel, setFilterChannel] = useState<string>('');
+  const [filterSource, setFilterSource] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
+
+  // Day drawer
   const [openDate, setOpenDate] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [error, setError] = useState('');
+  const [quickAddLoading, setQuickAddLoading] = useState(false);
 
-  // generation settings
-  const { models: aiModels } = useAIModels();
-  const [provider, setProvider] = useState<string>(AI_MODELS[0].id);
-  const [withImage, setWithImage] = useState(true);
-  const [imageStyle, setImageStyle] = useState<string>(IMAGE_STYLES[0].id);
-  const [imageModel, setImageModel] = useState<string>(IMAGE_MODELS[0].id);
-  const [emailFormat, setEmailFormat] = useState<string>('html');
+  const todayStr = ymd(new Date());
 
-  useEffect(() => {
-    Calendar.list()
-      .then((cals) => {
-        setCalendars(cals);
-        if (cals.length > 0) {
-          setActive(cals[0]);
-          setCursor(new Date(cals[0].start_date + 'T00:00:00'));
-        }
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load calendars'))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const onUpdated = (cal: ContentCalendar) => {
-    setActive(cal);
-    setCalendars((prev) => prev.map((c) => (c.id === cal.id ? cal : c)));
-  };
-
-  const onCreated = (cal: ContentCalendar) => {
-    setCalendars((prev) => [cal, ...prev]);
-    setActive(cal);
-    setCursor(new Date(cal.start_date + 'T00:00:00'));
-  };
-
-  const removeCalendar = async (cal: ContentCalendar) => {
-    const ok = await confirm({
-      title: 'Delete calendar?',
-      message: <>Delete <b>“{cal.client_name || cal.title}”</b> and all its planned entries?</>,
-    });
-    if (!ok) return;
-    const prev = calendars;
-    setCalendars((cur) => cur.filter((c) => c.id !== cal.id));
-    if (active?.id === cal.id) setActive(calendars.find((c) => c.id !== cal.id) || null);
+  const loadFeed = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      await Calendar.remove(cal.id);
-    } catch {
-      setCalendars(prev);
+      const { start, end } = feedRange(cursor, view);
+      const res = await CalendarFeed.get(start, end, {
+        channels: filterChannel || undefined,
+        source_types: filterSource || undefined,
+        statuses: filterStatus || undefined,
+      });
+      setItems(res.items);
+      setGaps(res.gaps);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to load calendar';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [cursor, view, filterChannel, filterSource, filterStatus]);
+
+  useEffect(() => { loadFeed(); }, [loadFeed]);
+
+  const byDate = useMemo(() => groupByDate(items), [items]);
+  const gapSet = useMemo(() => new Set(gaps), [gaps]);
+
+  const navigate = (dir: number) => {
+    const d = new Date(cursor);
+    if (view === 'month') d.setMonth(d.getMonth() + dir);
+    else d.setDate(d.getDate() + 7 * dir);
+    setCursor(d);
+  };
+
+  const handleDrop = async (item: CalendarFeedItem, targetDate: Date) => {
+    const newDt = new Date(targetDate);
+    // Preserve original time if it exists
+    if (item.scheduled_at) {
+      const orig = new Date(item.scheduled_at);
+      newDt.setHours(orig.getHours(), orig.getMinutes(), orig.getSeconds());
+    } else {
+      newDt.setHours(9, 0, 0); // default to 9 AM
+    }
+
+    try {
+      await CalendarFeed.reschedule({
+        source_type: item.source_type,
+        source_id: item.source_id,
+        new_scheduled_at: newDt.toISOString(),
+      });
+      loadFeed();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Reschedule failed';
+      setError(msg);
     }
   };
 
-  const byDate = useMemo(() => groupByDate(active?.entries || []), [active]);
-  const stats = useMemo(() => calStats(active), [active]);
-  const grid = useMemo(() => monthGrid(cursor), [cursor]);
-  const monthLabel = cursor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-  const thisMonth = cursor.getMonth();
-  const todayStr = todayISO();
+  const handleQuickAdd = async (title: string, platform: string, contentType: string) => {
+    if (!openDate) return;
+    setQuickAddLoading(true);
+    try {
+      const dt = new Date(openDate + 'T09:00:00');
+      await CalendarFeed.quickAdd({
+        title,
+        scheduled_at: dt.toISOString(),
+        platform,
+        content_type: contentType,
+      });
+      await loadFeed();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Quick add failed';
+      setError(msg);
+    } finally {
+      setQuickAddLoading(false);
+    }
+  };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+  const grid = view === 'month' ? monthGrid(cursor) : weekGrid(cursor);
+
+  const headerLabel = view === 'month'
+    ? cursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : (() => {
+      const w = weekGrid(cursor);
+      const s = w[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const e = w[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return `${s} - ${e}`;
+    })();
+
+  /* Count stats */
+  const statusCounts = useMemo(() => {
+    const c: Record<string, number> = { draft: 0, scheduled: 0, published: 0, failed: 0 };
+    for (const it of items) c[it.status] = (c[it.status] || 0) + 1;
+    return c;
+  }, [items]);
 
   return (
-    <Stack spacing={3}>
-      {/* hero header */}
-      <Box
-        sx={{
-          position: 'relative',
-          overflow: 'hidden',
-          borderRadius: 4,
-          p: { xs: 2.5, md: 3.5 },
-          color: '#fff',
-          background: 'linear-gradient(125deg, #11151B 0%, #1B2330 55%, #0E1A18 100%)',
-          boxShadow: '0 18px 48px rgba(14,17,22,0.28)',
-        }}
-      >
-        {/* glow accents */}
-        <Box sx={{ position: 'absolute', top: -90, right: -40, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,175,6,0.40), transparent 65%)', filter: 'blur(8px)' }} />
-        <Box sx={{ position: 'absolute', bottom: -120, left: '30%', width: 360, height: 360, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,187,135,0.34), transparent 65%)', filter: 'blur(10px)' }} />
-
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          justifyContent="space-between"
-          alignItems={{ md: 'flex-end' }}
-          spacing={2}
-          sx={{ position: 'relative' }}
-        >
-          <Box>
-            <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mb: 1 }}>
-              <Box
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 2.5,
-                  display: 'grid',
-                  placeItems: 'center',
-                  background: BRAND.gradient,
-                  boxShadow: '0 8px 20px rgba(20,187,135,0.4)',
-                }}
-              >
-                <CalendarMonthIcon sx={{ color: '#fff', fontSize: 22 }} />
-              </Box>
-              <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: '0.14em' }}>
-                Content Engine · Planner
-              </Typography>
-            </Stack>
-            <Typography
-              variant="h4"
-              fontWeight={800}
-              sx={{
-                background: BRAND.gradientText,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                display: 'inline-block',
-              }}
-            >
-              Content Calendar
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.72)', mt: 0.5, maxWidth: 560 }}>
-              Plan the month at a glance. Click any date to see what goes out and generate it — the
-              finished piece opens in Content Studio.
-            </Typography>
-          </Box>
-
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setCreateOpen(true)}
-            sx={{ alignSelf: { xs: 'stretch', md: 'flex-end' }, flexShrink: 0 }}
+    <Stack spacing={2.5} sx={{ p: { xs: 2, md: 3 }, maxWidth: 1400, mx: 'auto' }}>
+      {/* Header */}
+      <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1.5}>
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <CalendarMonthIcon sx={{ fontSize: 28, color: BRAND.tealDeep }} />
+          <Typography variant="h5" sx={{ fontWeight: 800, color: INK }}>
+            Content Calendar
+          </Typography>
+        </Stack>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <ToggleButtonGroup
+            value={view}
+            exclusive
+            onChange={(_, v) => v && setView(v)}
+            size="small"
+            sx={{ '& .MuiToggleButton-root': { px: 1.5, py: 0.5, textTransform: 'none', fontWeight: 600, fontSize: 12 } }}
           >
-            New calendar
+            <ToggleButton value="month"><CalendarMonthIcon sx={{ fontSize: 16, mr: 0.5 }} />Month</ToggleButton>
+            <ToggleButton value="week"><ViewWeekIcon sx={{ fontSize: 16, mr: 0.5 }} />Week</ToggleButton>
+          </ToggleButtonGroup>
+          <Button
+            size="small"
+            onClick={() => setCursor(new Date())}
+            startIcon={<TodayIcon />}
+            sx={{ ...ghostPillSx, fontSize: 12 }}
+          >
+            Today
+          </Button>
+          <Button
+            size="small"
+            onClick={() => setFilterOpen(!filterOpen)}
+            startIcon={<FilterListIcon />}
+            sx={{ ...ghostPillSx, fontSize: 12 }}
+          >
+            Filter
           </Button>
         </Stack>
+      </Stack>
 
-        {/* live stat pills */}
-        {active && (
-          <Stack
-            direction="row"
-            spacing={1.5}
-            sx={{ position: 'relative', mt: 2.5, flexWrap: 'wrap', gap: 1.5 }}
-          >
-            {[
-              { label: 'Planned', value: stats.total, icon: <LayersIcon sx={{ fontSize: 18 }} />, color: BRAND.amber },
-              { label: 'Generated', value: `${stats.generated}/${stats.total}`, icon: <BoltIcon sx={{ fontSize: 18 }} />, color: BRAND.teal },
-              { label: 'Platforms', value: stats.platforms, icon: <AutoAwesomeIcon sx={{ fontSize: 18 }} />, color: BRAND.pink },
-              { label: 'Active days', value: stats.days, icon: <TodayIcon sx={{ fontSize: 18 }} />, color: '#3B82F6' },
-            ].map((s) => (
-              <Box
-                key={s.label}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.1,
-                  px: 1.6,
-                  py: 1,
-                  borderRadius: 2.5,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  backdropFilter: 'blur(8px)',
-                  minWidth: 120,
-                }}
-              >
-                <Box sx={{ width: 30, height: 30, borderRadius: 2, display: 'grid', placeItems: 'center', background: `${s.color}26`, color: s.color }}>
-                  {s.icon}
-                </Box>
-                <Box>
-                  <Typography sx={{ fontSize: 16, fontWeight: 800, lineHeight: 1.1, color: '#fff' }}>{s.value}</Typography>
-                  <Typography sx={{ fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.55)' }}>{s.label}</Typography>
-                </Box>
-              </Box>
-            ))}
-          </Stack>
+      {/* Status bar */}
+      <Stack direction="row" spacing={1.5} flexWrap="wrap" gap={0.5}>
+        {Object.entries(STATUS_LABELS).map(([k, label]) => (
+          <Chip
+            key={k}
+            label={`${label}: ${statusCounts[k] || 0}`}
+            size="small"
+            sx={{
+              bgcolor: `${STATUS_COLORS[k]}18`,
+              color: STATUS_COLORS[k],
+              fontWeight: 700,
+              fontSize: 11,
+              border: `1px solid ${STATUS_COLORS[k]}30`,
+            }}
+          />
+        ))}
+        {gaps.length > 0 && (
+          <Chip
+            icon={<WarningAmberIcon sx={{ fontSize: 14 }} />}
+            label={`${gaps.length} gap day${gaps.length > 1 ? 's' : ''}`}
+            size="small"
+            sx={{
+              bgcolor: BRAND.amberSoft,
+              color: BRAND.amberDeep,
+              fontWeight: 700,
+              fontSize: 11,
+              border: `1px solid ${BRAND.amber}40`,
+            }}
+          />
         )}
-      </Box>
+      </Stack>
 
-      {error && <Alert severity="error">{error}</Alert>}
-
-      {/* calendar selector */}
-      {calendars.length > 0 && (
-        <Stack direction="row" spacing={1.2} sx={{ flexWrap: 'wrap', gap: 1.2 }}>
-          {calendars.map((c) => {
-            const isActive = active?.id === c.id;
-            const cs = calStats(c);
-            return (
-              <Box
-                key={c.id}
-                onClick={() => {
-                  setActive(c);
-                  setCursor(new Date(c.start_date + 'T00:00:00'));
-                }}
-                sx={{
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.2,
-                  pl: 1.4,
-                  pr: 1,
-                  py: 0.9,
-                  borderRadius: 3,
-                  cursor: 'pointer',
-                  border: '1px solid',
-                  borderColor: isActive ? 'transparent' : 'divider',
-                  background: isActive ? BRAND.gradient : 'background.paper',
-                  color: isActive ? '#fff' : 'text.primary',
-                  boxShadow: isActive ? '0 8px 22px rgba(20,187,135,0.28)' : 'none',
-                  transition: 'transform .15s ease, box-shadow .15s ease',
-                  '&:hover': { transform: 'translateY(-2px)', boxShadow: isActive ? '0 12px 28px rgba(20,187,135,0.34)' : 3 },
-                }}
+      {/* Filter bar */}
+      {filterOpen && (
+        <Card variant="outlined" sx={{ borderRadius: 2 }}>
+          <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+            <Stack direction="row" spacing={2} flexWrap="wrap" alignItems="center">
+              <Select
+                size="small"
+                displayEmpty
+                value={filterChannel}
+                onChange={(e) => setFilterChannel(e.target.value)}
+                sx={{ minWidth: 130, fontSize: 12 }}
               >
-                <ProgressRing
-                  value={cs.generated}
-                  total={cs.total}
-                  size={26}
-                  stroke={3}
-                  color={isActive ? '#fff' : BRAND.teal}
-                />
-                <Box sx={{ pr: 0.5 }}>
-                  <Typography sx={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.1 }}>
-                    {c.client_name || c.title}
-                  </Typography>
-                  <Typography sx={{ fontSize: 10.5, opacity: isActive ? 0.85 : 0.6 }}>
-                    {cs.total} posts · {cs.platforms} platforms
-                  </Typography>
-                </Box>
-                <IconButton
-                  size="small"
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    removeCalendar(c);
-                  }}
-                  sx={{
-                    color: isActive ? 'rgba(255,255,255,0.8)' : 'text.disabled',
-                    '&:hover': { color: isActive ? '#fff' : BRAND.pink, bgcolor: isActive ? 'rgba(255,255,255,0.15)' : BRAND.pinkSoft },
-                  }}
-                >
-                  <DeleteOutlineIcon sx={{ fontSize: 17 }} />
-                </IconButton>
-              </Box>
-            );
-          })}
-        </Stack>
+                <MenuItem value="">All channels</MenuItem>
+                {ALL_PLATFORMS.map((p) => (
+                  <MenuItem key={p} value={p}>{p}</MenuItem>
+                ))}
+                <MenuItem value="email">email</MenuItem>
+              </Select>
+              <Select
+                size="small"
+                displayEmpty
+                value={filterSource}
+                onChange={(e) => setFilterSource(e.target.value)}
+                sx={{ minWidth: 130, fontSize: 12 }}
+              >
+                <MenuItem value="">All sources</MenuItem>
+                <MenuItem value="content">Content</MenuItem>
+                <MenuItem value="social">Social</MenuItem>
+                <MenuItem value="email">Email</MenuItem>
+              </Select>
+              <Select
+                size="small"
+                displayEmpty
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                sx={{ minWidth: 130, fontSize: 12 }}
+              >
+                <MenuItem value="">All statuses</MenuItem>
+                <MenuItem value="draft">Draft</MenuItem>
+                <MenuItem value="scheduled">Scheduled</MenuItem>
+                <MenuItem value="published">Published</MenuItem>
+                <MenuItem value="failed">Failed</MenuItem>
+              </Select>
+              <Button
+                size="small"
+                onClick={() => { setFilterChannel(''); setFilterSource(''); setFilterStatus(''); }}
+                sx={{ ...ghostPillSx, fontSize: 11 }}
+              >
+                Clear
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
       )}
 
-      {calendars.length === 0 ? (
-        <Alert severity="info">
-          No content calendars yet. Click <strong>New calendar</strong> to plan a full month of
-          date-aware, multi-platform content.
+      {error && (
+        <Alert severity="error" onClose={() => setError(null)} sx={{ borderRadius: 2 }}>
+          {error}
         </Alert>
-      ) : (
-        <>
-          {/* generation settings */}
-          <Card
-            sx={{
-              border: '1px solid',
-              borderColor: 'divider',
-              background: 'linear-gradient(135deg, rgba(255,175,6,0.05), rgba(20,187,135,0.05))',
-              backdropFilter: 'blur(6px)',
-            }}
-          >
-            <CardContent sx={{ py: 2 }}>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-                <Box sx={{ width: 26, height: 26, borderRadius: 1.5, display: 'grid', placeItems: 'center', background: BRAND.gradientWarm, color: '#fff' }}>
-                  <TuneIcon sx={{ fontSize: 16 }} />
-                </Box>
-                <Typography variant="overline" color="text.secondary">AI generation defaults</Typography>
-              </Stack>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }} flexWrap="wrap" useFlexGap>
-                <TextField select size="small" label="AI model" value={provider} onChange={(e) => setProvider(e.target.value)} sx={{ minWidth: 180 }}>
-                  {aiModels.map((m) => <MenuItem key={m.id} value={m.id}>{m.label}</MenuItem>)}
-                </TextField>
-                <FormControlLabel
-                  control={<Switch checked={withImage} onChange={(e) => setWithImage(e.target.checked)} />}
-                  label="Branded graphics"
-                />
-                <TextField select size="small" label="Graphic style" value={imageStyle} onChange={(e) => setImageStyle(e.target.value)} disabled={!withImage} sx={{ minWidth: 160 }}>
-                  {IMAGE_STYLES.map((s) => <MenuItem key={s.id} value={s.id}>{s.label}</MenuItem>)}
-                </TextField>
-                <TextField select size="small" label="Image model" value={imageModel} onChange={(e) => setImageModel(e.target.value)} disabled={!withImage} sx={{ minWidth: 160 }}>
-                  {IMAGE_MODELS.map((m) => <MenuItem key={m.id} value={m.id}>{m.label}</MenuItem>)}
-                </TextField>
-                <TextField select size="small" label="Email format" value={emailFormat} onChange={(e) => setEmailFormat(e.target.value)} sx={{ minWidth: 150 }} helperText="for newsletters">
-                  <MenuItem value="html">Branded HTML</MenuItem>
-                  <MenuItem value="normal">Plain / markdown</MenuItem>
-                </TextField>
-              </Stack>
-            </CardContent>
-          </Card>
+      )}
 
-          {/* month grid */}
-          <Card sx={{ border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
-            <CardContent sx={{ p: { xs: 1.5, md: 2.5 } }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                <Typography
-                  variant="h6"
-                  fontWeight={800}
-                  sx={{
-                    background: BRAND.gradientText,
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                  }}
-                >
-                  {monthLabel}
-                </Typography>
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  sx={{ borderRadius: 2.5, border: '1px solid', borderColor: 'divider', overflow: 'hidden', bgcolor: 'background.paper' }}
-                >
-                  <IconButton size="small" sx={{ borderRadius: 0 }} onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}>
-                    <ChevronLeftIcon />
-                  </IconButton>
-                  <Button size="small" onClick={() => setCursor(new Date())} sx={{ minWidth: 'auto', borderRadius: 0, borderLeft: '1px solid', borderRight: '1px solid', borderColor: 'divider', color: 'text.secondary' }}>
-                    Today
-                  </Button>
-                  <IconButton size="small" sx={{ borderRadius: 0 }} onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}>
-                    <ChevronRightIcon />
-                  </IconButton>
-                </Stack>
-              </Stack>
+      {/* Navigation */}
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <IconButton onClick={() => navigate(-1)} size="small"><ChevronLeftIcon /></IconButton>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: INK, minWidth: 220, textAlign: 'center' }}>
+          {headerLabel}
+        </Typography>
+        <IconButton onClick={() => navigate(1)} size="small"><ChevronRightIcon /></IconButton>
+        {loading && <CircularProgress size={18} sx={{ ml: 1 }} />}
+      </Stack>
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: { xs: 0.6, md: 1 } }}>
-                {WEEKDAYS.map((w) => (
-                  <Typography key={w} variant="caption" sx={{ fontWeight: 800, color: 'text.disabled', textAlign: 'center', py: 0.5, letterSpacing: '0.06em' }}>
-                    {w.toUpperCase()}
+      {/* Calendar grid */}
+      <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+        <CardContent sx={{ p: 1 }}>
+          {view === 'month' ? (
+            <>
+              {/* Weekday headers */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.5, mb: 0.5 }}>
+                {WEEKDAYS.map((d) => (
+                  <Typography
+                    key={d}
+                    variant="caption"
+                    align="center"
+                    sx={{ fontWeight: 700, color: SUBTLE, fontSize: 11, py: 0.5 }}
+                  >
+                    {d}
                   </Typography>
                 ))}
+              </Box>
+              {/* Grid */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.5 }}>
                 {grid.map((d) => {
-                  const iso = ymd(d);
-                  const inMonth = d.getMonth() === thisMonth;
-                  const dayEntries = byDate.get(iso) || [];
-                  const isToday = iso === todayStr;
-                  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-                  const genCount = dayEntries.filter((e) => e.status === 'generated').length;
-                  const hasEntries = dayEntries.length > 0;
+                  const ds = ymd(d);
                   return (
-                    <Box
-                      key={iso}
-                      onClick={() => hasEntries && setOpenDate(iso)}
-                      sx={{
-                        position: 'relative',
-                        minHeight: { xs: 78, md: 96 },
-                        p: 0.9,
-                        borderRadius: 2.5,
-                        border: '1px solid',
-                        borderColor: isToday ? 'transparent' : 'divider',
-                        background: isToday
-                          ? 'linear-gradient(160deg, rgba(255,175,6,0.12), rgba(20,187,135,0.12))'
-                          : inMonth
-                          ? isWeekend
-                            ? 'rgba(14,17,22,0.015)'
-                            : 'background.paper'
-                          : 'transparent',
-                        boxShadow: isToday ? `inset 0 0 0 1.5px ${BRAND.amber}` : 'none',
-                        opacity: inMonth ? 1 : 0.4,
-                        cursor: hasEntries ? 'pointer' : 'default',
-                        transition: 'box-shadow .16s ease, transform .16s ease',
-                        '&:hover': hasEntries
-                          ? { boxShadow: '0 12px 26px rgba(14,17,22,0.12)', transform: 'translateY(-3px)', borderColor: 'transparent' }
-                          : {},
-                        display: 'flex',
-                        flexDirection: 'column',
-                      }}
-                    >
-                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-                        <Box
-                          sx={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: '50%',
-                            display: 'grid',
-                            placeItems: 'center',
-                            fontSize: 12,
-                            fontWeight: isToday ? 800 : 600,
-                            color: isToday ? '#fff' : 'text.primary',
-                            background: isToday ? BRAND.gradient : 'transparent',
-                            boxShadow: isToday ? '0 4px 10px rgba(20,187,135,0.4)' : 'none',
-                          }}
-                        >
-                          {d.getDate()}
-                        </Box>
-                        {hasEntries && (
-                          <ProgressRing value={genCount} total={dayEntries.length} size={22} stroke={2.5} />
-                        )}
-                      </Stack>
-
-                      {hasEntries && (
-                        <>
-                          {/* compact, uniform indicators — full text lives in the popup */}
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 'auto' }}>
-                            {dayEntries.slice(0, 8).map((e) => {
-                              const done = e.status === 'generated';
-                              return (
-                                <Box
-                                  key={e.id}
-                                  title={`${e.platform} · ${e.title}`}
-                                  sx={{
-                                    width: 16,
-                                    height: 16,
-                                    borderRadius: 0.8,
-                                    display: 'grid',
-                                    placeItems: 'center',
-                                    bgcolor: done ? entryColor(e) : `${entryColor(e)}26`,
-                                    border: done ? 'none' : `1.5px solid ${entryColor(e)}`,
-                                    color: done ? '#fff' : entryColor(e),
-                                    fontSize: 8.5,
-                                    fontWeight: 800,
-                                    lineHeight: 1,
-                                  }}
-                                >
-                                  {done ? '✓' : (e.platform || '?').charAt(0).toUpperCase()}
-                                </Box>
-                              );
-                            })}
-                            {dayEntries.length > 8 && (
-                              <Box
-                                sx={{
-                                  height: 16,
-                                  px: 0.5,
-                                  borderRadius: 0.8,
-                                  display: 'grid',
-                                  placeItems: 'center',
-                                  bgcolor: 'action.hover',
-                                  fontSize: 8.5,
-                                  fontWeight: 800,
-                                  color: 'text.secondary',
-                                }}
-                              >
-                                +{dayEntries.length - 8}
-                              </Box>
-                            )}
-                          </Box>
-                          <Typography
-                            sx={{
-                              mt: 0.6,
-                              fontSize: 10,
-                              fontWeight: 700,
-                              color: genCount === dayEntries.length ? BRAND.tealDeep : 'text.disabled',
-                              letterSpacing: '0.02em',
-                            }}
-                          >
-                            {dayEntries.length} {dayEntries.length === 1 ? 'post' : 'posts'}
-                          </Typography>
-                        </>
-                      )}
-                    </Box>
+                    <DayCell
+                      key={ds}
+                      date={d}
+                      items={byDate[ds] || []}
+                      isToday={ds === todayStr}
+                      isCurrentMonth={d.getMonth() === cursor.getMonth()}
+                      isGap={gapSet.has(ds)}
+                      onClick={() => setOpenDate(ds)}
+                      onDrop={(item) => handleDrop(item, d)}
+                    />
                   );
                 })}
               </Box>
+            </>
+          ) : (
+            <Stack direction="row" spacing={0.5}>
+              {grid.map((d) => {
+                const ds = ymd(d);
+                return (
+                  <WeekDayColumn
+                    key={ds}
+                    date={d}
+                    items={byDate[ds] || []}
+                    isToday={ds === todayStr}
+                    isGap={gapSet.has(ds)}
+                    onClick={() => setOpenDate(ds)}
+                    onDrop={(item) => handleDrop(item, d)}
+                  />
+                );
+              })}
+            </Stack>
+          )}
+        </CardContent>
+      </Card>
 
-              {/* legend */}
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 2.5, flexWrap: 'wrap', gap: 1.5 }}>
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-                  {Object.entries({ carousel: 'Carousel', pdf: 'PDF', article: 'Blog', newsletter: 'Newsletter', static: 'Single', text: 'Text' }).map(([k, label]) => (
-                    <Stack
-                      key={k}
-                      direction="row"
-                      spacing={0.6}
-                      alignItems="center"
-                      sx={{ px: 1, py: 0.4, borderRadius: 5, bgcolor: 'action.hover' }}
-                    >
-                      <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: FORMAT_COLOR[k] }} />
-                      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>{label}</Typography>
-                    </Stack>
-                  ))}
-                </Stack>
-                <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
-                  Tap any day to view & generate all its posts in one click
-                </Typography>
-              </Stack>
-            </CardContent>
-          </Card>
-        </>
-      )}
+      {/* Legend */}
+      <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" gap={0.5}>
+          {Object.entries(STATUS_LABELS).map(([k, label]) => (
+            <Stack key={k} direction="row" spacing={0.5} alignItems="center" sx={{ px: 1, py: 0.3, borderRadius: 5, bgcolor: 'action.hover' }}>
+              <StatusDot status={k} />
+              <Typography variant="caption" sx={{ fontWeight: 600, color: SUBTLE, fontSize: 10 }}>{label}</Typography>
+            </Stack>
+          ))}
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ px: 1, py: 0.3, borderRadius: 5, bgcolor: 'action.hover' }}>
+            <WarningAmberIcon sx={{ fontSize: 11, color: BRAND.amber }} />
+            <Typography variant="caption" sx={{ fontWeight: 600, color: SUBTLE, fontSize: 10 }}>Gap day</Typography>
+          </Stack>
+        </Stack>
+        <Typography variant="caption" sx={{ color: SUBTLE, fontStyle: 'italic', fontSize: 11 }}>
+          Drag items between days to reschedule. Tap any day for details and quick-add.
+        </Typography>
+      </Stack>
 
-      <DayDrawer
+      {/* Day detail drawer */}
+      <DayDetailDrawer
         date={openDate}
-        calendar={active}
-        settings={{ provider, withImage, imageStyle, imageModel, emailFormat }}
+        items={openDate ? (byDate[openDate] || []) : []}
         onClose={() => setOpenDate(null)}
-        onUpdated={onUpdated}
-      />
-
-      <CreateCalendarDialog
-        open={createOpen}
-        provider={provider}
-        onClose={() => setCreateOpen(false)}
-        onCreated={onCreated}
+        onQuickAdd={handleQuickAdd}
+        quickAddLoading={quickAddLoading}
       />
     </Stack>
   );

@@ -10,6 +10,7 @@ import {
   MenuItem,
   Snackbar,
   Stack,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -23,6 +24,8 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import BoltIcon from '@mui/icons-material/Bolt';
 import PersonAddAltRoundedIcon from '@mui/icons-material/PersonAddAltRounded';
 import BoltRoundedIcon from '@mui/icons-material/BoltRounded';
+import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
+import RuleIcon from '@mui/icons-material/Rule';
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
@@ -73,6 +76,7 @@ interface Overview {
   mqls: number;
   sqls: number;
   stages: string[];
+  activity_kinds?: string[];
 }
 
 interface NextAction {
@@ -182,6 +186,12 @@ export default function LeadScorePage() {
   const [leadForm, setLeadForm] = useState({ email: '', name: '', company: '', source: '', stage: 'subscriber' });
   const [action, setAction] = useState<{ lead: Lead; data: NextAction } | null>(null);
 
+  const [activityLead, setActivityLead] = useState<Lead | null>(null);
+  const [activityForm, setActivityForm] = useState({ kind: '', weight: 1 });
+
+  const [ruleOpen, setRuleOpen] = useState(false);
+  const [ruleForm, setRuleForm] = useState({ name: '', condition: '', points: 0, is_active: true });
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -269,6 +279,58 @@ export default function LeadScorePage() {
       setBusy(false);
     }
   }, [load]);
+
+  const openActivity = useCallback((lead: Lead) => {
+    setActivityForm({ kind: '', weight: 1 });
+    setActivityLead(lead);
+  }, []);
+
+  const createActivity = useCallback(async () => {
+    if (!activityLead || !activityForm.kind.trim()) return;
+    setBusy(true);
+    try {
+      await api(`/leadscore/leads/${activityLead.id}/activity`, {
+        method: 'POST',
+        body: { kind: activityForm.kind.trim(), weight: activityForm.weight },
+        workspace: true,
+      });
+      setActivityLead(null);
+      setActivityForm({ kind: '', weight: 1 });
+      setToast('Activity logged');
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to log activity');
+    } finally {
+      setBusy(false);
+    }
+  }, [activityLead, activityForm, load]);
+
+  const createRule = useCallback(async () => {
+    if (!ruleForm.name.trim()) return;
+    let condition: Record<string, unknown>;
+    try {
+      condition = ruleForm.condition.trim() ? JSON.parse(ruleForm.condition) : {};
+    } catch {
+      setError('Condition must be valid JSON');
+      return;
+    }
+    setBusy(true);
+    try {
+      await api('/leadscore/rules', {
+        method: 'POST',
+        body: { name: ruleForm.name.trim(), condition, points: ruleForm.points, is_active: ruleForm.is_active },
+        workspace: true,
+      });
+      setRuleOpen(false);
+      setRuleForm({ name: '', condition: '', points: 0, is_active: true });
+      setToast('Rule created');
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create rule');
+    } finally {
+      setBusy(false);
+    }
+  }, [ruleForm, load]);
 
   if (!activeWorkspace) {
     return (
@@ -400,15 +462,26 @@ export default function LeadScorePage() {
                           <Typography sx={{ fontWeight: 800, fontSize: 15, color: INK }}>{l.score}</Typography>
                         </TableCell>
                         <TableCell sx={{ borderColor: LINE }} align="right">
-                          <Button
-                            size="small"
-                            disabled={busy}
-                            startIcon={<AutoAwesomeIcon sx={{ fontSize: 16 }} />}
-                            onClick={() => runNextAction(l)}
-                            sx={{ textTransform: 'none', fontWeight: 700, color: BRAND.tealDeep, '&:hover': { bgcolor: BRAND.tealSoft } }}
-                          >
-                            Next action
-                          </Button>
+                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                            <Button
+                              size="small"
+                              disabled={busy}
+                              startIcon={<PlaylistAddIcon sx={{ fontSize: 16 }} />}
+                              onClick={() => openActivity(l)}
+                              sx={{ textTransform: 'none', fontWeight: 700, color: INK, '&:hover': { bgcolor: 'rgba(14,17,22,0.05)' } }}
+                            >
+                              Add activity
+                            </Button>
+                            <Button
+                              size="small"
+                              disabled={busy}
+                              startIcon={<AutoAwesomeIcon sx={{ fontSize: 16 }} />}
+                              onClick={() => runNextAction(l)}
+                              sx={{ textTransform: 'none', fontWeight: 700, color: BRAND.tealDeep, '&:hover': { bgcolor: BRAND.tealSoft } }}
+                            >
+                              Next action
+                            </Button>
+                          </Stack>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -423,14 +496,28 @@ export default function LeadScorePage() {
             <Box sx={{ bgcolor: '#fff', border: `1px solid ${LINE}`, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, p: 3 }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
                 <Typography sx={{ fontWeight: 800, fontSize: 17, color: INK }}>Scoring rules</Typography>
-                <Button
-                  startIcon={<AutoAwesomeIcon />}
-                  disabled={busy}
-                  onClick={suggestRules}
-                  sx={inkBtn}
-                >
-                  AI suggest rules
-                </Button>
+                <Stack direction="row" spacing={1.25}>
+                  <Button
+                    startIcon={<RuleIcon />}
+                    disabled={busy}
+                    onClick={() => { setRuleForm({ name: '', condition: '', points: 0, is_active: true }); setRuleOpen(true); }}
+                    sx={{
+                      px: 2.5, py: 1.1, borderRadius: '999px', fontWeight: 700, textTransform: 'none',
+                      color: INK, background: '#fff', backgroundImage: 'none', border: `1px solid ${LINE}`,
+                      '&:hover': { background: 'rgba(14,17,22,0.05)' },
+                    }}
+                  >
+                    New rule
+                  </Button>
+                  <Button
+                    startIcon={<AutoAwesomeIcon />}
+                    disabled={busy}
+                    onClick={suggestRules}
+                    sx={inkBtn}
+                  >
+                    AI suggest rules
+                  </Button>
+                </Stack>
               </Stack>
               {rules.length === 0 ? (
                 <Typography sx={{ color: SUBTLE, fontWeight: 600, py: 3, textAlign: 'center' }}>
@@ -550,6 +637,72 @@ export default function LeadScorePage() {
         <DialogFooter>
           <Button onClick={() => setLeadOpen(false)} sx={ghostPillSx}>Cancel</Button>
           <Button onClick={createLead} disabled={busy || !leadForm.email.trim()} sx={inkPillSx}>Add lead</Button>
+        </DialogFooter>
+      </PremiumDialog>
+
+      {/* Add activity dialog */}
+      <PremiumDialog open={!!activityLead} onClose={() => setActivityLead(null)} maxWidth="sm">
+        <DialogHero
+          icon={<PlaylistAddIcon />}
+          title="Add activity"
+          subtitle={activityLead ? (activityLead.name || activityLead.email) : 'Log an engagement signal'}
+          onClose={() => setActivityLead(null)}
+        />
+        <DialogBody>
+          <SectionLabel>Engagement</SectionLabel>
+          <Stack spacing={2}>
+            {overview?.activity_kinds && overview.activity_kinds.length > 0 ? (
+              <TextField label="Kind" select value={activityForm.kind}
+                onChange={(e) => setActivityForm({ ...activityForm, kind: e.target.value })} fullWidth size="small">
+                {overview.activity_kinds.map((k) => (
+                  <MenuItem key={k} value={k} sx={{ textTransform: 'capitalize' }}>{k}</MenuItem>
+                ))}
+              </TextField>
+            ) : (
+              <TextField label="Kind" value={activityForm.kind}
+                onChange={(e) => setActivityForm({ ...activityForm, kind: e.target.value })} fullWidth size="small" />
+            )}
+            <TextField label="Weight" type="number" value={activityForm.weight}
+              onChange={(e) => setActivityForm({ ...activityForm, weight: Number(e.target.value) })}
+              inputProps={{ min: 0, max: 1000 }} fullWidth size="small" />
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setActivityLead(null)} sx={ghostPillSx}>Cancel</Button>
+          <Button onClick={createActivity} disabled={busy || !activityForm.kind.trim()} sx={inkPillSx}>Log activity</Button>
+        </DialogFooter>
+      </PremiumDialog>
+
+      {/* New rule dialog */}
+      <PremiumDialog open={ruleOpen} onClose={() => setRuleOpen(false)} maxWidth="sm">
+        <DialogHero
+          icon={<RuleIcon />}
+          title="New scoring rule"
+          subtitle="Add points when a lead matches a condition"
+          onClose={() => setRuleOpen(false)}
+        />
+        <DialogBody>
+          <SectionLabel>Rule</SectionLabel>
+          <Stack spacing={2}>
+            <TextField label="Name" value={ruleForm.name} required
+              onChange={(e) => setRuleForm({ ...ruleForm, name: e.target.value })} fullWidth size="small" />
+            <TextField label="Condition (JSON)" value={ruleForm.condition} multiline minRows={3}
+              placeholder='{"field":"source","op":"eq","value":"linkedin"}'
+              onChange={(e) => setRuleForm({ ...ruleForm, condition: e.target.value })} fullWidth size="small"
+              InputProps={{ sx: { fontFamily: 'monospace', fontSize: 13 } }} />
+            <TextField label="Points" type="number" value={ruleForm.points}
+              onChange={(e) => setRuleForm({ ...ruleForm, points: Number(e.target.value) })}
+              inputProps={{ min: -1000, max: 1000 }} fullWidth size="small" />
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography sx={{ fontWeight: 700, fontSize: 13.5, color: INK }}>Active</Typography>
+              <Switch checked={ruleForm.is_active}
+                onChange={(e) => setRuleForm({ ...ruleForm, is_active: e.target.checked })} />
+            </Stack>
+          </Stack>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setRuleOpen(false)} sx={ghostPillSx}>Cancel</Button>
+          <Button onClick={createRule} disabled={busy || !ruleForm.name.trim()} sx={inkPillSx}>Create rule</Button>
         </DialogFooter>
       </PremiumDialog>
 

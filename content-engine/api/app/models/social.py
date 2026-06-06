@@ -26,6 +26,7 @@ class ScheduleStatus(str, enum.Enum):
     published = "published"
     failed = "failed"
     canceled = "canceled"
+    skipped_not_connected = "skipped_not_connected"
 
 
 class SocialAccount(Base, UUIDMixin, TimestampMixin):
@@ -70,4 +71,5 @@ class Schedule(Base, UUIDMixin, TimestampMixin):
         nullable=False,
     )
     external_post_id: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    permalink: Mapped[str | None] = mapped_column(String(600), nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)

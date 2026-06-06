@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.research_graph import run_research
 from app.db import AsyncSessionLocal
 from app.models import AuditSnapshot, Competitor, Insight, JobStatus, ResearchJob
+from app.services import icp_service
 from app.tools.social_audit import audit_many, extract_handle
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,8 @@ async def run_research_job(job_id: uuid.UUID, db: AsyncSession | None = None) ->
                 await step_session.close()
 
         try:
+            icp_row = await icp_service.get_icp(session, job.workspace_id)
+            icp_brief = icp_service.to_brief(icp_row) if icp_row else None
             result = await run_research(
                 topic=job.topic,
                 target_url=job.target_url,
@@ -58,6 +61,7 @@ async def run_research_job(job_id: uuid.UUID, db: AsyncSession | None = None) ->
                 countries=job.countries or [],
                 platforms=job.platforms or [],
                 on_step=_on_step,
+                icp=icp_brief,
             )
         except Exception as exc:  # noqa: BLE001
             job.status = JobStatus.failed
@@ -127,6 +131,16 @@ async def run_research_job(job_id: uuid.UUID, db: AsyncSession | None = None) ->
             await _auto_audit(session, job, saved_competitors)
         except Exception:  # noqa: BLE001
             logger.warning("Auto social audit failed for job %s", job_id)
+
+        # Respect a mid-run cancellation: if the API marked this job failed
+        # (Cancelled by user) while we were working, don't overwrite it back to
+        # succeeded — drop our pending writes and stop.
+        async with AsyncSessionLocal() as check_session:
+            current = await check_session.get(ResearchJob, job_id)
+            if current is not None and current.status == JobStatus.failed:
+                if own_session:
+                    await session.rollback()
+                return
 
         # Mark succeeded only after all persists succeed; any exception here
         # propagates to the outer try/except which marks the job failed.

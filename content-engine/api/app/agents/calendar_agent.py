@@ -29,6 +29,18 @@ DEFAULT_PLATFORMS = [
     "medium",
 ]
 
+# Segment-aware default platform mix. When the caller doesn't pass an explicit
+# platform list we pick the channels that match the ICP go-to-market motion.
+SEGMENT_PLATFORMS: dict[str, list[str]] = {
+    "B2B": ["linkedin", "x", "blog", "newsletter", "youtube", "medium"],
+    "B2C": ["instagram", "tiktok", "youtube", "facebook", "x"],
+    "D2C": ["instagram", "tiktok", "facebook", "youtube", "newsletter"],
+}
+
+
+def platforms_for_segment(segment: str | None) -> list[str]:
+    return SEGMENT_PLATFORMS.get((segment or "").upper(), DEFAULT_PLATFORMS)
+
 # Sensible content_type per platform (used to nudge the model + as a fallback).
 PLATFORM_DEFAULT_TYPE = {
     "linkedin": "social_post",
@@ -108,8 +120,36 @@ CALENDAR_SYSTEM = (
 )
 
 
-def _ctx_block(brand: dict[str, Any] | None, strategy: dict[str, Any] | None) -> str:
+def _ctx_block(
+    brand: dict[str, Any] | None,
+    strategy: dict[str, Any] | None,
+    icp: dict[str, Any] | None = None,
+) -> str:
     parts: list[str] = []
+    if icp:
+        seg = icp.get("segment")
+        parts.append(
+            "IDEAL CUSTOMER PROFILE:\n"
+            + json.dumps(
+                {
+                    "segment": seg,
+                    "industry": icp.get("industry"),
+                    "target_customer": icp.get("target_customer"),
+                    "personas": icp.get("personas"),
+                    "pains": icp.get("pains"),
+                    "channels": icp.get("channels"),
+                    "b2b": icp.get("b2b"),
+                },
+                ensure_ascii=False,
+            )[:6000]
+        )
+        if seg == "B2B":
+            parts.append(
+                "B2B EXECUTION: outreach is sent from a PERSONAL profile (founder/SDR) "
+                "while selling the COMPANY offer. Keep the company page and personal "
+                "profile narratives ALIGNED; mix authority posts (company) with POV/"
+                "personal-brand posts (personal) and email nurture."
+            )
     if brand:
         parts.append(
             "BRAND:\n"
@@ -134,11 +174,12 @@ def _ctx_block(brand: dict[str, Any] | None, strategy: dict[str, Any] | None) ->
                     "pillars": strategy.get("pillars"),
                     "funnel": strategy.get("funnel"),
                     "lead_magnets": strategy.get("lead_magnets"),
+                    "channel_plan": strategy.get("channel_plan"),
                 },
                 ensure_ascii=False,
             )[:6000]
         )
-    return "\n\n".join(parts) or "No brand/strategy context yet; infer a credible B2B voice."
+    return "\n\n".join(parts) or "No brand/strategy context yet; infer a credible voice."
 
 
 async def generate_calendar(
@@ -152,6 +193,7 @@ async def generate_calendar(
     strategy: dict[str, Any] | None,
     goal: str | None = None,
     provider: Provider | None = None,
+    icp: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     if start_date > end_date:
         start_date, end_date = end_date, start_date
@@ -163,7 +205,7 @@ async def generate_calendar(
         f"CLIENT: {client_name or 'the client'}\n"
         f"GOAL: {goal or 'Grow qualified pipeline, authority and demand.'}\n"
         f"PLATFORMS: {', '.join(chosen)}\n\n"
-        f"{_ctx_block(brand, strategy)}\n\n"
+        f"{_ctx_block(brand, strategy, icp)}\n\n"
         "Build the calendar now. Start at the start date, never schedule before it, "
         "and stay within the window."
     )
