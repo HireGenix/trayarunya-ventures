@@ -35,6 +35,15 @@ interface AuthState {
     org_name: string;
     org_type: string;
   }) => Promise<void>;
+  startCheckout: (data: {
+    email: string;
+    password: string;
+    full_name: string;
+    org_name: string;
+    org_type: string;
+    interval: 'monthly' | 'yearly';
+  }) => Promise<void>;
+  completeSignup: (sessionId: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -107,6 +116,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [refresh, router]
   );
 
+  const startCheckout = useCallback(
+    async (data: {
+      email: string;
+      password: string;
+      full_name: string;
+      org_name: string;
+      org_type: string;
+      interval: 'monthly' | 'yearly';
+    }) => {
+      const { url } = await Auth.signupCheckout(data);
+      window.location.href = url;
+    },
+    []
+  );
+
+  const completeSignup = useCallback(
+    async (sessionId: string) => {
+      const res = await Auth.completeSignup(sessionId);
+      setToken(res.access_token);
+      const ws = await Workspaces.list();
+      if (ws[0]) setWorkspaceId(ws[0].id);
+      await refresh();
+      router.push('/dashboard');
+    },
+    [refresh, router]
+  );
+
   const logout = useCallback(() => {
     setToken(null);
     setWorkspaceId(null);
@@ -129,6 +165,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refresh,
     login,
     signup,
+    startCheckout,
+    completeSignup,
     logout,
   };
 

@@ -11,10 +11,6 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Drawer,
   FormControlLabel,
   IconButton,
@@ -31,9 +27,11 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import CloseIcon from '@mui/icons-material/Close';
 import LaunchIcon from '@mui/icons-material/Launch';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
 import BoltIcon from '@mui/icons-material/Bolt';
 import LayersIcon from '@mui/icons-material/Layers';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -49,7 +47,19 @@ import {
   type ContentCalendar,
   type CalendarEntry,
 } from '@/lib/api';
+import { useAIModels } from '@/lib/useAIModels';
 import { useConfirm } from '@/components/ConfirmDialog';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  FieldGrid,
+  FullSpan,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
 import { BRAND } from '@/theme/theme';
 
 /* ============================ helpers ============================ */
@@ -217,65 +227,76 @@ function CreateCalendarDialog({
   };
 
   return (
-    <Dialog open={open} onClose={busy ? undefined : onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 800 }}>New content calendar</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2.5} sx={{ mt: 1 }}>
-          {error && <Alert severity="error">{error}</Alert>}
-          <TextField
-            label="Client / brand name (optional)"
-            value={client}
-            onChange={(e) => setClient(e.target.value)}
-            fullWidth
-          />
-          <TextField
-            label="Primary goal (optional)"
-            placeholder="e.g. drive demo signups for the new hiring product"
-            value={goal}
-            onChange={(e) => setGoal(e.target.value)}
-            fullWidth
-            multiline
-            minRows={2}
-          />
-          <Box>
-            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Platforms</Typography>
-            <Select
-              multiple
+    <PremiumDialog open={open} onClose={busy ? () => {} : onClose} maxWidth="sm">
+      <DialogHero
+        icon={<CalendarMonthRoundedIcon />}
+        title="New content calendar"
+        subtitle="Plan a month of date-aware, multi-platform ideas."
+        onClose={busy ? undefined : onClose}
+      />
+      <DialogBody>
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        <SectionLabel>Brief</SectionLabel>
+        <FieldGrid>
+          <FullSpan>
+            <TextField
+              label="Client / brand name (optional)"
+              value={client}
+              onChange={(e) => setClient(e.target.value)}
               fullWidth
               size="small"
-              value={platforms}
-              onChange={(e) =>
-                setPlatforms(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)
-              }
-              input={<OutlinedInput />}
-              renderValue={(sel) => (sel as string[]).join(', ')}
-            >
-              {ALL_PLATFORMS.map((p) => (
-                <MenuItem key={p} value={p}>
-                  <Checkbox checked={platforms.indexOf(p) > -1} />
-                  <ListItemText primary={p} />
-                </MenuItem>
-              ))}
-            </Select>
-          </Box>
-          <Typography variant="body2" color="text.secondary">
-            A full month of date-aware, multi-platform ideas will be planned from today. You then
-            generate each piece on its scheduled day.
-          </Typography>
-        </Stack>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={busy}>Cancel</Button>
+            />
+          </FullSpan>
+          <FullSpan>
+            <TextField
+              label="Primary goal (optional)"
+              placeholder="e.g. drive demo signups for the new hiring product"
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              fullWidth
+              size="small"
+              multiline
+              minRows={2}
+            />
+          </FullSpan>
+        </FieldGrid>
+
+        <SectionLabel sx={{ mt: 2.5 }}>Platforms</SectionLabel>
+        <Select
+          multiple
+          fullWidth
+          size="small"
+          value={platforms}
+          onChange={(e) =>
+            setPlatforms(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)
+          }
+          input={<OutlinedInput />}
+          renderValue={(sel) => (sel as string[]).join(', ')}
+        >
+          {ALL_PLATFORMS.map((p) => (
+            <MenuItem key={p} value={p}>
+              <Checkbox checked={platforms.indexOf(p) > -1} />
+              <ListItemText primary={p} />
+            </MenuItem>
+          ))}
+        </Select>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+          A full month of date-aware, multi-platform ideas will be planned from today. You then
+          generate each piece on its scheduled day.
+        </Typography>
+      </DialogBody>
+      <DialogFooter>
+        <Button onClick={onClose} disabled={busy} sx={ghostPillSx}>Cancel</Button>
         <Button
-          variant="contained"
           onClick={create}
           disabled={busy || platforms.length === 0}
-          startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <AutoAwesomeIcon />}
+          startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <AutoAwesomeRoundedIcon />}
+          sx={inkPillSx}
         >
           {busy ? 'Planning…' : 'Generate calendar'}
         </Button>
-      </DialogActions>
-    </Dialog>
+      </DialogFooter>
+    </PremiumDialog>
   );
 }
 
@@ -298,6 +319,8 @@ function DayDrawer({
   const [busyEntry, setBusyEntry] = useState<string | null>(null);
   const [busyDay, setBusyDay] = useState(false);
   const [error, setError] = useState('');
+  const [regenTarget, setRegenTarget] = useState<CalendarEntry | null>(null);
+  const [regenNote, setRegenNote] = useState('');
 
   const entries = useMemo(() => {
     if (!date || !calendar) return [];
@@ -306,13 +329,14 @@ function DayDrawer({
 
   const pending = useMemo(() => entries.filter((e) => e.status !== 'generated'), [entries]);
 
-  const generate = async (entry: CalendarEntry) => {
+  const generate = async (entry: CalendarEntry, notes?: string) => {
     if (!calendar) return;
     setBusyEntry(entry.id);
     setError('');
     try {
       const updated = await Calendar.generateEntry(calendar.id, entry.id, {
         provider: settings.provider,
+        notes: notes?.trim() || undefined,
         with_image: settings.withImage,
         image_style: settings.imageStyle,
         image_provider: settings.imageModel,
@@ -324,6 +348,19 @@ function DayDrawer({
     } finally {
       setBusyEntry(null);
     }
+  };
+
+  const openRegen = (entry: CalendarEntry) => {
+    setRegenNote('');
+    setRegenTarget(entry);
+  };
+
+  const confirmRegen = async () => {
+    if (!regenTarget) return;
+    const target = regenTarget;
+    const note = regenNote;
+    setRegenTarget(null);
+    await generate(target, note);
   };
 
   const generateAllDay = async () => {
@@ -498,7 +535,7 @@ function DayDrawer({
                         <Button
                           size="small"
                           disabled={busy || busyDay}
-                          onClick={() => generate(e)}
+                          onClick={() => openRegen(e)}
                           startIcon={busy ? <CircularProgress size={14} /> : undefined}
                         >
                           Regenerate
@@ -512,6 +549,88 @@ function DayDrawer({
           </Stack>
         )}
       </Box>
+
+      <PremiumDialog
+        open={Boolean(regenTarget)}
+        onClose={() => setRegenTarget(null)}
+        maxWidth="md"
+      >
+        <DialogHero
+          icon={<AutoAwesomeRoundedIcon />}
+          title="Regenerate content"
+          subtitle="Tell the AI what to change, or leave blank to simply regenerate."
+          onClose={() => setRegenTarget(null)}
+        />
+        <DialogBody sx={{ p: 0 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, minHeight: { md: 280 } }}>
+            {/* ---------------- Instruction column ---------------- */}
+            <Box sx={{ px: { xs: 2.5, sm: 3.25 }, py: 3, borderRight: { md: '1px solid rgba(14,17,22,0.08)' } }}>
+              <SectionLabel>What to change</SectionLabel>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                {regenTarget?.title
+                  ? `Refine “${regenTarget.title}”, or leave blank to simply regenerate.`
+                  : 'Leave blank to simply regenerate.'}
+              </Typography>
+              <TextField
+                autoFocus
+                fullWidth
+                multiline
+                minRows={3}
+                maxRows={8}
+                placeholder="e.g. Make the tone more energetic, add a clear CTA, shorten to 2 lines, focus on first-time founders…"
+                value={regenNote}
+                onChange={(ev) => setRegenNote(ev.target.value)}
+              />
+            </Box>
+
+            {/* ---------------- Live preview column ---------------- */}
+            <Box sx={{ background: 'rgba(14,17,22,0.025)', px: { xs: 2.5, sm: 3 }, py: 2.5 }}>
+              <SectionLabel sx={{ mb: 1.5 }}>Current post</SectionLabel>
+              {regenTarget && (
+                <Box
+                  sx={{
+                    background: '#fff',
+                    borderRadius: '18px',
+                    border: '1px solid rgba(14,17,22,0.08)',
+                    boxShadow: '0 8px 30px -12px rgba(14,17,22,0.18)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Box sx={{ p: 2 }}>
+                    <Stack direction="row" spacing={0.75} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.5 }}>
+                      <Chip size="small" label={regenTarget.platform} />
+                      <Chip size="small" label={regenTarget.content_type} variant="outlined" />
+                      {regenTarget.format && <Chip size="small" label={regenTarget.format} sx={{ bgcolor: entryColor(regenTarget), color: '#fff' }} />}
+                    </Stack>
+                    {regenTarget.title && (
+                      <Typography sx={{ fontWeight: 800, fontSize: 14, color: BRAND.ink }}>{regenTarget.title}</Typography>
+                    )}
+                    {regenTarget.hook && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{regenTarget.hook}</Typography>
+                    )}
+                    {regenTarget.notes && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>{regenTarget.notes}</Typography>
+                    )}
+                  </Box>
+                  {regenTarget.image_url && (
+                    <Box component="img" src={assetUrl(regenTarget.image_url)} alt="" sx={{ width: '100%', display: 'block' }} />
+                  )}
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setRegenTarget(null)} sx={ghostPillSx}>Cancel</Button>
+          <Button
+            startIcon={<AutoAwesomeRoundedIcon />}
+            onClick={confirmRegen}
+            sx={inkPillSx}
+          >
+            Regenerate
+          </Button>
+        </DialogFooter>
+      </PremiumDialog>
     </Drawer>
   );
 }
@@ -529,6 +648,7 @@ export default function CalendarPage() {
   const [error, setError] = useState('');
 
   // generation settings
+  const { models: aiModels } = useAIModels();
   const [provider, setProvider] = useState<string>(AI_MODELS[0].id);
   const [withImage, setWithImage] = useState(true);
   const [imageStyle, setImageStyle] = useState<string>(IMAGE_STYLES[0].id);
@@ -797,7 +917,7 @@ export default function CalendarPage() {
               </Stack>
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }} flexWrap="wrap" useFlexGap>
                 <TextField select size="small" label="AI model" value={provider} onChange={(e) => setProvider(e.target.value)} sx={{ minWidth: 180 }}>
-                  {AI_MODELS.map((m) => <MenuItem key={m.id} value={m.id}>{m.label}</MenuItem>)}
+                  {aiModels.map((m) => <MenuItem key={m.id} value={m.id}>{m.label}</MenuItem>)}
                 </TextField>
                 <FormControlLabel
                   control={<Switch checked={withImage} onChange={(e) => setWithImage(e.target.checked)} />}

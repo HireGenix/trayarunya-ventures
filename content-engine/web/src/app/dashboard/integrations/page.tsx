@@ -5,16 +5,9 @@ import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
-  Grid,
   IconButton,
   Snackbar,
   Stack,
@@ -25,6 +18,7 @@ import {
 import HubIcon from '@mui/icons-material/HubOutlined';
 import SyncIcon from '@mui/icons-material/SyncOutlined';
 import LinkIcon from '@mui/icons-material/LinkOutlined';
+import LinkRoundedIcon from '@mui/icons-material/LinkRounded';
 import LinkOffIcon from '@mui/icons-material/LinkOffOutlined';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import WarningAmberIcon from '@mui/icons-material/WarningAmberOutlined';
@@ -40,18 +34,29 @@ import {
   type IntegrationOAuthStart,
 } from '@/lib/api';
 import { useConfirm } from '@/components/ConfirmDialog';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
 import { BRAND } from '@/theme/theme';
 
-const INK = '#11151B';
+const INK = BRAND.ink;
 const SUBTLE = '#6B7280';
-const BORDER = '#EAECEF';
-const CANVAS = '#FAFBFC';
+const LINE = 'rgba(14,17,22,0.07)';
+const CARD_RADIUS = '22px';
+const CARD_SHADOW = '0 1px 2px rgba(14,17,22,0.04), 0 8px 24px rgba(14,17,22,0.05)';
+const CHIP_BG = 'rgba(14,17,22,0.05)';
 
-const STATUS_META: Record<IntegrationStatus, { label: string; color: string; soft: string }> = {
-  connected: { label: 'Connected', color: BRAND.teal, soft: '#E4F8F0' },
-  error: { label: 'Error', color: BRAND.pink, soft: '#FDE8EC' },
-  expired: { label: 'Expired', color: BRAND.amber, soft: '#FFF6E0' },
-  disconnected: { label: 'Disconnected', color: SUBTLE, soft: '#F3F4F6' },
+const STATUS_META: Record<IntegrationStatus, { label: string; bg: string; fg: string }> = {
+  connected: { label: 'Connected', bg: BRAND.tealSoft, fg: BRAND.tealDeep },
+  error: { label: 'Error', bg: BRAND.pinkSoft, fg: BRAND.pink },
+  expired: { label: 'Expired', bg: BRAND.amberSoft, fg: BRAND.amberDeep },
+  disconnected: { label: 'Disconnected', bg: CHIP_BG, fg: SUBTLE },
 };
 
 function relativeTime(iso: string | null): string {
@@ -279,140 +284,253 @@ export default function IntegrationsPage() {
 
   if (!activeWorkspace) {
     return (
-      <Card sx={{ borderRadius: 4, border: `1px dashed ${BORDER}`, bgcolor: '#fff' }}>
-        <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, py: 8 }}>
-          <Box sx={{ width: 72, height: 72, borderRadius: '50%', display: 'grid', placeItems: 'center', background: `${BRAND.teal}14` }}>
-            <HubIcon sx={{ fontSize: 36, color: BRAND.teal }} />
-          </Box>
-          <Typography fontWeight={900} variant="h6" sx={{ color: INK }}>No workspace selected</Typography>
-          <Typography variant="body2" sx={{ color: SUBTLE }} textAlign="center" maxWidth={380}>
-            Choose or create a workspace to connect your CRM, analytics and ecommerce tools.
-          </Typography>
-        </CardContent>
-      </Card>
+      <Box
+        sx={{
+          bgcolor: '#fff',
+          border: `1px dashed ${LINE}`,
+          borderRadius: CARD_RADIUS,
+          boxShadow: CARD_SHADOW,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 1.5,
+          py: 8,
+          px: 3,
+        }}
+      >
+        <Box sx={{ width: 56, height: 56, borderRadius: '16px', display: 'grid', placeItems: 'center', bgcolor: CHIP_BG, color: INK }}>
+          <HubIcon sx={{ fontSize: 28 }} />
+        </Box>
+        <Typography sx={{ fontWeight: 800, fontSize: 18, color: INK }}>No workspace selected</Typography>
+        <Typography variant="body2" sx={{ color: SUBTLE }} textAlign="center" maxWidth={380}>
+          Choose or create a workspace to connect your CRM, analytics and ecommerce tools.
+        </Typography>
+      </Box>
     );
   }
 
-  const stats: { label: string; value: number; color: string; icon: React.ReactNode }[] = [
-    { label: 'Total', value: health?.total ?? 0, color: INK, icon: <ExtensionIcon /> },
-    { label: 'Connected', value: health?.connected ?? 0, color: BRAND.teal, icon: <CheckCircleIcon /> },
-    { label: 'Errors', value: health?.error ?? 0, color: BRAND.pink, icon: <ErrorOutlineIcon /> },
-    { label: 'Expired', value: health?.expired ?? 0, color: BRAND.amber, icon: <WarningAmberIcon /> },
+  const stats: { label: string; value: number; bg: string; fg: string; icon: React.ReactNode }[] = [
+    { label: 'Total', value: health?.total ?? 0, bg: CHIP_BG, fg: INK, icon: <ExtensionIcon sx={{ fontSize: 18 }} /> },
+    { label: 'Connected', value: health?.connected ?? 0, bg: BRAND.tealSoft, fg: BRAND.tealDeep, icon: <CheckCircleIcon sx={{ fontSize: 18 }} /> },
+    { label: 'Errors', value: health?.error ?? 0, bg: BRAND.pinkSoft, fg: BRAND.pink, icon: <ErrorOutlineIcon sx={{ fontSize: 18 }} /> },
+    { label: 'Expired', value: health?.expired ?? 0, bg: BRAND.amberSoft, fg: BRAND.amberDeep, icon: <WarningAmberIcon sx={{ fontSize: 18 }} /> },
   ];
 
   return (
-    <Stack spacing={3}>
+    <Box>
       {/* Header */}
-      <Box>
-        <Typography variant="h4" fontWeight={950} sx={{ color: INK, letterSpacing: -0.6 }}>
-          Integrations
-        </Typography>
-        <Typography sx={{ mt: 0.6, color: SUBTLE, maxWidth: 640 }}>
-          Connect your CRM, analytics &amp; ecommerce so revenue and pipeline flow into your marketing intelligence.
-        </Typography>
-      </Box>
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ md: 'center' }}
+        spacing={2}
+        sx={{ mb: 2.5, px: 0.5 }}
+      >
+        <Box>
+          <Typography
+            variant="h3"
+            sx={{ fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.12, fontSize: { xs: 28, md: 38 }, color: INK }}
+          >
+            Integrations
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 640 }}>
+            Connect your CRM, analytics &amp; ecommerce so revenue and pipeline{' '}
+            <Box
+              component="span"
+              sx={{
+                background: BRAND.gradientText,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                fontWeight: 700,
+              }}
+            >
+              flow
+            </Box>{' '}
+            into your marketing intelligence.
+          </Typography>
+        </Box>
+        <Button
+          startIcon={<SyncIcon />}
+          onClick={refetch}
+          sx={{
+            px: 2.5,
+            py: 1.25,
+            borderRadius: '999px',
+            fontWeight: 700,
+            textTransform: 'none',
+            color: '#fff',
+            background: INK,
+            backgroundImage: 'none',
+            boxShadow: '0 8px 20px rgba(14,17,22,0.25)',
+            '&:hover': { background: '#1B2330' },
+          }}
+        >
+          Refresh
+        </Button>
+      </Stack>
 
       {/* Health summary strip */}
-      <Grid container spacing={2}>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 2,
+          gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+          mb: 2.5,
+        }}
+      >
         {stats.map((s) => (
-          <Grid key={s.label} size={{ xs: 6, md: 3 }}>
-            <Card sx={{ borderRadius: 4, border: `1px solid ${BORDER}`, bgcolor: '#fff', boxShadow: '0 10px 30px rgba(17,21,27,0.05)' }}>
-              <CardContent sx={{ p: 2.5 }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Box>
-                    <Typography sx={{ fontSize: 30, fontWeight: 950, color: s.color, lineHeight: 1 }}>{s.value}</Typography>
-                    <Typography sx={{ mt: 0.6, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6, color: SUBTLE }}>
-                      {s.label}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ width: 44, height: 44, borderRadius: 3, display: 'grid', placeItems: 'center', color: s.color, background: `${s.color}14` }}>
-                    {s.icon}
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
+          <Box
+            key={s.label}
+            sx={{
+              bgcolor: '#fff',
+              border: `1px solid ${LINE}`,
+              borderRadius: '18px',
+              boxShadow: CARD_SHADOW,
+              p: 2.5,
+            }}
+          >
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Box>
+                <Typography sx={{ fontSize: 32, fontWeight: 800, color: INK, lineHeight: 1, letterSpacing: '-0.02em' }}>
+                  {s.value}
+                </Typography>
+                <Typography sx={{ mt: 0.75, fontSize: 12, fontWeight: 700, color: SUBTLE }}>{s.label}</Typography>
+              </Box>
+              <Box sx={{ width: 40, height: 40, borderRadius: '11px', display: 'grid', placeItems: 'center', color: s.fg, bgcolor: s.bg }}>
+                {s.icon}
+              </Box>
+            </Stack>
+          </Box>
         ))}
-      </Grid>
+      </Box>
 
       {loading ? (
         <Box sx={{ display: 'grid', placeItems: 'center', minHeight: 220 }}>
-          <CircularProgress size={28} />
+          <CircularProgress size={28} sx={{ color: INK }} />
         </Box>
       ) : (
-        <>
+        <Stack spacing={3.5}>
           {/* Catalog */}
           <Box>
-            <Typography variant="h6" fontWeight={900} sx={{ color: INK, mb: 1.5 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: 18, color: INK, letterSpacing: '-0.01em', mb: 1.5 }}>
               Catalog
             </Typography>
             {grouped.length === 0 ? (
-              <Card sx={{ borderRadius: 4, border: `1px dashed ${BORDER}`, bgcolor: CANVAS }}>
-                <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, py: 6 }}>
-                  <ExtensionIcon sx={{ fontSize: 32, color: SUBTLE }} />
-                  <Typography fontWeight={800} sx={{ color: INK }}>No providers available</Typography>
-                  <Typography variant="body2" sx={{ color: SUBTLE }} textAlign="center" maxWidth={360}>
-                    There are no integration providers to connect yet. Check back soon.
-                  </Typography>
-                </CardContent>
-              </Card>
+              <Box
+                sx={{
+                  bgcolor: '#fff',
+                  border: `1px dashed ${LINE}`,
+                  borderRadius: CARD_RADIUS,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 1,
+                  py: 6,
+                  px: 3,
+                }}
+              >
+                <Box sx={{ width: 44, height: 44, borderRadius: '12px', display: 'grid', placeItems: 'center', bgcolor: CHIP_BG, color: INK }}>
+                  <ExtensionIcon sx={{ fontSize: 22 }} />
+                </Box>
+                <Typography sx={{ fontWeight: 700, color: INK }}>No providers available</Typography>
+                <Typography variant="body2" sx={{ color: SUBTLE }} textAlign="center" maxWidth={360}>
+                  There are no integration providers to connect yet. Check back soon.
+                </Typography>
+              </Box>
             ) : (
               <Stack spacing={3}>
                 {grouped.map(([category, entries]) => (
                   <Box key={category}>
-                    <Typography sx={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.8, color: SUBTLE, mb: 1 }}>
+                    <Typography sx={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.8, color: SUBTLE, mb: 1.25 }}>
                       {titleCase(category)}
                     </Typography>
-                    <Grid container spacing={2}>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gap: 2,
+                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                      }}
+                    >
                       {entries.map((entry) => {
                         const unavailable = entry.oauth && !entry.configured && !entry.manual_connect;
                         return (
-                          <Grid key={entry.provider} size={{ xs: 12, sm: 6, md: 4 }}>
-                            <Card sx={{
-                              height: '100%', borderRadius: 4, border: `1px solid ${BORDER}`, bgcolor: '#fff',
-                              transition: 'transform .15s, box-shadow .15s',
-                              '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 18px 40px rgba(17,21,27,0.08)' },
-                            }}>
-                              <CardContent sx={{ p: 2.5, display: 'flex', flexDirection: 'column', height: '100%' }}>
-                                <Stack direction="row" spacing={1.5} alignItems="center">
-                                  <Box sx={{ width: 44, height: 44, borderRadius: 3, flexShrink: 0, display: 'grid', placeItems: 'center', color: BRAND.teal, background: `${BRAND.teal}12` }}>
-                                    <ExtensionIcon />
-                                  </Box>
-                                  <Box sx={{ minWidth: 0 }}>
-                                    <Typography fontWeight={900} noWrap sx={{ color: INK }}>{entry.label}</Typography>
-                                    <Chip label={titleCase(entry.category)} size="small"
-                                      sx={{ mt: 0.4, height: 20, fontSize: 10.5, fontWeight: 800, bgcolor: CANVAS, color: SUBTLE, border: `1px solid ${BORDER}` }} />
-                                  </Box>
-                                </Stack>
-                                <Box sx={{ flex: 1 }} />
-                                <Box sx={{ mt: 2 }}>
-                                  {unavailable ? (
-                                    <Tooltip title="This provider is not configured on the server yet.">
-                                      <span>
-                                        <Button fullWidth disabled variant="outlined" sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 800 }}>
-                                          Not configured
-                                        </Button>
-                                      </span>
-                                    </Tooltip>
-                                  ) : (
+                          <Box
+                            key={entry.provider}
+                            sx={{
+                              height: '100%',
+                              bgcolor: '#fff',
+                              border: `1px solid ${LINE}`,
+                              borderRadius: '18px',
+                              boxShadow: CARD_SHADOW,
+                              p: 2.5,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              transition: 'transform .15s, border-color .15s',
+                              '&:hover': { transform: 'translateY(-2px)', borderColor: 'rgba(20,187,135,0.4)' },
+                            }}
+                          >
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                              <Box sx={{ width: 40, height: 40, borderRadius: '11px', flexShrink: 0, display: 'grid', placeItems: 'center', color: INK, bgcolor: CHIP_BG }}>
+                                <ExtensionIcon sx={{ fontSize: 20 }} />
+                              </Box>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography sx={{ fontWeight: 700, color: INK }} noWrap>
+                                  {entry.label}
+                                </Typography>
+                                <Typography sx={{ mt: 0.25, fontSize: 12, fontWeight: 600, color: SUBTLE }}>
+                                  {titleCase(entry.category)}
+                                </Typography>
+                              </Box>
+                            </Stack>
+                            <Box sx={{ flex: 1 }} />
+                            <Box sx={{ mt: 2 }}>
+                              {unavailable ? (
+                                <Tooltip title="This provider is not configured on the server yet.">
+                                  <span>
                                     <Button
                                       fullWidth
-                                      variant="contained"
-                                      startIcon={connectingProvider === entry.provider ? <CircularProgress size={14} color="inherit" /> : <LinkIcon />}
-                                      disabled={connectingProvider === entry.provider}
-                                      onClick={() => handleConnectClick(entry)}
-                                      sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 900, color: '#11151B', background: `linear-gradient(135deg, ${BRAND.amber} 0%, ${BRAND.teal} 100%)` }}
+                                      disabled
+                                      sx={{
+                                        borderRadius: '999px',
+                                        textTransform: 'none',
+                                        fontWeight: 700,
+                                        py: 1,
+                                        color: SUBTLE,
+                                        bgcolor: CHIP_BG,
+                                      }}
                                     >
-                                      {connectingProvider === entry.provider ? 'Connecting…' : 'Connect'}
+                                      Not configured
                                     </Button>
-                                  )}
-                                </Box>
-                              </CardContent>
-                            </Card>
-                          </Grid>
+                                  </span>
+                                </Tooltip>
+                              ) : (
+                                <Button
+                                  fullWidth
+                                  startIcon={connectingProvider === entry.provider ? <CircularProgress size={14} color="inherit" /> : <LinkIcon />}
+                                  disabled={connectingProvider === entry.provider}
+                                  onClick={() => handleConnectClick(entry)}
+                                  sx={{
+                                    borderRadius: '999px',
+                                    textTransform: 'none',
+                                    fontWeight: 700,
+                                    py: 1,
+                                    color: '#fff',
+                                    background: INK,
+                                    backgroundImage: 'none',
+                                    boxShadow: '0 8px 20px rgba(14,17,22,0.2)',
+                                    '&:hover': { background: '#1B2330' },
+                                    '&.Mui-disabled': { color: 'rgba(255,255,255,0.7)', background: INK },
+                                  }}
+                                >
+                                  {connectingProvider === entry.provider ? 'Connecting…' : 'Connect'}
+                                </Button>
+                              )}
+                            </Box>
+                          </Box>
                         );
                       })}
-                    </Grid>
+                    </Box>
                   </Box>
                 ))}
               </Stack>
@@ -421,40 +539,71 @@ export default function IntegrationsPage() {
 
           {/* Connected */}
           <Box>
-            <Typography variant="h6" fontWeight={900} sx={{ color: INK, mb: 1.5 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: 18, color: INK, letterSpacing: '-0.01em', mb: 1.5 }}>
               Connected
             </Typography>
             {integrations.length === 0 ? (
-              <Card sx={{ borderRadius: 4, border: `1px dashed ${BORDER}`, bgcolor: CANVAS }}>
-                <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, py: 6 }}>
-                  <Box sx={{ width: 64, height: 64, borderRadius: '50%', display: 'grid', placeItems: 'center', background: `${BRAND.teal}14` }}>
-                    <LinkIcon sx={{ fontSize: 30, color: BRAND.teal }} />
-                  </Box>
-                  <Typography fontWeight={900} sx={{ color: INK }}>Nothing connected yet</Typography>
-                  <Typography variant="body2" sx={{ color: SUBTLE }} textAlign="center" maxWidth={380}>
-                    Connect a provider from the catalog above to start flowing revenue and pipeline data into your dashboards.
-                  </Typography>
-                </CardContent>
-              </Card>
+              <Box
+                sx={{
+                  bgcolor: '#fff',
+                  border: `1px dashed ${LINE}`,
+                  borderRadius: CARD_RADIUS,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  py: 6,
+                  px: 3,
+                }}
+              >
+                <Box sx={{ width: 48, height: 48, borderRadius: '14px', display: 'grid', placeItems: 'center', bgcolor: BRAND.tealSoft, color: BRAND.tealDeep }}>
+                  <LinkIcon sx={{ fontSize: 24 }} />
+                </Box>
+                <Typography sx={{ fontWeight: 700, color: INK }}>Nothing connected yet</Typography>
+                <Typography variant="body2" sx={{ color: SUBTLE }} textAlign="center" maxWidth={380}>
+                  Connect a provider from the catalog above to start flowing revenue and pipeline data into your dashboards.
+                </Typography>
+              </Box>
             ) : (
-              <Card sx={{ borderRadius: 4, border: `1px solid ${BORDER}`, bgcolor: '#fff', overflow: 'hidden' }}>
-                <Stack divider={<Divider />}>
+              <Box
+                sx={{
+                  bgcolor: '#fff',
+                  border: `1px solid ${LINE}`,
+                  borderRadius: CARD_RADIUS,
+                  boxShadow: CARD_SHADOW,
+                  overflow: 'hidden',
+                }}
+              >
+                <Stack divider={<Divider sx={{ borderColor: LINE }} />}>
                   {integrations.map((item) => {
                     const meta = STATUS_META[item.status];
                     const name = item.display_name ?? titleCase(item.provider);
                     return (
-                      <Stack key={item.id} direction={{ xs: 'column', sm: 'row' }} spacing={2}
-                        alignItems={{ xs: 'flex-start', sm: 'center' }} sx={{ p: 2.5 }}>
-                        <Box sx={{ width: 46, height: 46, borderRadius: 3, flexShrink: 0, display: 'grid', placeItems: 'center', color: meta.color, background: meta.soft }}>
-                          <ExtensionIcon />
+                      <Stack
+                        key={item.id}
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={2}
+                        alignItems={{ xs: 'flex-start', sm: 'center' }}
+                        sx={{ p: 2.5 }}
+                      >
+                        <Box sx={{ width: 40, height: 40, borderRadius: '11px', flexShrink: 0, display: 'grid', placeItems: 'center', color: INK, bgcolor: CHIP_BG }}>
+                          <ExtensionIcon sx={{ fontSize: 20 }} />
                         </Box>
                         <Box sx={{ flex: 1, minWidth: 0 }}>
                           <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
-                            <Typography fontWeight={900} noWrap sx={{ color: INK }}>{name}</Typography>
-                            <Chip label={meta.label} size="small"
-                              sx={{ height: 22, fontSize: 11, fontWeight: 800, color: meta.color, bgcolor: meta.soft, border: `1px solid ${meta.color}33` }} />
-                            <Chip label={titleCase(item.category)} size="small"
-                              sx={{ height: 22, fontSize: 10.5, fontWeight: 800, bgcolor: CANVAS, color: SUBTLE, border: `1px solid ${BORDER}` }} />
+                            <Typography sx={{ fontWeight: 700, color: INK }} noWrap>
+                              {name}
+                            </Typography>
+                            <Chip
+                              label={meta.label}
+                              size="small"
+                              sx={{ height: 22, fontSize: 12, fontWeight: 700, color: meta.fg, bgcolor: meta.bg, border: 'none' }}
+                            />
+                            <Chip
+                              label={titleCase(item.category)}
+                              size="small"
+                              sx={{ height: 22, fontSize: 12, fontWeight: 700, bgcolor: CHIP_BG, color: SUBTLE, border: 'none' }}
+                            />
                           </Stack>
                           <Stack direction="row" alignItems="center" gap={1.5} flexWrap="wrap" sx={{ mt: 0.6 }}>
                             <Stack direction="row" alignItems="center" gap={0.5}>
@@ -481,13 +630,13 @@ export default function IntegrationsPage() {
                             startIcon={busyId === item.id ? <CircularProgress size={13} color="inherit" /> : <SyncIcon />}
                             disabled={busyId === item.id}
                             onClick={() => handleSync(item)}
-                            sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2, color: BRAND.tealDeep }}
+                            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '999px', px: 1.75, color: BRAND.tealDeep, '&:hover': { bgcolor: BRAND.tealSoft } }}
                           >
                             Sync
                           </Button>
                           <Tooltip title="Disconnect">
                             <span>
-                              <IconButton size="small" disabled={busyId === item.id} onClick={() => handleDisconnect(item)} sx={{ borderRadius: 2, color: BRAND.pink }}>
+                              <IconButton size="small" disabled={busyId === item.id} onClick={() => handleDisconnect(item)} sx={{ borderRadius: '10px', color: BRAND.pink, '&:hover': { bgcolor: BRAND.pinkSoft } }}>
                                 <LinkOffIcon fontSize="small" />
                               </IconButton>
                             </span>
@@ -497,104 +646,110 @@ export default function IntegrationsPage() {
                     );
                   })}
                 </Stack>
-              </Card>
+              </Box>
             )}
           </Box>
-        </>
+        </Stack>
       )}
 
       {/* Manual connect dialog */}
-      <Dialog open={!!dialogEntry} onClose={closeDialog} fullWidth maxWidth="xs"
-        PaperProps={{ sx: { borderRadius: 4 } }}>
-        <DialogTitle sx={{ fontWeight: 950, color: INK }}>
-          Connect {dialogEntry?.label}
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2.5} sx={{ pt: 1 }}>
+      <PremiumDialog open={!!dialogEntry} onClose={closeDialog} maxWidth="xs">
+        <DialogHero
+          icon={<LinkRoundedIcon />}
+          title={`Connect ${dialogEntry?.label ?? ''}`.trim()}
+          subtitle="Securely link this provider — credentials are stored in your workspace."
+          onClose={closeDialog}
+        />
+        <DialogBody>
+          <Stack spacing={2.5}>
             {dialogEntry?.oauth && dialogEntry?.configured && (
-              <>
-                {dialogEntry.provider === 'shopify' && (
-                  <TextField
-                    label="Shopify store domain"
-                    placeholder="my-store.myshopify.com"
-                    value={shopDomain}
-                    onChange={(e) => setShopDomain(e.target.value)}
+              <Box>
+                <SectionLabel>Quick connect</SectionLabel>
+                <Stack spacing={2}>
+                  {dialogEntry.provider === 'shopify' && (
+                    <TextField
+                      label="Shopify store domain"
+                      placeholder="my-store.myshopify.com"
+                      value={shopDomain}
+                      onChange={(e) => setShopDomain(e.target.value)}
+                      fullWidth
+                      helperText="Required to start the secure OAuth connection."
+                    />
+                  )}
+                  <Button
+                    onClick={() => dialogEntry && void startOAuth(dialogEntry)}
                     fullWidth
-                    helperText="Required to start the secure OAuth connection."
-                  />
-                )}
-                <Button
-                  onClick={() => dialogEntry && void startOAuth(dialogEntry)}
-                  variant="contained"
-                  fullWidth
-                  disabled={connectingProvider !== null}
-                  startIcon={
-                    connectingProvider !== null ? (
-                      <CircularProgress size={14} color="inherit" />
-                    ) : (
-                      <LinkIcon />
-                    )
-                  }
-                  sx={{
-                    borderRadius: 3,
-                    textTransform: 'none',
-                    fontWeight: 900,
-                    color: '#11151B',
-                    background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})`,
-                  }}
-                >
-                  Connect with {dialogEntry.label} (OAuth)
-                </Button>
-                <Divider sx={{ '&::before, &::after': { borderColor: BORDER } }}>
-                  <Typography variant="caption" sx={{ color: SUBTLE }}>
-                    or paste a token manually
-                  </Typography>
-                </Divider>
-              </>
+                    disabled={connectingProvider !== null}
+                    startIcon={connectingProvider !== null ? <CircularProgress size={14} color="inherit" /> : <LinkIcon />}
+                    sx={{
+                      borderRadius: '999px',
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      py: 1.1,
+                      color: '#fff',
+                      background: INK,
+                      backgroundImage: 'none',
+                      boxShadow: '0 8px 20px rgba(14,17,22,0.2)',
+                      '&:hover': { background: '#1B2330' },
+                    }}
+                  >
+                    Connect with {dialogEntry.label} (OAuth)
+                  </Button>
+                  <Divider sx={{ '&::before, &::after': { borderColor: LINE } }}>
+                    <Typography variant="caption" sx={{ color: SUBTLE }}>
+                      or paste a token manually
+                    </Typography>
+                  </Divider>
+                </Stack>
+              </Box>
             )}
-            <Typography variant="body2" sx={{ color: SUBTLE }}>
-              Enter your credentials to connect this provider. They are stored securely in your workspace.
-            </Typography>
-            <TextField
-              label="Display name (optional)"
-              placeholder={dialogEntry?.label}
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              fullWidth
-            />
-            <TextField
-              label={dialogEntry?.token_label ?? 'API key'}
-              value={tokenValue}
-              onChange={(e) => setTokenValue(e.target.value)}
-              fullWidth
-              required
-              type="password"
-            />
+            <Box>
+              <SectionLabel>Credentials</SectionLabel>
+              <Stack spacing={2}>
+                <Typography variant="body2" sx={{ color: SUBTLE }}>
+                  Enter your credentials to connect this provider. They are stored securely in your workspace.
+                </Typography>
+                <TextField
+                  label="Display name (optional)"
+                  placeholder={dialogEntry?.label}
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  fullWidth
+                />
+                <TextField
+                  label={dialogEntry?.token_label ?? 'API key'}
+                  value={tokenValue}
+                  onChange={(e) => setTokenValue(e.target.value)}
+                  fullWidth
+                  required
+                  type="password"
+                />
+              </Stack>
+            </Box>
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={closeDialog} color="inherit" disabled={connectingProvider !== null}>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={closeDialog} disabled={connectingProvider !== null} sx={ghostPillSx}>
             Cancel
           </Button>
           <Button
             onClick={handleManualSubmit}
-            variant="contained"
             disabled={connectingProvider !== null || !tokenValue.trim()}
             startIcon={connectingProvider !== null ? <CircularProgress size={14} color="inherit" /> : <LinkIcon />}
-            sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 900, color: '#11151B', background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})` }}
+            sx={inkPillSx}
           >
             {connectingProvider !== null ? 'Connecting…' : 'Connect'}
           </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogFooter>
+      </PremiumDialog>
 
       <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         {toast ? (
-          <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ width: '100%' }}>
+          <Alert severity={toast.severity} onClose={() => setToast(null)} sx={{ width: '100%', borderRadius: '14px' }}>
             {toast.msg}
           </Alert>
         ) : undefined}
       </Snackbar>
-    </Stack>
+    </Box>
   );
 }

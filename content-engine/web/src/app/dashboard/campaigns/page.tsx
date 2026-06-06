@@ -9,9 +9,6 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
   Divider,
   Grid,
   IconButton,
@@ -28,7 +25,9 @@ import {
 import type { SelectChangeEvent } from '@mui/material/Select';
 import AddIcon from '@mui/icons-material/Add';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesomeOutlined';
+import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import CampaignIcon from '@mui/icons-material/CampaignOutlined';
+import CampaignRoundedIcon from '@mui/icons-material/CampaignRounded';
 import CalendarTodayIcon from '@mui/icons-material/CalendarTodayOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined';
 import VisibilityIcon from '@mui/icons-material/VisibilityOutlined';
@@ -37,6 +36,18 @@ import PaymentsIcon from '@mui/icons-material/PaymentsOutlined';
 import { useAuth } from '@/lib/auth';
 import { Campaigns, type CampaignPlan } from '@/lib/api';
 import { useConfirm } from '@/components/ConfirmDialog';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  FieldGrid,
+  FullSpan,
+  inkPillSx,
+  ghostPillSx,
+  softPillSx,
+} from '@/components/PremiumDialog';
 import { BRAND } from '@/theme/theme';
 
 const CHANNEL_OPTIONS = ['LinkedIn', 'Email', 'Instagram', 'Google Ads', 'Blog', 'X/Twitter', 'YouTube'];
@@ -457,97 +468,103 @@ export default function CampaignsPage() {
       )}
 
       {/* ── Build dialog ── */}
-      <Dialog open={open} onClose={() => (building ? null : setOpen(false))} fullWidth maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 4, overflow: 'hidden' } }}>
-        <Box sx={{ p: 3, background: 'linear-gradient(135deg, #11151B 0%, #1B2330 100%)', color: '#fff', position: 'relative', overflow: 'hidden' }}>
-          <Box sx={{ position: 'absolute', top: -50, right: -50, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,187,135,0.30), transparent 65%)' }} />
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ position: 'relative' }}>
-            <Box sx={{ width: 38, height: 38, borderRadius: 2, display: 'grid', placeItems: 'center', background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})` }}>
-              <AutoAwesomeIcon sx={{ color: '#fff', fontSize: 20 }} />
-            </Box>
-            <Box>
-              <Typography fontWeight={950} variant="h6">Build a campaign</Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.65)' }}>Describe the goal — we architect the full multi-channel plan.</Typography>
-            </Box>
-          </Stack>
-        </Box>
-        <DialogContent sx={{ pt: 3 }}>
-          <Stack spacing={2.5}>
-            <TextField label="Campaign goal" placeholder="e.g. Drive 200 demo signups for our new analytics suite in 6 weeks"
-              value={goal} onChange={(e) => setGoal(e.target.value)} fullWidth autoFocus required multiline minRows={2} />
-            <TextField label="Audience (optional)" placeholder="e.g. Heads of Growth at B2B SaaS, 50–500 employees"
-              value={audience} onChange={(e) => setAudience(e.target.value)} fullWidth />
-            <TextField label="Offer (optional)" placeholder="e.g. Free 30-day trial + onboarding workshop"
-              value={offer} onChange={(e) => setOffer(e.target.value)} fullWidth />
-            <Box>
-              <Typography variant="body2" fontWeight={800} sx={{ mb: 1, color: '#11151B' }}>Channels</Typography>
-              <Select<string[]>
-                multiple
-                fullWidth
-                displayEmpty
-                value={channels}
-                onChange={(e: SelectChangeEvent<string[]>) => setChannels(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
-                renderValue={(selected) =>
-                  selected.length === 0 ? (
-                    <Typography variant="body2" color="text.disabled">Select channels…</Typography>
-                  ) : (
-                    <Stack direction="row" gap={0.5} flexWrap="wrap">
-                      {selected.map((s) => (
-                        <Chip key={s} label={s} size="small" sx={{ fontSize: 11, height: 22, fontWeight: 700, bgcolor: `${BRAND.teal}14`, color: BRAND.tealDeep }} />
-                      ))}
-                    </Stack>
-                  )
-                }
-                sx={{ borderRadius: 2, '& .MuiOutlinedInput-notchedOutline': { borderColor: '#EAECEF' } }}
-              >
-                {CHANNEL_OPTIONS.map((ch) => (
-                  <MenuItem key={ch} value={ch}>
-                    <ListItemText primary={ch} />
-                  </MenuItem>
-                ))}
-              </Select>
-            </Box>
-            <TextField label="Budget (optional)" type="number" value={budget}
-              onChange={(e) => setBudget(e.target.value)} fullWidth
-              InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} />
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField label="Start date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} fullWidth InputLabelProps={{ shrink: true }} />
-              <TextField label="End date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} fullWidth InputLabelProps={{ shrink: true }} />
-            </Stack>
-            <TextField label="Campaign name (optional)" placeholder="Auto-named if left blank"
-              value={name} onChange={(e) => setName(e.target.value)} fullWidth />
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setOpen(false)} color="inherit" disabled={building}>Cancel</Button>
-          <Button onClick={handleBuild} variant="contained" disabled={building || !goal.trim()}
-            startIcon={building ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeIcon />}
-            sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 900, background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})`, color: '#11151B' }}>
+      <PremiumDialog open={open} onClose={building ? () => {} : () => setOpen(false)} maxWidth="sm">
+        <DialogHero
+          icon={<AutoAwesomeRoundedIcon />}
+          title="Build a campaign"
+          subtitle="Describe the goal — we architect the full multi-channel plan."
+          onClose={building ? undefined : () => setOpen(false)}
+        />
+        <DialogBody>
+          <SectionLabel>Strategy brief</SectionLabel>
+          <FieldGrid>
+            <FullSpan>
+              <TextField label="Campaign goal" placeholder="e.g. Drive 200 demo signups for our new analytics suite in 6 weeks"
+                value={goal} onChange={(e) => setGoal(e.target.value)} fullWidth size="small" autoFocus required multiline minRows={2} />
+            </FullSpan>
+            <FullSpan>
+              <TextField label="Audience (optional)" placeholder="e.g. Heads of Growth at B2B SaaS, 50–500 employees"
+                value={audience} onChange={(e) => setAudience(e.target.value)} fullWidth size="small" />
+            </FullSpan>
+            <FullSpan>
+              <TextField label="Offer (optional)" placeholder="e.g. Free 30-day trial + onboarding workshop"
+                value={offer} onChange={(e) => setOffer(e.target.value)} fullWidth size="small" />
+            </FullSpan>
+          </FieldGrid>
+
+          <SectionLabel sx={{ mt: 2.5 }}>Channels</SectionLabel>
+          <Select<string[]>
+            multiple
+            fullWidth
+            size="small"
+            displayEmpty
+            value={channels}
+            onChange={(e: SelectChangeEvent<string[]>) => setChannels(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+            renderValue={(selected) =>
+              selected.length === 0 ? (
+                <Typography variant="body2" color="text.disabled">Select channels…</Typography>
+              ) : (
+                <Stack direction="row" gap={0.5} flexWrap="wrap">
+                  {selected.map((s) => (
+                    <Chip key={s} label={s} size="small" sx={{ fontSize: 11, height: 22, fontWeight: 700, bgcolor: `${BRAND.teal}14`, color: BRAND.tealDeep }} />
+                  ))}
+                </Stack>
+              )
+            }
+            sx={{ borderRadius: 2, '& .MuiOutlinedInput-notchedOutline': { borderColor: '#EAECEF' } }}
+          >
+            {CHANNEL_OPTIONS.map((ch) => (
+              <MenuItem key={ch} value={ch}>
+                <ListItemText primary={ch} />
+              </MenuItem>
+            ))}
+          </Select>
+
+          <SectionLabel sx={{ mt: 2.5 }}>Budget &amp; schedule</SectionLabel>
+          <FieldGrid>
+            <FullSpan>
+              <TextField label="Budget (optional)" type="number" value={budget}
+                onChange={(e) => setBudget(e.target.value)} fullWidth size="small"
+                InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }} />
+            </FullSpan>
+            <TextField label="Start date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} fullWidth size="small" InputLabelProps={{ shrink: true }} />
+            <TextField label="End date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} fullWidth size="small" InputLabelProps={{ shrink: true }} />
+            <FullSpan>
+              <TextField label="Campaign name (optional)" placeholder="Auto-named if left blank"
+                value={name} onChange={(e) => setName(e.target.value)} fullWidth size="small" />
+            </FullSpan>
+          </FieldGrid>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setOpen(false)} disabled={building} sx={ghostPillSx}>Cancel</Button>
+          <Button onClick={handleBuild} disabled={building || !goal.trim()}
+            startIcon={building ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeRoundedIcon />}
+            sx={inkPillSx}>
             {building ? 'Architecting…' : 'Build plan'}
           </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogFooter>
+      </PremiumDialog>
 
       {/* ── Plan viewer ── */}
-      <Dialog open={!!viewing} onClose={() => setViewing(null)} fullWidth maxWidth="md"
-        PaperProps={{ sx: { borderRadius: 4, overflow: 'hidden', bgcolor: '#fff' } }}>
+      <PremiumDialog open={!!viewing} onClose={() => setViewing(null)} maxWidth="md">
         {viewing && (
           <>
-            <Box sx={{ p: 3, background: 'linear-gradient(135deg, #11151B 0%, #1B2330 100%)', color: '#fff', position: 'relative', overflow: 'hidden' }}>
-              <Box sx={{ position: 'absolute', top: -60, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,175,6,0.28), transparent 65%)' }} />
-              <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ position: 'relative' }} gap={2}>
-                <Box sx={{ minWidth: 0 }}>
-                  <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
-                    <Typography fontWeight={950} variant="h6" noWrap>{viewing.name}</Typography>
-                    <Chip label={viewing.status} size="small" sx={{ fontSize: 11, height: 22, fontWeight: 800, textTransform: 'capitalize', bgcolor: 'rgba(255,255,255,0.14)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }} />
-                  </Stack>
-                  {viewing.goal && (
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mt: 0.6, maxWidth: 620 }}>{viewing.goal}</Typography>
-                  )}
-                </Box>
-              </Stack>
-            </Box>
-            <DialogContent sx={{ pt: 3, bgcolor: '#fff' }}>
+            <DialogHero
+              icon={<CampaignRoundedIcon />}
+              title={viewing.name}
+              subtitle={viewing.goal || 'Campaign plan'}
+              onClose={() => setViewing(null)}
+              tint={BRAND.tealDeep}
+              tintSoft={BRAND.tealSoft}
+              right={
+                <Chip
+                  label={viewing.status}
+                  size="small"
+                  sx={{ fontSize: 11, height: 22, fontWeight: 800, textTransform: 'capitalize', mt: 0.5, ...statusChipSx(viewing.status) }}
+                />
+              }
+            />
+            <DialogBody>
               <Stack spacing={2}>
                 {(viewing.audience || viewing.offer || (viewing.channels && viewing.channels.length > 0)) && (
                   <Stack direction="row" gap={1} flexWrap="wrap">
@@ -566,21 +583,19 @@ export default function CampaignsPage() {
                   </Box>
                 )}
               </Stack>
-            </DialogContent>
-            <DialogActions sx={{ px: 3, pb: 2.5 }}>
-              <Button onClick={() => handleToContent(viewing)} startIcon={<SendIcon />} disabled={busyId === viewing.id}
-                sx={{ textTransform: 'none', fontWeight: 800, color: BRAND.tealDeep }}>
+            </DialogBody>
+            <DialogFooter>
+              <Button onClick={() => handleToContent(viewing)} startIcon={<SendIcon />} disabled={busyId === viewing.id} sx={softPillSx}>
                 Send to Content
               </Button>
               <Box sx={{ flex: 1 }} />
-              <Button onClick={() => setViewing(null)} variant="contained"
-                sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 900, background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})`, color: '#11151B' }}>
+              <Button onClick={() => setViewing(null)} sx={inkPillSx}>
                 Close
               </Button>
-            </DialogActions>
+            </DialogFooter>
           </>
         )}
-      </Dialog>
+      </PremiumDialog>
 
       <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         {toast ? (

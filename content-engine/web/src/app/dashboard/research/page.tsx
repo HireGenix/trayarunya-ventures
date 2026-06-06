@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Alert,
   Avatar,
@@ -12,10 +12,7 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
+  Collapse,
   Divider,
   Grid,
   IconButton,
@@ -43,12 +40,22 @@ import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import PsychologyRoundedIcon from '@mui/icons-material/PsychologyRounded';
 import VerifiedRoundedIcon from '@mui/icons-material/VerifiedRounded';
 import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
+import RocketLaunchRoundedIcon from '@mui/icons-material/RocketLaunchRounded';
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
+import PublicRoundedIcon from '@mui/icons-material/PublicRounded';
+import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
+import HubRoundedIcon from '@mui/icons-material/HubRounded';
+import SellRoundedIcon from '@mui/icons-material/SellRounded';
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import { useAuth } from '@/lib/auth';
+import { startAITask, setTaskProgress, finishAITask, dismissAITask } from '@/lib/aiProgress';
 import {
   Research,
   Strategies,
+  ICPApi,
   type AuditSnapshot,
   type Competitor,
+  type ICP,
   type Insight,
   type ReasoningStep,
   type ResearchJob,
@@ -57,7 +64,16 @@ import {
 import { useConfirm } from '@/components/ConfirmDialog';
 import ProfileAudit from '@/components/ProfileAudit';
 import ProfileBenchmark from '@/components/ProfileBenchmark';
-import CountryPlatformPicker from '@/components/CountryPlatformPicker';
+import CountryPlatformPicker, { COUNTRIES } from '@/components/CountryPlatformPicker';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
 import { BRAND } from '@/theme/theme';
 
 const STATUS_COLOR: Record<ResearchJob['status'], 'default' | 'info' | 'success' | 'error'> = {
@@ -308,6 +324,152 @@ function BenchmarkTable({ snapshots }: { snapshots: AuditSnapshot[] }) {
   );
 }
 
+const PLATFORM_CHANNEL_MAP: Record<string, string> = {
+  linkedin: 'linkedin',
+  instagram: 'instagram',
+  insta: 'instagram',
+  facebook: 'facebook',
+  fb: 'facebook',
+  x: 'x',
+  twitter: 'x',
+  youtube: 'youtube',
+  yt: 'youtube',
+  tiktok: 'tiktok',
+  threads: 'threads',
+  pinterest: 'pinterest',
+  reddit: 'reddit',
+};
+
+function mapChannelsToPlatforms(channels: string[]): string[] {
+  const out: string[] = [];
+  for (const c of channels) {
+    const key = String(c).toLowerCase().replace(/[^a-z]/g, '');
+    const m = PLATFORM_CHANNEL_MAP[key];
+    if (m && !out.includes(m)) out.push(m);
+  }
+  return out;
+}
+
+// Map free-text ICP geographies (e.g. "USA", "UK", "Middle East", "Global") onto
+// the canonical country options the deep-research picker understands, so the AI's
+// ICP region choices auto-populate the research scope.
+const GEO_SYNONYMS: Record<string, string> = {
+  usa: 'United States',
+  us: 'United States',
+  america: 'United States',
+  unitedstatesofamerica: 'United States',
+  uk: 'United Kingdom',
+  britain: 'United Kingdom',
+  england: 'United Kingdom',
+  greatbritain: 'United Kingdom',
+  uae: 'United Arab Emirates',
+  emirates: 'United Arab Emirates',
+  dubai: 'United Arab Emirates',
+  abudhabi: 'United Arab Emirates',
+  ksa: 'Saudi Arabia',
+  saudi: 'Saudi Arabia',
+  bharat: 'India',
+  global: '🌍 Global',
+  worldwide: '🌍 Global',
+  international: '🌍 Global',
+  anywhere: '🌍 Global',
+  everywhere: '🌍 Global',
+  sg: 'Singapore',
+  nz: 'New Zealand',
+  korea: 'South Korea',
+};
+
+function mapGeographiesToCountries(geos: string[]): string[] {
+  const out: string[] = [];
+  for (const g of geos) {
+    const raw = String(g).trim();
+    if (!raw) continue;
+    const key = raw.toLowerCase().replace(/[^a-z]/g, '');
+    let match: string | undefined = GEO_SYNONYMS[key];
+    if (!match) {
+      match = COUNTRIES.find((c) => {
+        const ck = c.toLowerCase().replace(/[^a-z]/g, '');
+        return ck === key || (key.length >= 3 && (ck.includes(key) || key.includes(ck)));
+      });
+    }
+    if (match && !out.includes(match)) out.push(match);
+  }
+  return out;
+}
+
+type IcpResearchConfig = {
+  topic: string;
+  url: string;
+  countries: string[];
+  platforms: string[];
+  demographics: string;
+  keywords: string[];
+};
+
+// Translate a ready ICP into a fully-formed deep-research brief so a single click
+// can launch research with the audience, region and platforms the AI already
+// inferred — no manual form filling required.
+function buildIcpConfig(icp: ICP): IcpResearchConfig {
+  const head = [icp.industry, icp.value_prop || icp.offer].filter(Boolean).join(' — ');
+  const who = icp.target_customer || (icp.personas && icp.personas[0]) || '';
+  const base = [head, who].filter(Boolean).join(' for ') || 'Market & competitor research';
+  const topic = `${base} — market, competitor & audience research`.slice(0, 240);
+  const demographics = who || (icp.personas && icp.personas[0]) || '';
+  return {
+    topic,
+    url: icp.website || '',
+    countries: mapGeographiesToCountries(icp.geographies || []),
+    platforms: mapChannelsToPlatforms(icp.channels || []),
+    demographics,
+    keywords: icp.keywords || [],
+  };
+}
+
+function ParamChip({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0.9,
+        px: 1.3,
+        py: 0.75,
+        borderRadius: 2,
+        maxWidth: 240,
+        bgcolor: 'rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.10)',
+      }}
+    >
+      <Box sx={{ display: 'grid', placeItems: 'center', color: '#C4B5FD', flexShrink: 0 }}>{icon}</Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
+          sx={{
+            fontSize: 8.5,
+            fontWeight: 800,
+            letterSpacing: 0.6,
+            textTransform: 'uppercase',
+            color: 'rgba(255,255,255,0.5)',
+            lineHeight: 1.1,
+          }}
+        >
+          {label}
+        </Typography>
+        <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#fff', lineHeight: 1.35 }} noWrap>
+          {value}
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
 export default function ResearchPage() {
   const { activeWorkspace } = useAuth();
   const router = useRouter();
@@ -319,7 +481,12 @@ export default function ResearchPage() {
   const [countries, setCountries] = useState<string[]>([]);
   const [platforms, setPlatforms] = useState<string[]>(['instagram']);
   const [creating, setCreating] = useState(false);
+  const [launching, setLaunching] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const [icp, setIcp] = useState<ICP | null>(null);
+  const prefilledRef = useRef(false);
 
   const [selected, setSelected] = useState<ResearchJob | null>(null);
   const [insights, setInsights] = useState<Insight[]>([]);
@@ -330,6 +497,40 @@ export default function ResearchPage() {
   const [editTopic, setEditTopic] = useState('');
   const [tab, setTab] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const formRef = useRef<HTMLDivElement | null>(null);
+
+  // One-click: fully configure the deep-research brief from the ICP (audience,
+  // region, platforms, keywords — all AI-inferred) and launch it immediately.
+  // No scrolling, no manual form — the running job streams into the detail panel.
+  const launchIcpResearch = async () => {
+    if (!icp || icp.status !== 'ready' || launching) return;
+    const cfg = buildIcpConfig(icp);
+    // Reflect the AI-picked config in the advanced form too, so power users can
+    // see exactly what was launched and tweak a re-run.
+    setTopic(cfg.topic);
+    setUrl(cfg.url);
+    setCountries(cfg.countries);
+    setPlatforms(cfg.platforms.length ? cfg.platforms : ['instagram']);
+    setLaunching(true);
+    setError(null);
+    try {
+      const job = await Research.create({
+        topic: cfg.topic,
+        target_url: cfg.url || undefined,
+        countries: cfg.countries.length ? cfg.countries : undefined,
+        platforms: cfg.platforms.length ? cfg.platforms : undefined,
+      });
+      setJobs((prev) => [job, ...prev]);
+      setSelected(job);
+      setInsights([]);
+      setCompetitors([]);
+      setSnapshots([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to launch research');
+    } finally {
+      setLaunching(false);
+    }
+  };
 
   const handleBuildStrategy = (p: SocialProfile) => {
     const name = p.full_name || (p.username ? `@${p.username}` : 'this profile');
@@ -340,6 +541,8 @@ export default function ResearchPage() {
       setSelfHandle(`@${p.username}`);
     }
     setTab(2);
+    setShowAdvanced(true);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   };
 
   const loadJobs = useCallback(async () => {
@@ -353,6 +556,29 @@ export default function ResearchPage() {
   useEffect(() => {
     if (activeWorkspace) loadJobs();
   }, [activeWorkspace, loadJobs]);
+
+  // Load the workspace ICP for the summary card + optional research prefill.
+  useEffect(() => {
+    if (!activeWorkspace) return;
+    ICPApi.get()
+      .then((row) => {
+        if (!row) return;
+        setIcp(row);
+        if (prefilledRef.current) return;
+        const wantPrefill = searchParams.get('from') === 'icp' || row.status === 'ready';
+        if (!wantPrefill) return;
+        prefilledRef.current = true;
+        const topicBits = [row.industry, row.value_prop || row.offer, row.target_customer]
+          .filter(Boolean)
+          .join(' — ');
+        setTopic((t) => t || (topicBits ? `${topicBits} — market & competitor research` : ''));
+        if (row.website) setUrl((u) => u || row.website || '');
+        const mapped = mapChannelsToPlatforms(row.channels || []);
+        if (mapped.length) setPlatforms((p) => (p.length && p[0] !== 'instagram' ? p : mapped));
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWorkspace]);
 
   // Poll while any job is queued/running.
   useEffect(() => {
@@ -369,6 +595,78 @@ export default function ResearchPage() {
         pollRef.current = null;
       }
     };
+  }, [jobs, loadJobs]);
+
+  // Mirror long-running deep-research jobs into the global AI progress bar with
+  // REAL progress derived from each job's live reasoning trace, so the user sees
+  // genuine "kitna hua" updates on the deep research that runs server-side.
+  const researchTasksRef = useRef<Map<string, string>>(new Map());
+  // Jobs the user explicitly cancelled from the progress bar — don't re-mirror
+  // them while they linger in an active state during the next poll cycle.
+  const cancelledJobsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const REASONING_PCT: Record<string, number> = {
+      plan: 12,
+      search: 32,
+      crawl: 56,
+      synthesize: 76,
+      reflect: 88,
+      verify: 95,
+    };
+    const map = researchTasksRef.current;
+    const cancelled = cancelledJobsRef.current;
+    const liveIds = new Set(jobs.map((j) => j.id));
+
+    // Reconcile: drop mirrored tasks whose job has vanished from the list (e.g.
+    // it was deleted). Without this, a removed job would leave its progress
+    // entry stuck on screen forever (e.g. frozen at 6% "Queued").
+    for (const [jobId, taskId] of map) {
+      if (!liveIds.has(jobId)) {
+        dismissAITask(taskId);
+        map.delete(jobId);
+        cancelled.delete(jobId);
+      }
+    }
+
+    for (const job of jobs) {
+      const isActive = job.status === 'queued' || job.status === 'running';
+      const existing = map.get(job.id);
+      if (isActive && cancelled.has(job.id)) {
+        // User cancelled this one; skip until the server confirms it's no longer active.
+        continue;
+      }
+      if (isActive) {
+        let taskId = existing;
+        if (!taskId) {
+          taskId = startAITask('research_run', {
+            title: `Researching: ${job.topic.slice(0, 42)}${job.topic.length > 42 ? '…' : ''}`,
+            manual: true,
+            onCancel: () => {
+              cancelled.add(job.id);
+              map.delete(job.id);
+              Research.cancel(job.id)
+                .then(() => loadJobs())
+                .catch(() => {
+                  /* best-effort; UI already cleared */
+                });
+            },
+          });
+          map.set(job.id, taskId);
+        }
+        const steps = job.reasoning || [];
+        const last = steps[steps.length - 1];
+        const pct = last ? REASONING_PCT[last.phase] ?? 20 : job.status === 'queued' ? 6 : 18;
+        const label = last?.label || (job.status === 'queued' ? 'Queued' : 'Researching');
+        setTaskProgress(taskId, pct, label);
+      } else {
+        // Job reached a terminal state — clear any cancel guard and close its task.
+        cancelled.delete(job.id);
+        if (existing) {
+          finishAITask(existing, job.status === 'succeeded');
+          map.delete(job.id);
+        }
+      }
+    }
   }, [jobs, loadJobs]);
 
   // Keep the open detail panel in sync with polled jobs so the live reasoning
@@ -486,6 +784,8 @@ export default function ResearchPage() {
   };
 
   const findings = (selected?.findings || {}) as Record<string, unknown[]>;
+  const icpReady = !!(icp && icp.status === 'ready');
+  const icpConfig = icpReady ? buildIcpConfig(icp as ICP) : null;
 
   return (
     <>
@@ -547,61 +847,219 @@ export default function ResearchPage() {
     )}
 
     {tab === 2 && (
-    <Grid container spacing={3}>
-      {/* Left: create + list */}
-      <Grid size={{ xs: 12, md: 5 }}>
-        <Card sx={{ mb: 3 }}>
-          <CardContent sx={{ p: 3 }}>
-            <Typography variant="h6" fontWeight={700} gutterBottom>
-              New deep research
-            </Typography>
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-                {error}
-              </Alert>
-            )}
-            <form onSubmit={onCreate}>
-              <Stack spacing={2}>
-                <TextField
-                  label="Topic / market"
-                  placeholder="B2B SaaS demand gen on LinkedIn"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  required
-                  fullWidth
+    <Box>
+      {/* ── ICP-grounded launch console ───────────────────────────── */}
+      {icpConfig ? (
+        <Box
+          sx={{
+            position: 'relative',
+            overflow: 'hidden',
+            borderRadius: 4,
+            p: { xs: 2.5, md: 3 },
+            mb: 3,
+            color: '#fff',
+            background: 'linear-gradient(135deg,#160E24 0%,#1E1430 45%,#0E1A17 100%)',
+            border: '1px solid rgba(124,58,237,0.40)',
+            boxShadow: '0 18px 46px rgba(76,29,149,0.30)',
+          }}
+        >
+          <Box sx={{ position: 'absolute', top: -90, right: -50, width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.42), transparent 65%)' }} />
+          <Box sx={{ position: 'absolute', bottom: -100, left: '28%', width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,187,135,0.22), transparent 65%)' }} />
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={2.5}
+            alignItems={{ xs: 'stretch', md: 'center' }}
+            justifyContent="space-between"
+            sx={{ position: 'relative' }}
+          >
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1, flexWrap: 'wrap', gap: 0.75 }}>
+                <Box sx={{ width: 30, height: 30, borderRadius: 2, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg,#7C3AED,#A855F7)' }}>
+                  <AutoAwesomeRoundedIcon sx={{ fontSize: 17 }} />
+                </Box>
+                <Typography sx={{ fontWeight: 800, letterSpacing: 0.5, fontSize: 11.5, textTransform: 'uppercase', color: '#C4B5FD' }}>
+                  ICP-grounded mission
+                </Typography>
+                <Chip
+                  size="small"
+                  icon={<AutoAwesomeRoundedIcon sx={{ fontSize: 13 }} />}
+                  label="AI auto-configured"
+                  sx={{ height: 20, fontSize: 10, fontWeight: 700, color: '#fff', bgcolor: 'rgba(124,58,237,0.45)', '& .MuiChip-icon': { color: '#fff' } }}
                 />
-                <TextField
-                  label="Brand website (optional)"
-                  placeholder="https://yourbrand.com"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label="Your Instagram handle (optional)"
-                  placeholder="@yourbrand — we'll auto-audit you vs competitors"
-                  value={selfHandle}
-                  onChange={(e) => setSelfHandle(e.target.value)}
-                  fullWidth
-                />
-                <Divider sx={{ my: 0.5 }} />
-                <CountryPlatformPicker
-                  countries={countries}
-                  platforms={platforms}
-                  onCountries={setCountries}
-                  onPlatforms={setPlatforms}
-                />
-                <Button type="submit" variant="contained" color="primary" disabled={creating}>
-                  {creating ? 'Starting…' : 'Run research'}
-                </Button>
               </Stack>
-            </form>
-          </CardContent>
+              <Typography sx={{ fontWeight: 800, fontSize: { xs: 15.5, md: 17.5 }, lineHeight: 1.32, mb: 1 }}>
+                {icpConfig.topic}
+              </Typography>
+              <Stack direction="row" gap={1} flexWrap="wrap">
+                <ParamChip
+                  icon={<PublicRoundedIcon sx={{ fontSize: 17 }} />}
+                  label="Region"
+                  value={icpConfig.countries.length ? icpConfig.countries.join(', ') : 'Global (auto)'}
+                />
+                <ParamChip
+                  icon={<HubRoundedIcon sx={{ fontSize: 17 }} />}
+                  label="Platforms"
+                  value={(icpConfig.platforms.length ? icpConfig.platforms : ['instagram']).join(', ')}
+                />
+                {icpConfig.demographics && (
+                  <ParamChip
+                    icon={<GroupsRoundedIcon sx={{ fontSize: 17 }} />}
+                    label="Audience"
+                    value={icpConfig.demographics}
+                  />
+                )}
+                {icpConfig.keywords.length > 0 && (
+                  <ParamChip
+                    icon={<SellRoundedIcon sx={{ fontSize: 17 }} />}
+                    label="Keywords"
+                    value={icpConfig.keywords.slice(0, 3).join(', ')}
+                  />
+                )}
+              </Stack>
+            </Box>
+            <Box sx={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: { xs: 'stretch', md: 'center' }, gap: 1 }}>
+              <Button
+                onClick={launchIcpResearch}
+                disabled={launching}
+                startIcon={launching ? <CircularProgress size={17} sx={{ color: '#fff' }} /> : <RocketLaunchRoundedIcon />}
+                sx={{
+                  px: 3,
+                  py: 1.3,
+                  fontWeight: 800,
+                  fontSize: 14.5,
+                  textTransform: 'none',
+                  borderRadius: 2.5,
+                  color: '#fff',
+                  background: 'linear-gradient(135deg,#7C3AED 0%,#A855F7 100%)',
+                  boxShadow: '0 10px 26px rgba(124,58,237,0.45)',
+                  '&:hover': { background: 'linear-gradient(135deg,#6D28D9 0%,#9333EA 100%)' },
+                  '&.Mui-disabled': { color: 'rgba(255,255,255,0.7)', background: 'rgba(124,58,237,0.5)' },
+                }}
+              >
+                {launching ? 'Launching research…' : 'Launch deep research'}
+              </Button>
+              <Button
+                size="small"
+                variant="text"
+                onClick={() => router.push('/dashboard/icp')}
+                sx={{ color: 'rgba(196,181,253,0.95)', textTransform: 'none', fontSize: 12.5 }}
+              >
+                Edit ICP →
+              </Button>
+            </Box>
+          </Stack>
+          {error && (
+            <Alert severity="error" sx={{ mt: 2, position: 'relative' }} onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          )}
+        </Box>
+      ) : (
+        <Box
+          sx={{
+            borderRadius: 4,
+            p: { xs: 2.5, md: 3 },
+            mb: 3,
+            border: '1px dashed rgba(124,58,237,0.45)',
+            bgcolor: 'rgba(124,58,237,0.04)',
+          }}
+        >
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+            <Box sx={{ width: 38, height: 38, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: 'rgba(124,58,237,0.12)', color: '#7C3AED' }}>
+              <AutoAwesomeRoundedIcon />
+            </Box>
+            <Typography variant="h6" fontWeight={800}>
+              Build your ICP to auto-launch research
+            </Typography>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 620 }}>
+            Define your ideal customer profile once and the Research Center will auto-configure the
+            audience, region, platforms and keywords — then launch deep research in a single click.
+          </Typography>
+          <Button variant="contained" onClick={() => router.push('/dashboard/icp')} startIcon={<AutoAwesomeRoundedIcon />} sx={{ bgcolor: '#7C3AED', textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#6D28D9' } }}>
+            Set up ICP
+          </Button>
+        </Box>
+      )}
+
+    <Grid container spacing={3}>
+      {/* Left: advanced params + research queue */}
+      <Grid size={{ xs: 12, md: 5 }}>
+        <Card sx={{ mb: 3 }} ref={formRef}>
+          <CardActionArea onClick={() => setShowAdvanced((s) => !s)} sx={{ px: 2.5, py: 1.75 }}>
+            <Stack direction="row" alignItems="center" spacing={1.25}>
+              <Box sx={{ width: 32, height: 32, borderRadius: 1.5, display: 'grid', placeItems: 'center', bgcolor: BRAND.tealSoft, color: BRAND.tealDeep }}>
+                <TuneRoundedIcon fontSize="small" />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography fontWeight={800} sx={{ fontSize: 15 }}>
+                  Custom research run
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {icpConfig ? 'Fine-tune parameters for a manual run' : 'Configure topic, region & platforms manually'}
+                </Typography>
+              </Box>
+              <ExpandMoreRoundedIcon
+                sx={{ transition: 'transform .2s', transform: showAdvanced ? 'rotate(180deg)' : 'none', color: 'text.secondary' }}
+              />
+            </Stack>
+          </CardActionArea>
+          <Collapse in={showAdvanced || !icpConfig} timeout="auto" unmountOnExit>
+            <Divider />
+            <CardContent sx={{ p: 3 }}>
+              {error && !icpConfig && (
+                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+                  {error}
+                </Alert>
+              )}
+              <form onSubmit={onCreate}>
+                <Stack spacing={2}>
+                  <TextField
+                    label="Topic / market"
+                    placeholder="B2B SaaS demand gen on LinkedIn"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    required
+                    fullWidth
+                  />
+                  <TextField
+                    label="Brand website (optional)"
+                    placeholder="https://yourbrand.com"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    fullWidth
+                  />
+                  <TextField
+                    label="Your Instagram handle (optional)"
+                    placeholder="@yourbrand — we'll auto-audit you vs competitors"
+                    value={selfHandle}
+                    onChange={(e) => setSelfHandle(e.target.value)}
+                    fullWidth
+                  />
+                  <Divider sx={{ my: 0.5 }} />
+                  <CountryPlatformPicker
+                    countries={countries}
+                    platforms={platforms}
+                    onCountries={setCountries}
+                    onPlatforms={setPlatforms}
+                  />
+                  <Button type="submit" variant="contained" color="primary" disabled={creating}>
+                    {creating ? 'Starting…' : 'Run research'}
+                  </Button>
+                </Stack>
+              </form>
+            </CardContent>
+          </Collapse>
         </Card>
 
-        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-          RECENT JOBS
-        </Typography>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ letterSpacing: 0.5 }}>
+            RESEARCH QUEUE
+          </Typography>
+          {jobs.length > 0 && (
+            <Chip size="small" label={jobs.length} sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />
+          )}
+        </Stack>
         <Stack spacing={1.5}>
           {jobs.length === 0 && (
             <Typography color="text.secondary">No research yet.</Typography>
@@ -858,29 +1316,36 @@ export default function ResearchPage() {
         )}
       </Grid>
     </Grid>
+    </Box>
     )}
 
-    <Dialog open={!!editJob} onClose={() => setEditJob(null)} fullWidth maxWidth="sm">
-      <DialogTitle>Rename research</DialogTitle>
-      <DialogContent>
+    <PremiumDialog open={!!editJob} onClose={() => setEditJob(null)} maxWidth="sm">
+      <DialogHero
+        icon={<EditOutlinedIcon />}
+        title="Rename research"
+        subtitle="Update the topic or market label for this research"
+        onClose={() => setEditJob(null)}
+      />
+      <DialogBody>
+        <SectionLabel>Research topic</SectionLabel>
         <TextField
           label="Topic / market"
           value={editTopic}
           onChange={(e) => setEditTopic(e.target.value)}
           fullWidth
+          size="small"
           autoFocus
-          sx={{ mt: 1 }}
         />
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setEditJob(null)} color="inherit">
+      </DialogBody>
+      <DialogFooter>
+        <Button onClick={() => setEditJob(null)} sx={ghostPillSx}>
           Cancel
         </Button>
-        <Button onClick={saveEdit} variant="contained" disabled={!editTopic.trim()}>
+        <Button onClick={saveEdit} disabled={!editTopic.trim()} sx={inkPillSx}>
           Save
         </Button>
-      </DialogActions>
-    </Dialog>
+      </DialogFooter>
+    </PremiumDialog>
     </>
   );
 }

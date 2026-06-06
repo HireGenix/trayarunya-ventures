@@ -5,30 +5,21 @@ import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
   Grid,
-  LinearProgress,
   MenuItem,
   Snackbar,
   Stack,
-  Tab,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
-  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import AccountTreeIcon from '@mui/icons-material/AccountTreeOutlined';
 import PaidIcon from '@mui/icons-material/PaidOutlined';
@@ -36,6 +27,18 @@ import TimelineIcon from '@mui/icons-material/TimelineOutlined';
 import TrendingUpIcon from '@mui/icons-material/TrendingUpOutlined';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEventsRounded';
 import GroupsIcon from '@mui/icons-material/Groups2Outlined';
+import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  FieldGrid,
+  FullSpan,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
 import { useAuth } from '@/lib/auth';
 import {
   Attribution,
@@ -46,10 +49,11 @@ import {
 } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
 
-const INK = '#11151B';
+const INK = BRAND.ink;
 const SUBTLE = '#6B7280';
-const BORDER = '#EAECEF';
-const CANVAS = '#FAFBFC';
+const LINE = 'rgba(14,17,22,0.07)';
+const CARD_RADIUS = '22px';
+const CARD_SHADOW = '0 1px 2px rgba(14,17,22,0.04), 0 8px 24px rgba(14,17,22,0.05)';
 
 const CHANNELS: RevenueChannel[] = [
   'linkedin', 'content', 'ads', 'email', 'organic', 'referral', 'events', 'other',
@@ -211,16 +215,33 @@ export default function AttributionPage() {
         justifyContent="space-between"
         alignItems={{ xs: 'flex-start', sm: 'center' }}
         spacing={2}
-        sx={{ mb: 3 }}
+        sx={{ mb: 2.5, px: 0.5 }}
       >
         <Box>
-          <Stack direction="row" spacing={1.25} alignItems="center">
-            <AccountTreeIcon sx={{ color: BRAND.teal }} />
-            <Typography variant="h5" sx={{ fontWeight: 800, color: INK, letterSpacing: -0.5 }}>
-              Revenue Attribution
-            </Typography>
-          </Stack>
-          <Typography variant="body2" sx={{ color: SUBTLE, mt: 0.5, maxWidth: 640 }}>
+          <Typography
+            variant="h3"
+            sx={{
+              fontWeight: 800,
+              letterSpacing: '-0.025em',
+              lineHeight: 1.12,
+              fontSize: { xs: 28, md: 38 },
+              color: INK,
+            }}
+          >
+            Revenue{' '}
+            <Box
+              component="span"
+              sx={{
+                background: BRAND.gradientText,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              Attribution
+            </Box>
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.75, maxWidth: 640 }}>
             See exactly which channels create pipeline and closed revenue. Credit is computed from
             real touch-to-deal journeys — first-touch, last-touch, and linear models.
           </Typography>
@@ -230,14 +251,19 @@ export default function AttributionPage() {
           startIcon={<AddIcon />}
           onClick={() => setOpen(true)}
           sx={{
-            bgcolor: INK,
-            textTransform: 'none',
+            px: 2.5,
+            py: 1.25,
+            borderRadius: '999px',
             fontWeight: 700,
-            borderRadius: 2,
-            '&:hover': { bgcolor: '#000' },
+            color: '#fff',
+            background: INK,
+            backgroundImage: 'none',
+            textTransform: 'none',
+            boxShadow: '0 8px 20px rgba(14,17,22,0.25)',
+            '&:hover': { background: '#1B2330', backgroundImage: 'none' },
           }}
         >
-          Add Revenue Event
+          Add revenue
         </Button>
       </Stack>
 
@@ -248,254 +274,330 @@ export default function AttributionPage() {
       ) : !hasData ? (
         <EmptyState onAdd={() => setOpen(true)} />
       ) : (
-        <Stack spacing={3}>
+        <Stack spacing={2.5}>
           {/* KPI cards */}
-          <Grid container spacing={2}>
+          <Grid container spacing={2.5}>
             <KpiCard
-              icon={<EmojiEventsIcon sx={{ color: BRAND.teal }} />}
+              icon={<EmojiEventsIcon fontSize="small" />}
               label="Closed Revenue"
               value={fmtMoney(totals?.revenue ?? 0)}
               accent={BRAND.teal}
             />
             <KpiCard
-              icon={<TimelineIcon sx={{ color: '#2563EB' }} />}
+              icon={<TimelineIcon fontSize="small" />}
               label="Open Pipeline"
               value={fmtMoney(totals?.pipeline ?? 0)}
               accent="#2563EB"
             />
             <KpiCard
-              icon={<PaidIcon sx={{ color: BRAND.amber }} />}
+              icon={<PaidIcon fontSize="small" />}
               label="Total Cost"
               value={fmtMoney(totals?.cost ?? 0)}
               accent={BRAND.amber}
             />
             <KpiCard
-              icon={<EmojiEventsIcon sx={{ color: BRAND.pink }} />}
+              icon={<EmojiEventsIcon fontSize="small" />}
               label="Deals Won"
               value={String(totals?.deals_won ?? 0)}
               accent={BRAND.pink}
             />
             <KpiCard
-              icon={<TrendingUpIcon sx={{ color: '#7C3AED' }} />}
+              icon={<TrendingUpIcon fontSize="small" />}
               label="Blended ROI"
               value={fmtRoi(totals?.blended_roi ?? null)}
               accent="#7C3AED"
             />
           </Grid>
 
-          <Grid container spacing={3}>
+          <Grid container spacing={2.5}>
             {/* Channel attribution */}
             <Grid size={{ xs: 12, md: 7 }}>
-              <Card variant="outlined" sx={{ borderColor: BORDER, borderRadius: 3, height: '100%' }}>
-                <CardContent>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    sx={{ mb: 2 }}
-                  >
-                    <Typography variant="subtitle1" sx={{ fontWeight: 800, color: INK }}>
-                      Channel Attribution
-                    </Typography>
-                    <Tabs
-                      value={model}
-                      onChange={(_, v) => setModel(v)}
-                      sx={{
-                        minHeight: 0,
-                        '& .MuiTab-root': {
-                          minHeight: 0,
-                          py: 0.75,
-                          px: 1.25,
-                          textTransform: 'none',
-                          fontWeight: 700,
-                          fontSize: 13,
-                          color: SUBTLE,
-                        },
-                        '& .Mui-selected': { color: `${INK} !important` },
-                        '& .MuiTabs-indicator': { bgcolor: BRAND.teal },
-                      }}
-                    >
-                      <Tab value="linear" label="Linear" />
-                      <Tab value="first_touch" label="First" />
-                      <Tab value="last_touch" label="Last" />
-                    </Tabs>
-                  </Stack>
-
-                  <Stack spacing={1.75}>
-                    {channels.map((c) => {
-                      const attr = c.attributed_revenue[model];
-                      const color = CHANNEL_COLOR[c.channel] ?? SUBTLE;
-                      const roi = model === 'last_touch' ? c.roi_last_touch : c.roi_linear;
+              <SoftCard sx={{ height: '100%' }}>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  sx={{ mb: 2.25 }}
+                >
+                  <Typography sx={{ fontWeight: 800, fontSize: 16, color: INK }}>
+                    Channel Attribution
+                  </Typography>
+                  <Stack direction="row" spacing={0.5}>
+                    {([
+                      { v: 'linear', label: 'Linear' },
+                      { v: 'first_touch', label: 'First' },
+                      { v: 'last_touch', label: 'Last' },
+                    ] as { v: AttrModel; label: string }[]).map((t) => {
+                      const active = model === t.v;
                       return (
-                        <Box key={c.channel}>
-                          <Stack
-                            direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            sx={{ mb: 0.5 }}
-                          >
-                            <Stack direction="row" spacing={1} alignItems="center">
-                              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: color }} />
-                              <Typography variant="body2" sx={{ fontWeight: 700, color: INK }}>
-                                {pretty(c.channel)}
-                              </Typography>
-                              <Chip
-                                size="small"
-                                label={`ROI ${fmtRoi(roi)}`}
-                                sx={{
-                                  height: 20,
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  color: roi && roi >= 0 ? BRAND.teal : SUBTLE,
-                                  bgcolor: roi && roi >= 0 ? `${BRAND.teal}14` : '#F3F4F6',
-                                }}
-                              />
-                            </Stack>
-                            <Typography variant="body2" sx={{ fontWeight: 800, color: INK }}>
-                              {fmtMoney(attr)}
-                            </Typography>
-                          </Stack>
-                          <LinearProgress
-                            variant="determinate"
-                            value={Math.min(100, (attr / maxAttr) * 100)}
-                            sx={{
-                              height: 8,
-                              borderRadius: 4,
-                              bgcolor: '#F1F3F5',
-                              '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 4 },
-                            }}
-                          />
+                        <Box
+                          key={t.v}
+                          component="button"
+                          onClick={() => setModel(t.v)}
+                          sx={{
+                            border: 'none',
+                            cursor: 'pointer',
+                            borderRadius: '999px',
+                            fontWeight: 600,
+                            fontSize: 13.5,
+                            textTransform: 'none',
+                            px: 2.25,
+                            py: 0.85,
+                            lineHeight: 1,
+                            bgcolor: active ? INK : 'transparent',
+                            color: active ? '#fff' : SUBTLE,
+                            transition: 'all .15s ease',
+                            '&:hover': {
+                              bgcolor: active ? INK : 'rgba(14,17,22,0.05)',
+                              color: active ? '#fff' : INK,
+                            },
+                          }}
+                        >
+                          {t.label}
                         </Box>
                       );
                     })}
                   </Stack>
-                </CardContent>
-              </Card>
+                </Stack>
+
+                <Stack spacing={2}>
+                  {channels.map((c) => {
+                    const attr = c.attributed_revenue[model];
+                    const color = CHANNEL_COLOR[c.channel] ?? SUBTLE;
+                    const roi = model === 'last_touch' ? c.roi_last_touch : c.roi_linear;
+                    return (
+                      <Box key={c.channel}>
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
+                          sx={{ mb: 0.75 }}
+                        >
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
+                            <Typography variant="body2" sx={{ fontWeight: 700, color: INK }}>
+                              {pretty(c.channel)}
+                            </Typography>
+                            <Chip
+                              size="small"
+                              label={`ROI ${fmtRoi(roi)}`}
+                              sx={{
+                                height: 20,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: roi && roi >= 0 ? BRAND.tealDeep : SUBTLE,
+                                bgcolor: roi && roi >= 0 ? BRAND.tealSoft : 'rgba(14,17,22,0.05)',
+                              }}
+                            />
+                          </Stack>
+                          <Typography variant="body2" sx={{ fontWeight: 800, color: INK }}>
+                            {fmtMoney(attr)}
+                          </Typography>
+                        </Stack>
+                        <Box
+                          sx={{
+                            height: 6,
+                            borderRadius: '999px',
+                            bgcolor: 'rgba(14,17,22,0.06)',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              height: '100%',
+                              width: `${Math.min(100, (attr / maxAttr) * 100)}%`,
+                              borderRadius: '999px',
+                              bgcolor: color,
+                              transition: 'width .4s ease',
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </SoftCard>
             </Grid>
 
             {/* Funnel */}
             <Grid size={{ xs: 12, md: 5 }}>
-              <Card variant="outlined" sx={{ borderColor: BORDER, borderRadius: 3, height: '100%' }}>
-                <CardContent>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-                    <GroupsIcon sx={{ color: '#2563EB' }} fontSize="small" />
-                    <Typography variant="subtitle1" sx={{ fontWeight: 800, color: INK }}>
-                      Conversion Funnel
-                    </Typography>
-                  </Stack>
-                  <Funnel funnel={summary?.funnel ?? {}} />
-                </CardContent>
-              </Card>
+              <SoftCard sx={{ height: '100%' }}>
+                <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 2.25 }}>
+                  <Box
+                    sx={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: '11px',
+                      display: 'grid',
+                      placeItems: 'center',
+                      bgcolor: 'rgba(14,17,22,0.05)',
+                      color: INK,
+                    }}
+                  >
+                    <GroupsIcon fontSize="small" />
+                  </Box>
+                  <Typography sx={{ fontWeight: 800, fontSize: 16, color: INK }}>
+                    Conversion Funnel
+                  </Typography>
+                </Stack>
+                <Funnel funnel={summary?.funnel ?? {}} />
+              </SoftCard>
             </Grid>
           </Grid>
 
           {/* Detail table */}
-          <Card variant="outlined" sx={{ borderColor: BORDER, borderRadius: 3 }}>
-            <CardContent sx={{ p: 0 }}>
-              <Box sx={{ p: 2.5, pb: 1.5 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: INK }}>
-                  Channel Breakdown
-                </Typography>
-              </Box>
-              <Divider sx={{ borderColor: BORDER }} />
-              <Box sx={{ overflowX: 'auto' }}>
-                <Table size="small" sx={{ minWidth: 760 }}>
-                  <TableHead>
-                    <TableRow sx={{ '& th': { color: SUBTLE, fontWeight: 700, borderColor: BORDER } }}>
-                      <TableCell>Channel</TableCell>
-                      <TableCell align="right">Touches</TableCell>
-                      <TableCell align="right">Leads</TableCell>
-                      <TableCell align="right">Won</TableCell>
-                      <TableCell align="right">Pipeline</TableCell>
-                      <TableCell align="right">Cost</TableCell>
-                      <TableCell align="right">First-Touch</TableCell>
-                      <TableCell align="right">Last-Touch</TableCell>
-                      <TableCell align="right">Linear</TableCell>
-                      <TableCell align="right">ROI</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {channels.map((c) => (
-                      <TableRow key={c.channel} sx={{ '& td': { borderColor: BORDER } }}>
-                        <TableCell>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Box
-                              sx={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                bgcolor: CHANNEL_COLOR[c.channel] ?? SUBTLE,
-                              }}
-                            />
-                            <Typography variant="body2" sx={{ fontWeight: 700, color: INK }}>
-                              {pretty(c.channel)}
-                            </Typography>
-                          </Stack>
-                        </TableCell>
-                        <TableCell align="right" sx={{ color: INK }}>{c.touches}</TableCell>
-                        <TableCell align="right" sx={{ color: INK }}>{c.leads}</TableCell>
-                        <TableCell align="right" sx={{ color: INK }}>{c.deals_won}</TableCell>
-                        <TableCell align="right" sx={{ color: INK }}>{fmtMoney(c.pipeline)}</TableCell>
-                        <TableCell align="right" sx={{ color: INK }}>{fmtMoney(c.cost)}</TableCell>
-                        <TableCell align="right" sx={{ color: INK }}>
-                          {fmtMoney(c.attributed_revenue.first_touch)}
-                        </TableCell>
-                        <TableCell align="right" sx={{ color: INK }}>
-                          {fmtMoney(c.attributed_revenue.last_touch)}
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 700, color: INK }}>
-                          {fmtMoney(c.attributed_revenue.linear)}
-                        </TableCell>
-                        <TableCell align="right">
-                          <Typography
-                            variant="body2"
+          <SoftCard sx={{ p: 0 }}>
+            <Box sx={{ p: 2.5, pb: 1.75 }}>
+              <Typography sx={{ fontWeight: 800, fontSize: 16, color: INK }}>
+                Channel Breakdown
+              </Typography>
+            </Box>
+            <Box sx={{ overflowX: 'auto' }}>
+              <Table size="small" sx={{ minWidth: 760 }}>
+                <TableHead>
+                  <TableRow
+                    sx={{
+                      '& th': {
+                        color: SUBTLE,
+                        fontWeight: 600,
+                        fontSize: 12,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        borderBottom: `1px solid ${LINE}`,
+                        py: 1.5,
+                      },
+                    }}
+                  >
+                    <TableCell>Channel</TableCell>
+                    <TableCell align="right">Touches</TableCell>
+                    <TableCell align="right">Leads</TableCell>
+                    <TableCell align="right">Won</TableCell>
+                    <TableCell align="right">Pipeline</TableCell>
+                    <TableCell align="right">Cost</TableCell>
+                    <TableCell align="right">First-Touch</TableCell>
+                    <TableCell align="right">Last-Touch</TableCell>
+                    <TableCell align="right">Linear</TableCell>
+                    <TableCell align="right">ROI</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {channels.map((c) => (
+                    <TableRow
+                      key={c.channel}
+                      sx={{
+                        '& td': { borderBottom: `1px solid ${LINE}`, py: 1.5 },
+                        '&:last-of-type td': { borderBottom: 'none' },
+                        '&:hover': { bgcolor: 'rgba(14,17,22,0.02)' },
+                      }}
+                    >
+                      <TableCell>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Box
                             sx={{
-                              fontWeight: 700,
-                              color: c.roi_linear && c.roi_linear >= 0 ? BRAND.teal : SUBTLE,
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              bgcolor: CHANNEL_COLOR[c.channel] ?? SUBTLE,
                             }}
-                          >
-                            {fmtRoi(c.roi_linear)}
+                          />
+                          <Typography variant="body2" sx={{ fontWeight: 700, color: INK }}>
+                            {pretty(c.channel)}
                           </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Box>
-            </CardContent>
-          </Card>
+                        </Stack>
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: INK }}>{c.touches}</TableCell>
+                      <TableCell align="right" sx={{ color: INK }}>{c.leads}</TableCell>
+                      <TableCell align="right" sx={{ color: INK }}>{c.deals_won}</TableCell>
+                      <TableCell align="right" sx={{ color: INK }}>{fmtMoney(c.pipeline)}</TableCell>
+                      <TableCell align="right" sx={{ color: INK }}>{fmtMoney(c.cost)}</TableCell>
+                      <TableCell align="right" sx={{ color: INK }}>
+                        {fmtMoney(c.attributed_revenue.first_touch)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: INK }}>
+                        {fmtMoney(c.attributed_revenue.last_touch)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, color: INK }}>
+                        {fmtMoney(c.attributed_revenue.linear)}
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 700,
+                            color: c.roi_linear && c.roi_linear >= 0 ? BRAND.tealDeep : SUBTLE,
+                          }}
+                        >
+                          {fmtRoi(c.roi_linear)}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          </SoftCard>
         </Stack>
       )}
 
       {/* Add event dialog */}
-      <Dialog open={open} onClose={() => !saving && setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800, color: INK }}>Add Revenue Event</DialogTitle>
-        <Tabs
-          value={tab}
-          onChange={(_, v) => setTab(v)}
-          sx={{
-            px: 3,
-            '& .MuiTab-root': { textTransform: 'none', fontWeight: 700, color: SUBTLE },
-            '& .Mui-selected': { color: `${INK} !important` },
-            '& .MuiTabs-indicator': { bgcolor: BRAND.teal },
-          }}
-        >
-          <Tab value="single" label="Single" />
-          <Tab value="bulk" label="Bulk import" />
-        </Tabs>
-        <DialogContent>
+      <PremiumDialog open={open} onClose={() => !saving && setOpen(false)} maxWidth="sm">
+        <DialogHero
+          icon={<PaymentsRoundedIcon />}
+          title="Add revenue event"
+          subtitle="Log a touch or import a batch to stitch the journey."
+          onClose={() => !saving && setOpen(false)}
+        />
+        <DialogBody>
+          <Stack direction="row" spacing={0.5} sx={{ mb: 2 }}>
+            {([
+              { v: 'single', label: 'Single' },
+              { v: 'bulk', label: 'Bulk import' },
+            ] as { v: 'single' | 'bulk'; label: string }[]).map((t) => {
+              const active = tab === t.v;
+              return (
+                <Box
+                  key={t.v}
+                  component="button"
+                  onClick={() => setTab(t.v)}
+                  sx={{
+                    border: 'none',
+                    cursor: 'pointer',
+                    borderRadius: '999px',
+                    fontWeight: 600,
+                    fontSize: 13.5,
+                    textTransform: 'none',
+                    px: 2.25,
+                    py: 0.85,
+                    lineHeight: 1,
+                    bgcolor: active ? INK : 'transparent',
+                    color: active ? '#fff' : SUBTLE,
+                    transition: 'all .15s ease',
+                    '&:hover': {
+                      bgcolor: active ? INK : 'rgba(14,17,22,0.05)',
+                      color: active ? '#fff' : INK,
+                    },
+                  }}
+                >
+                  {t.label}
+                </Box>
+              );
+            })}
+          </Stack>
           {tab === 'single' ? (
-            <Stack spacing={2} sx={{ mt: 1 }}>
-              <TextField
-                label="Contact reference"
-                placeholder="e.g. acme-cfo or lead@acme.com"
-                value={contactRef}
-                onChange={(e) => setContactRef(e.target.value)}
-                fullWidth
-                size="small"
-                helperText="The person/account this touch belongs to. Used to stitch the journey."
-              />
-              <Stack direction="row" spacing={2}>
+            <>
+              <SectionLabel>Touch details</SectionLabel>
+              <FieldGrid columns={2}>
+                <FullSpan>
+                  <TextField
+                    label="Contact reference"
+                    placeholder="e.g. acme-cfo or lead@acme.com"
+                    value={contactRef}
+                    onChange={(e) => setContactRef(e.target.value)}
+                    fullWidth
+                    size="small"
+                    helperText="The person/account this touch belongs to. Used to stitch the journey."
+                  />
+                </FullSpan>
                 <TextField
                   select
                   label="Channel"
@@ -520,15 +622,15 @@ export default function AttributionPage() {
                     <MenuItem key={s} value={s}>{pretty(s)}</MenuItem>
                   ))}
                 </TextField>
-              </Stack>
-              <TextField
-                label="Campaign (optional)"
-                value={campaign}
-                onChange={(e) => setCampaign(e.target.value)}
-                fullWidth
-                size="small"
-              />
-              <Stack direction="row" spacing={2}>
+                <FullSpan>
+                  <TextField
+                    label="Campaign (optional)"
+                    value={campaign}
+                    onChange={(e) => setCampaign(e.target.value)}
+                    fullWidth
+                    size="small"
+                  />
+                </FullSpan>
                 <TextField
                   label="Value"
                   type="number"
@@ -547,42 +649,45 @@ export default function AttributionPage() {
                   size="small"
                   helperText="Spend attributed to this touch"
                 />
-              </Stack>
-            </Stack>
+              </FieldGrid>
+            </>
           ) : (
-            <Stack spacing={1.5} sx={{ mt: 1 }}>
-              <Alert severity="info" sx={{ borderRadius: 2 }}>
-                One event per line:{' '}
-                <code>contact_ref, channel, stage, value, cost, campaign</code>. Channel &amp; stage
-                must be valid values. Up to 1000 rows.
-              </Alert>
-              <TextField
-                value={bulkText}
-                onChange={(e) => setBulkText(e.target.value)}
-                placeholder={'acme-cfo, linkedin, lead, 0, 50, Q1 ABM\nacme-cfo, content, closed_won, 24000, 0, Q1 ABM'}
-                multiline
-                minRows={8}
-                fullWidth
-                size="small"
-                sx={{ '& textarea': { fontFamily: 'monospace', fontSize: 13 } }}
-              />
-            </Stack>
+            <>
+              <SectionLabel>Bulk import</SectionLabel>
+              <Stack spacing={1.5}>
+                <Alert severity="info" sx={{ borderRadius: 2 }}>
+                  One event per line:{' '}
+                  <code>contact_ref, channel, stage, value, cost, campaign</code>. Channel &amp; stage
+                  must be valid values. Up to 1000 rows.
+                </Alert>
+                <TextField
+                  value={bulkText}
+                  onChange={(e) => setBulkText(e.target.value)}
+                  placeholder={'acme-cfo, linkedin, lead, 0, 50, Q1 ABM\nacme-cfo, content, closed_won, 24000, 0, Q1 ABM'}
+                  multiline
+                  minRows={8}
+                  fullWidth
+                  size="small"
+                  sx={{ '& textarea': { fontFamily: 'monospace', fontSize: 13 } }}
+                />
+              </Stack>
+            </>
           )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setOpen(false)} disabled={saving} sx={{ textTransform: 'none', color: SUBTLE }}>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setOpen(false)} disabled={saving} sx={ghostPillSx}>
             Cancel
           </Button>
           <Button
-            variant="contained"
             onClick={tab === 'single' ? submitSingle : submitBulk}
             disabled={saving}
-            sx={{ bgcolor: INK, textTransform: 'none', fontWeight: 700, '&:hover': { bgcolor: '#000' } }}
+            startIcon={saving ? <CircularProgress size={15} color="inherit" /> : undefined}
+            sx={inkPillSx}
           >
-            {saving ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : tab === 'single' ? 'Add Event' : 'Import'}
+            {saving ? 'Saving…' : tab === 'single' ? 'Add event' : 'Import'}
           </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogFooter>
+      </PremiumDialog>
 
       <Snackbar
         open={!!toast}
@@ -594,6 +699,23 @@ export default function AttributionPage() {
           {toast}
         </Alert>
       </Snackbar>
+    </Box>
+  );
+}
+
+function SoftCard({ children, sx }: { children: React.ReactNode; sx?: SxProps<Theme> }) {
+  return (
+    <Box
+      sx={{
+        bgcolor: '#fff',
+        border: `1px solid ${LINE}`,
+        borderRadius: CARD_RADIUS,
+        boxShadow: CARD_SHADOW,
+        p: 2.5,
+        ...sx,
+      }}
+    >
+      {children}
     </Box>
   );
 }
@@ -611,30 +733,39 @@ function KpiCard({
 }) {
   return (
     <Grid size={{ xs: 6, sm: 4, md: 2.4 }}>
-      <Card variant="outlined" sx={{ borderColor: BORDER, borderRadius: 3, height: '100%' }}>
-        <CardContent sx={{ p: 2 }}>
+      <SoftCard sx={{ height: '100%' }}>
+        <Stack direction="row" alignItems="center" spacing={1.25}>
           <Box
             sx={{
-              width: 36,
-              height: 36,
-              borderRadius: 2,
-              bgcolor: `${accent}14`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mb: 1.25,
+              width: 34,
+              height: 34,
+              borderRadius: '11px',
+              display: 'grid',
+              placeItems: 'center',
+              bgcolor: 'rgba(14,17,22,0.05)',
+              color: INK,
             }}
           >
             {icon}
           </Box>
-          <Typography variant="caption" sx={{ color: SUBTLE, fontWeight: 600 }}>
-            {label}
-          </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: INK, letterSpacing: -0.5 }}>
-            {value}
-          </Typography>
-        </CardContent>
-      </Card>
+          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: accent }} />
+        </Stack>
+        <Typography sx={{ color: 'text.secondary', fontWeight: 700, fontSize: 13, mt: 1.75 }}>
+          {label}
+        </Typography>
+        <Typography
+          sx={{
+            fontWeight: 800,
+            fontSize: 28,
+            lineHeight: 1.05,
+            letterSpacing: '-0.02em',
+            color: INK,
+            mt: 0.5,
+          }}
+        >
+          {value}
+        </Typography>
+      </SoftCard>
     </Grid>
   );
 }
@@ -667,9 +798,9 @@ function Funnel({ funnel }: { funnel: Record<string, number> }) {
             </Stack>
             <Box
               sx={{
-                height: 26,
-                borderRadius: 1.5,
-                bgcolor: '#F1F3F5',
+                height: 24,
+                borderRadius: '999px',
+                bgcolor: 'rgba(14,17,22,0.06)',
                 overflow: 'hidden',
               }}
             >
@@ -677,7 +808,8 @@ function Funnel({ funnel }: { funnel: Record<string, number> }) {
                 sx={{
                   height: '100%',
                   width: `${pct}%`,
-                  bgcolor: s === 'closed_won' ? BRAND.teal : '#2563EB',
+                  borderRadius: '999px',
+                  bgcolor: s === 'closed_won' ? BRAND.teal : INK,
                   opacity: s === 'closed_won' ? 1 : 0.35 + i * 0.16,
                   transition: 'width .4s ease',
                 }}
@@ -692,47 +824,50 @@ function Funnel({ funnel }: { funnel: Record<string, number> }) {
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <Card variant="outlined" sx={{ borderColor: BORDER, borderRadius: 3, bgcolor: CANVAS }}>
-      <CardContent sx={{ py: 8, textAlign: 'center' }}>
-        <Box
-          sx={{
-            width: 64,
-            height: 64,
-            borderRadius: 3,
-            bgcolor: `${BRAND.teal}14`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            mx: 'auto',
-            mb: 2,
-          }}
-        >
-          <AccountTreeIcon sx={{ color: BRAND.teal, fontSize: 32 }} />
-        </Box>
-        <Typography variant="h6" sx={{ fontWeight: 800, color: INK }}>
-          No revenue events yet
-        </Typography>
-        <Typography variant="body2" sx={{ color: SUBTLE, maxWidth: 460, mx: 'auto', mt: 1 }}>
-          Add touches, leads, and closed deals — or bulk-import from your CRM — and we&apos;ll
-          attribute every dollar of pipeline and revenue back to the channels that earned it.
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={onAdd}
-          sx={{
-            mt: 3,
-            bgcolor: INK,
-            textTransform: 'none',
-            fontWeight: 700,
-            borderRadius: 2,
-            '&:hover': { bgcolor: '#000' },
-          }}
-        >
-          Add your first event
-        </Button>
-      </CardContent>
-    </Card>
+    <SoftCard sx={{ py: 8, textAlign: 'center' }}>
+      <Box
+        sx={{
+          width: 64,
+          height: 64,
+          borderRadius: '16px',
+          bgcolor: 'rgba(14,17,22,0.05)',
+          color: INK,
+          display: 'grid',
+          placeItems: 'center',
+          mx: 'auto',
+          mb: 2,
+        }}
+      >
+        <AccountTreeIcon sx={{ fontSize: 32 }} />
+      </Box>
+      <Typography variant="h6" sx={{ fontWeight: 800, color: INK }}>
+        No revenue events yet
+      </Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 460, mx: 'auto', mt: 1 }}>
+        Add touches, leads, and closed deals — or bulk-import from your CRM — and we&apos;ll
+        attribute every dollar of pipeline and revenue back to the channels that earned it.
+      </Typography>
+      <Button
+        variant="contained"
+        startIcon={<AddIcon />}
+        onClick={onAdd}
+        sx={{
+          mt: 3,
+          px: 2.5,
+          py: 1.25,
+          borderRadius: '999px',
+          background: INK,
+          backgroundImage: 'none',
+          textTransform: 'none',
+          fontWeight: 700,
+          color: '#fff',
+          boxShadow: '0 8px 20px rgba(14,17,22,0.25)',
+          '&:hover': { background: '#1B2330', backgroundImage: 'none' },
+        }}
+      >
+        Add your first event
+      </Button>
+    </SoftCard>
   );
 }
 

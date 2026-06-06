@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
-  Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, Grid, IconButton, Menu, MenuItem, Snackbar, Alert, Stack,
+  Box, Button, Chip, CircularProgress, Grid, IconButton, InputAdornment, Menu, MenuItem, Snackbar, Alert, Stack,
   TextField, Tooltip, Typography,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -16,12 +16,24 @@ import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import TravelExploreRoundedIcon from '@mui/icons-material/TravelExploreRounded';
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
+import RocketLaunchRoundedIcon from '@mui/icons-material/RocketLaunchRounded';
 import { useAuth } from '@/lib/auth';
 import {
   Insights, Research, Strategies,
   type Insight as ApiInsight, type ResearchJob, type Strategy,
 } from '@/lib/api';
 import { useConfirm } from '@/components/ConfirmDialog';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
 import { BRAND } from '@/theme/theme';
 
 /* Insight enriched with action metadata (tags/status) used on this page. */
@@ -486,6 +498,7 @@ function InsightCard({
    ══════════════════════════════════════════════════ */
 export default function InsightsPage() {
   const { activeWorkspace } = useAuth();
+  const router = useRouter();
   const [jobs, setJobs]               = useState<ResearchJob[]>([]);
   const [jobId, setJobId]             = useState('');
   const [items, setItems]             = useState<Insight[]>([]);
@@ -638,46 +651,154 @@ export default function InsightsPage() {
   /* ── render ── */
   return (
     <Box>
-      {/* ══ PAGE HEADER ══ */}
+      {/* ══ COMMAND BAR ══ */}
       <Box sx={{
-        mb: 3, pb: 2.5, borderBottom: `1px solid ${LINE}`,
-        display: 'flex', flexDirection: { xs: 'column', md: 'row' },
-        gap: 2, alignItems: { md: 'center' }, justifyContent: 'space-between',
+        position: 'relative', overflow: 'hidden', borderRadius: 4, mb: 3,
+        p: { xs: 2.25, md: 2.75 }, color: '#fff',
+        background: 'linear-gradient(135deg, #0E141B 0%, #16202B 52%, #0C1A16 100%)',
+        boxShadow: '0 14px 38px rgba(12,17,22,0.28)',
       }}>
-        <Box>
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 0.5 }}>
-            <Box sx={{
-              width: 32, height: 32, borderRadius: 2,
-              background: `linear-gradient(135deg, ${BRAND.teal}, ${BRAND.amberDeep})`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <AutoAwesomeIcon sx={{ fontSize: 17, color: WHITE }} />
-            </Box>
-            <Typography variant="h5" fontWeight={950} sx={{ color: INK, letterSpacing: -0.5 }}>
-              Intelligence Insights
-            </Typography>
-          </Stack>
-          <Typography sx={{ fontSize: 13, color: SUBTLE }}>
-            {selectedJob ? `Research: ${selectedJob.topic}` : 'Select a research job to explore insights'}
-          </Typography>
-        </Box>
+        {/* ambient glows */}
+        <Box sx={{ position: 'absolute', top: -90, right: -50, width: 240, height: 240, borderRadius: '50%',
+          background: `radial-gradient(circle, ${BRAND.teal}45, transparent 65%)` }} />
+        <Box sx={{ position: 'absolute', bottom: -110, left: '34%', width: 230, height: 230, borderRadius: '50%',
+          background: `radial-gradient(circle, ${BRAND.amber}33, transparent 65%)` }} />
 
-        {/* Controls */}
-        <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap alignItems="center">
-          <TextField select value={jobId} onChange={(e) => setJobId(e.target.value)} size="small"
-            disabled={loadingJobs || jobs.length === 0}
-            sx={{ minWidth: 210 }}>
-            <MenuItem value="" disabled>Select research…</MenuItem>
-            {jobs.map((j) => <MenuItem key={j.id} value={j.id} sx={{ fontSize: 13 }}>{j.topic}</MenuItem>)}
-          </TextField>
-          <TextField size="small" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)}
-            InputProps={{ startAdornment: <SearchIcon sx={{ mr: 0.5, fontSize: 17, color: SUBTLE }} /> }}
-            sx={{ minWidth: 180 }} />
-          <TextField select value={intentFilter} onChange={(e) => setIntentFilter(e.target.value)} size="small"
-            InputProps={{ startAdornment: <FilterListIcon sx={{ mr: 0.5, fontSize: 17, color: SUBTLE }} /> }}
-            sx={{ minWidth: 150 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ md: 'center' }}
+          justifyContent="space-between" sx={{ position: 'relative' }}>
+          {/* title */}
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+            <Box sx={{
+              width: 42, height: 42, borderRadius: 2.5, flexShrink: 0,
+              display: 'grid', placeItems: 'center',
+              background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})`, color: '#062019',
+            }}>
+              <AutoAwesomeIcon sx={{ fontSize: 21 }} />
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: { xs: 19, md: 22 }, fontWeight: 900, lineHeight: 1.12,
+                background: BRAND.gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Intelligence Insights
+              </Typography>
+              <Typography sx={{ fontSize: 12.5, color: 'rgba(255,255,255,0.62)' }}>
+                AI-extracted demand signals, clustered and ranked by relevance.
+              </Typography>
+            </Box>
+          </Stack>
+
+          {/* live context stats (only when a job has signals) */}
+          {!!jobId && items.length > 0 && (
+            <Stack direction="row" spacing={1} sx={{ position: 'relative', flexShrink: 0 }}>
+              {[
+                { v: items.length, l: 'signals' },
+                { v: clusters.length, l: 'clusters' },
+                { v: `${(avgScore * 100).toFixed(0)}%`, l: 'avg rel.' },
+              ].map((s) => (
+                <Box key={s.l} sx={{
+                  px: 1.6, py: 0.85, borderRadius: 2, textAlign: 'center', minWidth: 64,
+                  bgcolor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)',
+                }}>
+                  <Typography sx={{ fontSize: 17, fontWeight: 900, lineHeight: 1 }}>{s.v}</Typography>
+                  <Typography sx={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5,
+                    textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', mt: 0.4 }}>{s.l}</Typography>
+                </Box>
+              ))}
+            </Stack>
+          )}
+        </Stack>
+
+        {/* control row */}
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} alignItems={{ sm: 'center' }}
+          sx={{ position: 'relative', mt: 2.25 }}>
+          <Tooltip title={selectedJob ? selectedJob.topic : ''} placement="top" arrow>
+            <TextField
+              select value={jobId} onChange={(e) => setJobId(e.target.value)} size="small"
+              disabled={loadingJobs || jobs.length === 0}
+              SelectProps={{
+                IconComponent: KeyboardArrowDownRoundedIcon,
+                displayEmpty: true,
+                renderValue: (val) => {
+                  const j = jobs.find((x) => x.id === val);
+                  return (
+                    <Stack direction="row" spacing={0.9} alignItems="center" sx={{ minWidth: 0 }}>
+                      <TravelExploreRoundedIcon sx={{ fontSize: 17, color: BRAND.teal, flexShrink: 0 }} />
+                      <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap', fontWeight: 700 }}>
+                        {j ? j.topic : 'Select research…'}
+                      </Box>
+                    </Stack>
+                  );
+                },
+                MenuProps: { slotProps: { paper: { sx: { maxWidth: 460, maxHeight: 380, mt: 0.5 } } } },
+              }}
+              sx={{
+                flex: { sm: '1 1 auto' }, minWidth: 0, maxWidth: { sm: 460 },
+                '& .MuiInputBase-root': {
+                  bgcolor: 'rgba(255,255,255,0.07)', color: '#fff', borderRadius: 2,
+                  '& fieldset': { borderColor: 'rgba(255,255,255,0.14)' },
+                  '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.28)' },
+                  '&.Mui-focused fieldset': { borderColor: BRAND.teal },
+                },
+                '& .MuiSelect-icon': { color: 'rgba(255,255,255,0.6)' },
+              }}
+            >
+              {jobs.map((j) => (
+                <MenuItem key={j.id} value={j.id} sx={{ fontSize: 13, whiteSpace: 'normal', maxWidth: 440 }}>
+                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                    <Box sx={{ mt: 0.5, width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                      bgcolor: j.status === 'succeeded' ? BRAND.teal : j.status === 'failed' ? '#ef4444'
+                        : j.status === 'running' ? BRAND.amberDeep : '#9CA3AF' }} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>{j.topic}</Box>
+                  </Stack>
+                </MenuItem>
+              ))}
+            </TextField>
+          </Tooltip>
+
+          <TextField
+            size="small" placeholder="Search signals…" value={q} onChange={(e) => setQ(e.target.value)}
+            InputProps={{ startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.5)' }} />
+              </InputAdornment>
+            ) }}
+            sx={{
+              flex: { sm: '0 1 220px' },
+              '& .MuiInputBase-root': {
+                bgcolor: 'rgba(255,255,255,0.07)', color: '#fff', borderRadius: 2,
+                '& fieldset': { borderColor: 'rgba(255,255,255,0.14)' },
+                '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.28)' },
+                '&.Mui-focused fieldset': { borderColor: BRAND.teal },
+              },
+              '& input::placeholder': { color: 'rgba(255,255,255,0.45)', opacity: 1 },
+            }}
+          />
+
+          <TextField
+            select value={intentFilter} onChange={(e) => setIntentFilter(e.target.value)} size="small"
+            SelectProps={{ IconComponent: KeyboardArrowDownRoundedIcon,
+              MenuProps: { slotProps: { paper: { sx: { mt: 0.5 } } } } }}
+            InputProps={{ startAdornment: (
+              <InputAdornment position="start">
+                <FilterListIcon sx={{ fontSize: 17, color: 'rgba(255,255,255,0.5)' }} />
+              </InputAdornment>
+            ) }}
+            sx={{
+              flex: { sm: '0 1 170px' },
+              '& .MuiInputBase-root': {
+                bgcolor: 'rgba(255,255,255,0.07)', color: '#fff', borderRadius: 2,
+                '& fieldset': { borderColor: 'rgba(255,255,255,0.14)' },
+                '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.28)' },
+                '&.Mui-focused fieldset': { borderColor: BRAND.teal },
+              },
+              '& .MuiSelect-icon': { color: 'rgba(255,255,255,0.6)' },
+              '& .MuiSelect-select': { color: '#fff' },
+            }}
+          >
             <MenuItem value="">All intents</MenuItem>
-            {intents.map((it) => <MenuItem key={it} value={it} sx={{ textTransform: 'capitalize', fontSize: 13 }}>{it}</MenuItem>)}
+            {intents.map((it) => (
+              <MenuItem key={it} value={it} sx={{ textTransform: 'capitalize', fontSize: 13 }}>{it}</MenuItem>
+            ))}
           </TextField>
         </Stack>
       </Box>
@@ -687,14 +808,51 @@ export default function InsightsPage() {
           <CircularProgress color="secondary" />
         </Box>
       ) : !jobId || items.length === 0 ? (
-        <Box sx={{ p: 8, textAlign: 'center', bgcolor: WHITE, borderRadius: 4, border: `1px dashed ${LINE}` }}>
-          <PsychologyAltIcon sx={{ fontSize: 52, color: LINE, mb: 2 }} />
-          <Typography variant="h6" fontWeight={900} sx={{ color: SUBTLE }}>
-            {!jobId ? 'Select a research job to begin' : 'No insights found'}
-          </Typography>
-          <Typography sx={{ color: '#9CA3AF', mt: 1, fontSize: 13 }}>
-            {!jobId ? 'Choose a research from the dropdown above.' : 'Run deep research to generate intelligence signals.'}
-          </Typography>
+        <Box sx={{
+          position: 'relative', overflow: 'hidden', textAlign: 'center',
+          px: 3, py: { xs: 6, md: 9 }, borderRadius: 4, bgcolor: WHITE,
+          border: `1px solid ${LINE}`, boxShadow: '0 2px 14px rgba(0,0,0,0.04)',
+        }}>
+          <Box sx={{ position: 'absolute', top: -70, left: '50%', transform: 'translateX(-50%)',
+            width: 260, height: 160, borderRadius: '50%',
+            background: `radial-gradient(circle, ${BRAND.teal}14, transparent 70%)` }} />
+          <Box sx={{ position: 'relative' }}>
+            <Box sx={{
+              width: 76, height: 76, mx: 'auto', mb: 2.5, borderRadius: '50%',
+              display: 'grid', placeItems: 'center',
+              background: `linear-gradient(135deg, ${BRAND.teal}1A, ${BRAND.amber}1A)`,
+              border: `1px solid ${LINE}`,
+            }}>
+              <PsychologyAltIcon sx={{ fontSize: 36, color: BRAND.teal }} />
+            </Box>
+            <Typography variant="h6" fontWeight={900} sx={{ color: INK }}>
+              {!jobId ? 'No research selected yet' : 'No insights for this research yet'}
+            </Typography>
+            <Typography sx={{ color: SUBTLE, mt: 1, fontSize: 13.5, maxWidth: 420, mx: 'auto', lineHeight: 1.6 }}>
+              {!jobId
+                ? 'Pick a research run above, or launch a new deep research — we’ll extract audience questions, pains and demand signals automatically.'
+                : 'This research hasn’t produced intelligence signals yet. Run deep research to mine audience questions, pains and demand signals.'}
+            </Typography>
+            <Stack direction="row" spacing={1.25} justifyContent="center" sx={{ mt: 3, flexWrap: 'wrap', gap: 1 }}>
+              <Button
+                variant="contained" startIcon={<RocketLaunchRoundedIcon />}
+                onClick={() => router.push('/dashboard/research')}
+                sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2,
+                  background: BRAND.gradient, color: '#062019',
+                  boxShadow: '0 8px 22px rgba(20,187,135,0.32)',
+                  '&:hover': { background: BRAND.gradient, filter: 'brightness(0.96)' } }}
+              >
+                Launch deep research
+              </Button>
+              {jobs.length > 1 && !jobId && (
+                <Button variant="outlined" onClick={() => setJobId(jobs[0]?.id || '')}
+                  sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2,
+                    borderColor: LINE, color: INK }}>
+                  Use latest research
+                </Button>
+              )}
+            </Stack>
+          </Box>
         </Box>
       ) : (
         <Stack spacing={3}>
@@ -884,14 +1042,18 @@ export default function InsightsPage() {
       `}</style>
 
       {/* ── Tag editor ── */}
-      <Dialog open={Boolean(tagAnchor && tagTarget)} onClose={closeTag} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: 16, fontWeight: 900, color: INK, pb: 0.5 }}>
-          Tag insight
-        </DialogTitle>
-        <DialogContent>
+      <PremiumDialog open={Boolean(tagAnchor && tagTarget)} onClose={closeTag} maxWidth="xs">
+        <DialogHero
+          icon={<LocalOfferOutlinedIcon />}
+          title="Tag insight"
+          subtitle="Organise insights with comma-separated labels"
+          onClose={closeTag}
+        />
+        <DialogBody>
           <Typography sx={{ fontSize: 12, color: SUBTLE, mb: 1.5 }}>
             {tagTarget?.text.slice(0, 90)}{(tagTarget?.text.length ?? 0) > 90 ? '…' : ''}
           </Typography>
+          <SectionLabel>Tags</SectionLabel>
           <TextField
             autoFocus fullWidth size="small" label="Tags (comma separated)"
             placeholder="e.g. priority, q2-campaign"
@@ -906,17 +1068,16 @@ export default function InsightsPage() {
                   color: BRAND.teal, border: `1px solid ${BRAND.teal}30` }} />
             ))}
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={closeTag} sx={{ color: SUBTLE, textTransform: 'none', fontWeight: 700 }}>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={closeTag} sx={ghostPillSx}>
             Cancel
           </Button>
-          <Button onClick={saveTags} disabled={tagSaving} variant="contained" color="secondary"
-            sx={{ textTransform: 'none', fontWeight: 800 }}>
+          <Button onClick={saveTags} disabled={tagSaving} sx={inkPillSx}>
             {tagSaving ? 'Saving…' : 'Save tags'}
           </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogFooter>
+      </PremiumDialog>
 
       {/* ── Strategy picker ── */}
       <Menu anchorEl={stratAnchor} open={Boolean(stratAnchor && stratTarget)}

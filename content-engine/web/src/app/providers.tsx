@@ -4,6 +4,7 @@ import { ThemeProvider, CssBaseline } from '@mui/material';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v16-appRouter';
 import theme from '@/theme/theme';
 import { AuthProvider } from '@/lib/auth';
+import GlobalAIProgress from '@/components/GlobalAIProgress';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -11,6 +12,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <AuthProvider>{children}</AuthProvider>
+        <GlobalAIProgress />
       </ThemeProvider>
     </AppRouterCacheProvider>
   );

@@ -80,6 +80,7 @@ export interface User {
   email: string;
   full_name: string;
   is_active: boolean;
+  is_superuser?: boolean;
 }
 export interface Organization {
   id: string;
@@ -242,6 +243,19 @@ export const Auth = {
   }) => api<{ access_token: string; user: User }>('/auth/signup', { method: 'POST', body }),
   login: (body: { email: string; password: string }) =>
     api<{ access_token: string; user: User }>('/auth/login', { method: 'POST', body }),
+  signupCheckout: (body: {
+    email: string;
+    password: string;
+    full_name: string;
+    org_name: string;
+    org_type: string;
+    interval: 'monthly' | 'yearly';
+  }) => api<{ url: string }>('/auth/signup-checkout', { method: 'POST', body }),
+  completeSignup: (session_id: string) =>
+    api<{ access_token: string; user: User }>('/auth/complete-signup', {
+      method: 'POST',
+      body: { session_id },
+    }),
   me: () => api<Me>('/auth/me'),
 };
 
@@ -250,6 +264,162 @@ export const Workspaces = {
   create: (body: { name: string; website?: string }) =>
     api<Workspace>('/workspaces', { method: 'POST', body }),
 };
+
+export interface ICP {
+  id: string;
+  workspace_id: string;
+  status: string;
+  segment?: string | null;
+  industry?: string | null;
+  company_name?: string | null;
+  website?: string | null;
+  company_summary?: string | null;
+  value_prop?: string | null;
+  offer?: string | null;
+  target_customer?: string | null;
+  brand_voice?: string | null;
+  personas?: string[] | null;
+  pains?: string[] | null;
+  goals?: string[] | null;
+  geographies?: string[] | null;
+  channels?: string[] | null;
+  keywords?: string[] | null;
+  competitors?: string[] | null;
+  b2b?: Record<string, unknown> | null;
+  completeness: number;
+  raw?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ICPChatMessage {
+  role: 'user' | 'assistant';
+  text: string;
+  images?: string[];
+}
+
+export interface ICPChatResponse {
+  message: string;
+  icp: Record<string, unknown>;
+  completeness: number;
+  done: boolean;
+}
+
+export const ICPApi = {
+  get: () => api<ICP | null>('/icp', { workspace: true }),
+  save: (body: Partial<ICP>) =>
+    api<ICP>('/icp', { method: 'PUT', body, workspace: true }),
+  patch: (body: Partial<ICP>) =>
+    api<ICP>('/icp', { method: 'PATCH', body, workspace: true }),
+  chat: (messages: ICPChatMessage[], save = false) =>
+    api<ICPChatResponse>('/icp/chat', {
+      method: 'POST',
+      body: { messages, save },
+      workspace: true,
+    }),
+};
+
+export interface ChatAttachment {
+  name: string;
+  kind: 'image' | 'document';
+  url?: string | null;
+  data_url?: string | null;
+  text?: string | null;
+  chars?: number | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversation_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  meta?: { model?: string; web_search?: boolean; attachments?: ChatAttachment[] } | null;
+  created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  workspace_id: string;
+  title: string;
+  model_key?: string | null;
+  pinned: boolean;
+  archived: boolean;
+  preview?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationDetail extends Conversation {
+  messages: ChatMessage[];
+}
+
+export interface ChatSendResponse {
+  conversation_id: string;
+  message: ChatMessage;
+  title: string;
+}
+
+interface SendOpts {
+  model_key?: string;
+  web_search?: boolean;
+  attachments?: ChatAttachment[];
+}
+
+export const TeamChat = {
+  list: () => api<Conversation[]>('/chat/conversations', { workspace: true }),
+  get: (id: string) =>
+    api<ConversationDetail>(`/chat/conversations/${id}`, { workspace: true }),
+  create: (body: { title?: string; model_key?: string; message?: string } & SendOpts) =>
+    api<ConversationDetail>('/chat/conversations', {
+      method: 'POST',
+      body,
+      workspace: true,
+    }),
+  update: (
+    id: string,
+    body: Partial<Pick<Conversation, 'title' | 'model_key' | 'pinned' | 'archived'>>,
+  ) =>
+    api<ConversationDetail>(`/chat/conversations/${id}`, {
+      method: 'PATCH',
+      body,
+      workspace: true,
+    }),
+  remove: (id: string) =>
+    api<void>(`/chat/conversations/${id}`, { method: 'DELETE', workspace: true }),
+  send: (id: string, text: string, opts: SendOpts = {}) =>
+    api<ChatSendResponse>(`/chat/conversations/${id}/messages`, {
+      method: 'POST',
+      body: { text, ...opts },
+      workspace: true,
+    }),
+  upload: (file: File) => uploadChatFile(file),
+};
+
+async function uploadChatFile(file: File): Promise<ChatAttachment> {
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const ws = getWorkspaceId();
+  if (ws) headers['X-Workspace-Id'] = ws;
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${API_URL}/api/v1/chat/upload`, {
+    method: 'POST',
+    headers,
+    body: form,
+  });
+  if (!res.ok) {
+    let detail = `Upload failed (${res.status})`;
+    try {
+      const data = await res.json();
+      detail = data.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(res.status, detail);
+  }
+  return (await res.json()) as ChatAttachment;
+}
 
 export const Research = {
   create: (body: {
@@ -264,6 +434,8 @@ export const Research = {
     ),
   list: () => api<ResearchJob[]>('/research', { workspace: true }),
   get: (id: string) => api<ResearchJob>(`/research/${id}`, { workspace: true }),
+  cancel: (id: string) =>
+    api<ResearchJob>(`/research/${id}/cancel`, { method: 'POST', workspace: true }),
   update: (id: string, body: { topic?: string; target_url?: string; summary?: string }) =>
     api<ResearchJob>(`/research/${id}`, { method: 'PATCH', body, workspace: true }),
   remove: (id: string) => api<void>(`/research/${id}`, { method: 'DELETE', workspace: true }),
@@ -587,14 +759,63 @@ export const ALL_PLATFORMS = [
   'medium',
 ] as const;
 
+export interface ModelPublic {
+  key: string;
+  label: string;
+  kind: string;
+  is_default: boolean;
+}
+export interface ModelAdmin {
+  id: string;
+  key: string;
+  label: string;
+  kind: string;
+  endpoint: string | null;
+  model_name: string;
+  api_version: string | null;
+  enabled: boolean;
+  is_default: boolean;
+  sort_order: number;
+  source: string;
+  has_key: boolean;
+  created_at: string;
+  updated_at: string;
+}
+export interface ModelWrite {
+  key?: string;
+  label?: string;
+  kind?: string;
+  model_name?: string;
+  endpoint?: string | null;
+  api_key?: string | null;
+  api_version?: string | null;
+  enabled?: boolean;
+  is_default?: boolean;
+  sort_order?: number;
+}
+
+// Fallback picker list used before /models is fetched (or if it fails).
+// The DB registry is the source of truth at runtime.
 export const AI_MODELS = [
   { id: 'claude', label: 'Claude Opus (recommended)' },
+  { id: 'claude-sonnet', label: 'Claude Sonnet 4.6' },
   { id: 'gpt-5.5', label: 'GPT-5.5' },
+  { id: 'grok-4.3', label: 'Grok 4.3' },
 ] as const;
 
+export const Models = {
+  list: () => api<ModelPublic[]>('/models'),
+  adminList: () => api<ModelAdmin[]>('/admin/models'),
+  create: (body: ModelWrite) => api<ModelAdmin>('/admin/models', { method: 'POST', body }),
+  update: (id: string, body: ModelWrite) =>
+    api<ModelAdmin>(`/admin/models/${id}`, { method: 'PATCH', body }),
+  remove: (id: string) => api<void>(`/admin/models/${id}`, { method: 'DELETE' }),
+};
+
 export const IMAGE_MODELS = [
-  { id: 'gpt-image', label: 'GPT Image 2.1 (recommended)' },
+  { id: 'gpt-image-1.5', label: 'GPT Image 1.5 (recommended)' },
   { id: 'mai', label: 'MAI Image 2.5' },
+  { id: 'gpt-image', label: 'GPT Image 2.1' },
   { id: 'flux', label: 'FLUX.2 Pro' },
 ] as const;
 
@@ -718,19 +939,131 @@ export const Images = {
   remove: (id: string) => api<void>(`/images/${id}`, { method: 'DELETE', workspace: true }),
 };
 
-/** Download an image (by absolute or API-relative URL) to the user's device. */
-export async function downloadImage(url: string, filename: string): Promise<void> {
-  const abs = url.startsWith('http') ? url : `${API_URL}${url}`;
-  const res = await fetch(abs);
-  const blob = await res.blob();
-  const objectUrl = URL.createObjectURL(blob);
+// ---------- AI Video (Reels / Shorts / TikTok / YouTube) ----------
+export type VideoFormat = 'youtube' | 'youtube_shorts' | 'reels' | 'tiktok';
+
+export const VIDEO_FORMATS: { value: VideoFormat; label: string; aspect: string; hint: string }[] = [
+  { value: 'reels', label: 'Instagram Reels', aspect: '9:16', hint: 'Vertical 1080×1920 · up to 90s' },
+  { value: 'youtube_shorts', label: 'YouTube Shorts', aspect: '9:16', hint: 'Vertical 1080×1920 · up to 60s' },
+  { value: 'tiktok', label: 'TikTok', aspect: '9:16', hint: 'Vertical 1080×1920 · up to 90s' },
+  { value: 'youtube', label: 'YouTube', aspect: '16:9', hint: 'Landscape 1920×1080 · up to 180s' },
+];
+
+export const VIDEO_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer', 'coral', 'sage'] as const;
+
+export type VideoQuality = '720p' | '1080p' | '4k';
+
+export const VIDEO_QUALITIES: { value: VideoQuality; label: string; hint: string }[] = [
+  { value: '720p', label: '720p', hint: 'Fast render · good for drafts' },
+  { value: '1080p', label: '1080p (HD)', hint: 'Crisp Full HD · recommended' },
+  { value: '4k', label: '4K (Ultra HD)', hint: 'Highest quality · slower render' },
+];
+
+export type VideoStyle = 'clean' | 'bold' | 'dynamic';
+
+export const VIDEO_STYLES: { value: VideoStyle; label: string; hint: string }[] = [
+  { value: 'dynamic', label: 'Dynamic', hint: 'Motion, transitions, intro/outro, branded captions' },
+  { value: 'bold', label: 'Bold', hint: 'Strong branding + animated captions' },
+  { value: 'clean', label: 'Clean', hint: 'Minimal · plain captions, no motion' },
+];
+
+export type VideoVisuals = 'hybrid' | 'stock' | 'ai';
+
+export const VIDEO_VISUALS: { value: VideoVisuals; label: string; hint: string }[] = [
+  { value: 'hybrid', label: 'Hybrid', hint: 'AI picks stock footage or AI images per scene' },
+  { value: 'ai', label: 'AI images', hint: 'AI-generated visuals (Microsoft/Azure), animated' },
+  { value: 'stock', label: 'Stock footage', hint: 'Real Pexels video clips only' },
+];
+
+export interface ContentVideo {
+  id: string;
+  workspace_id: string;
+  content_item_id: string | null;
+  topic: string | null;
+  platform: string | null;
+  fmt: VideoFormat;
+  provider: string | null;
+  voice: string | null;
+  status: string;
+  duration_s: number | null;
+  width: number | null;
+  height: number | null;
+  mime: string;
+  url: string;
+  created_at: string;
+}
+
+/** Absolute, streamable URL for a rendered video (served by the API). */
+export function videoUrl(video: ContentVideo): string {
+  return `${API_URL}${video.url}`;
+}
+
+export const Videos = {
+  generate: (body: {
+    topic?: string;
+    fmt?: VideoFormat;
+    platform?: string;
+    seconds?: number;
+    voice?: string;
+    tone?: string;
+    content_item_id?: string;
+    script?: string;
+    use_brand?: boolean;
+    extra?: string;
+    quality?: VideoQuality;
+    style?: VideoStyle;
+    visuals?: VideoVisuals;
+  }) =>
+    runAITask('video_generate', () =>
+      api<ContentVideo>('/videos/generate', { method: 'POST', body, workspace: true }),
+    ),
+  regenerate: (
+    id: string,
+    body: { notes?: string; voice?: string; tone?: string; quality?: VideoQuality; style?: VideoStyle; visuals?: VideoVisuals },
+  ) =>
+    runAITask('video_generate', () =>
+      api<ContentVideo>(`/videos/${id}/regenerate`, { method: 'POST', body, workspace: true }),
+    ),
+  list: (contentItemId?: string) =>
+    api<ContentVideo[]>(
+      `/videos${contentItemId ? `?content_item_id=${contentItemId}` : ''}`,
+      { workspace: true },
+    ),
+  remove: (id: string) => api<void>(`/videos/${id}`, { method: 'DELETE', workspace: true }),
+};
+
+/** Trigger a browser download for a URL without fetching its bytes (fallback). */
+function triggerDirectDownload(href: string, filename: string): void {
   const a = document.createElement('a');
-  a.href = objectUrl;
+  a.href = href;
   a.download = filename;
+  a.target = '_blank';
+  a.rel = 'noopener';
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(objectUrl);
+}
+
+/** Download an image (by absolute or API-relative URL) to the user's device. */
+export async function downloadImage(url: string, filename: string): Promise<void> {
+  const abs = url.startsWith('http') ? url : `${API_URL}${url}`;
+  try {
+    const res = await fetch(abs);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch {
+    // Network/CORS/server hiccup: fall back to a direct link download/open
+    // so the user still gets the image instead of an unhandled error.
+    triggerDirectDownload(abs, filename);
+  }
 }
 
 // ---------- M3/M4: Social Publishing ----------
@@ -771,6 +1104,17 @@ export const Social = {
     api<SocialAccount>('/social/connect/manual', { method: 'POST', body, workspace: true }),
   removeAccount: (id: string) =>
     api<void>(`/social/accounts/${id}`, { method: 'DELETE', workspace: true }),
+  linkedinPages: (id: string) =>
+    api<{ pages: { urn: string; id: string; name: string }[]; selected: string | null }>(
+      `/social/accounts/${id}/linkedin/pages`,
+      { workspace: true },
+    ),
+  setLinkedinTarget: (id: string, body: { urn: string | null; name?: string }) =>
+    api<SocialAccount>(`/social/accounts/${id}/linkedin/target`, {
+      method: 'POST',
+      body,
+      workspace: true,
+    }),
   schedules: () => api<Schedule[]>('/social/schedules', { workspace: true }),
   schedule: (body: { content_item_id: string; social_account_id: string; scheduled_at: string }) =>
     api<Schedule>('/social/schedules', { method: 'POST', body, workspace: true }),
@@ -1927,95 +2271,440 @@ export const Automation = {
     api<void>(`/automation/tasks/${id}`, { method: 'DELETE', workspace: true }),
 };
 
-// ---------- LinkedIn Growth Copilot ----------
-export interface LinkedInGrowthProfile {
+// ---------- CRO (Conversion Rate Optimization) ----------
+export interface CROStage {
+  key: string;
+  label: string;
+  count: number;
+  step_cvr: number;
+  drop: number;
+  drop_pct: number;
+  overall_pct: number;
+}
+export interface CROLeak {
+  from: string;
+  to: string;
+  from_key: string;
+  to_key: string;
+  drop: number;
+  drop_pct: number;
+  retained_pct: number;
+}
+export interface CROOpportunity {
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  detail: string;
+}
+export interface CROFunnel {
+  days: number;
+  low_data: boolean;
+  min_visitors_for_signal: number;
+  visitors: number;
+  converted: number;
+  overall_cvr: number;
+  avg_order_value: number;
+  value_events: number;
+  stages: CROStage[];
+  biggest_leak: CROLeak | null;
+}
+export interface CROScorecard {
+  days: number;
+  low_data: boolean;
+  cro_score: number;
+  overall_cvr: number;
+  cvr_delta: number;
+  prev_cvr: number;
+  visitors: number;
+  converted: number;
+  avg_order_value: number;
+  revenue_left_on_table: number;
+  currency: string;
+  biggest_leak: CROLeak | null;
+  stages: CROStage[];
+  opportunities: CROOpportunity[];
+}
+
+export const CRO = {
+  scorecard: (days = 30) =>
+    api<CROScorecard>(`/cro/scorecard?days=${days}`, { workspace: true }),
+  funnel: (days = 30) =>
+    api<CROFunnel>(`/cro/funnel?days=${days}`, { workspace: true }),
+  pixelUrl: () => `${API_URL}/api/v1/cro/pixel.js`,
+
+  // Phase 2 — experiments (conversion-judged)
+  listExperiments: () =>
+    api<{ experiments: CROExperiment[] }>(`/cro/experiments`, { workspace: true }),
+  getExperiment: (id: string) =>
+    api<CROExperimentDetail>(`/cro/experiments/${id}`, { workspace: true }),
+  createExperiment: (body: {
+    name: string;
+    surface: string;
+    hypothesis?: string;
+    variants: { key: string; label?: string; payload?: string; is_control?: boolean }[];
+  }) => api<CROExperiment>(`/cro/experiments`, { workspace: true, method: 'POST', body }),
+  autoExperiment: (launch = false, days = 30) =>
+    api<CROExperimentDetail & { design: unknown; leak: CROLeak }>(
+      `/cro/experiments/auto?launch=${launch}&days=${days}`,
+      { workspace: true, method: 'POST' },
+    ),
+  startExperiment: (id: string) =>
+    api<CROExperiment>(`/cro/experiments/${id}/start`, { workspace: true, method: 'POST' }),
+  shipWinner: (id: string) =>
+    api<CROExperimentDetail>(`/cro/experiments/${id}/ship-winner`, {
+      workspace: true,
+      method: 'POST',
+    }),
+
+  // Phase 3 — the CRO agent
+  agent: () => api<{ settings: CROSettings; actions: CROAction[] }>(`/cro/agent`, { workspace: true }),
+  runAgent: (days = 30) =>
+    api<CROAgentRun>(`/cro/agent/run?days=${days}`, { workspace: true, method: 'POST' }),
+  updateSettings: (body: Partial<Pick<CROSettings, 'autonomy' | 'enabled' | 'min_visitors' | 'max_active_experiments'>>) =>
+    api<CROSettings>(`/cro/agent/settings`, { workspace: true, method: 'PUT', body }),
+  actOnAction: (id: string, decision: 'approve' | 'dismiss') =>
+    api<{ status: string; id: string; experiment_id?: string | null }>(
+      `/cro/agent/actions/${id}/act`,
+      { workspace: true, method: 'POST', body: { decision } },
+    ),
+
+  // Phase 4 — segments + predictive lift
+  segments: (dimension = 'device', days = 30) =>
+    api<CROSegments>(`/cro/segments?dimension=${dimension}&days=${days}`, { workspace: true }),
+  predict: (body: { text: string; format?: string; platform?: string }) =>
+    api<CROPrediction>(`/cro/predict`, { workspace: true, method: 'POST', body }),
+};
+
+// --- Phase 2-4 CRO types ---
+export interface CROExperiment {
   id: string;
-  account_label: string;
-  profile_url: string | null;
-  objective: string;
-  icp: Record<string, unknown> | null;
-  offer: string | null;
-  voice: string | null;
+  name: string;
+  surface: string;
   status: string;
-  latest_score: number | null;
-  latest_grade: string | null;
-  latest_audit: Record<string, unknown> | null;
-  latest_audit_at: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-}
-
-export interface LinkedInAudit {
-  id: string;
-  profile_id: string;
-  snapshot: Record<string, unknown>;
-  objective_context: Record<string, unknown>;
-  score: number;
-  grade: string;
-  findings: Record<string, unknown>;
-  recommendations: Array<Record<string, unknown>>;
-  drafts: Record<string, unknown>;
-  compliance: Record<string, unknown>;
-  created_by_name: string | null;
+  hypothesis: string | null;
+  success_metric: string;
+  winner_key: string | null;
+  variant_count: number;
+  started_at: string | null;
+  ended_at: string | null;
   created_at: string | null;
 }
-
-export interface LinkedInActionItem {
+export interface CROVariantResult {
+  key: string;
+  label: string;
+  payload?: string | null;
+  is_control: boolean;
+  exposures: number;
+  conversions: number;
+  conversion_rate: number;
+  revenue: number;
+  has_data: boolean;
+}
+export interface CROComparison {
+  key: string;
+  label: string;
+  z: number | null;
+  p_value: number | null;
+  confidence: number;
+  significant: boolean;
+  abs_lift: number | null;
+  rel_lift_pct: number | null;
+  verdict: string;
+}
+export interface CROEvaluation {
+  status: string;
+  winner_key: string | null;
+  winner_label: string | null;
+  winner_cvr: number | null;
+  verdict: string;
+  control_key: string;
+  min_exposures_per_arm: number;
+  total_exposures: number;
+  comparisons: CROComparison[];
+  variants: CROVariantResult[];
+  message?: string;
+}
+export interface CROAllocation {
+  key: string;
+  label: string;
+  posterior_mean_cvr: number;
+  allocation_pct: number;
+}
+export interface CROExperimentDetail extends CROExperiment {
+  variants: CROVariantResult[];
+  evaluation: CROEvaluation;
+  allocation: CROAllocation[];
+  total_revenue: number;
+}
+export interface CROSettings {
+  autonomy: 'suggest' | 'approve' | 'auto';
+  autonomy_levels: string[];
+  enabled: boolean;
+  min_visitors: number;
+  max_active_experiments: number;
+  last_run_at: string | null;
+}
+export interface CROAction {
   id: string;
-  profile_id: string;
-  audit_id: string | null;
-  section: string;
+  kind: string;
+  status: string;
+  priority: 'high' | 'medium' | 'low';
   title: string;
   detail: string | null;
-  priority: string;
-  status: string;
-  suggested_copy: string | null;
-  policy_note: string | null;
+  rationale: string | null;
+  expected_lift_pct: number | null;
+  expected_revenue: number | null;
+  confidence: number | null;
+  target_stage: string | null;
+  experiment_id: string | null;
+  auto_executed: boolean;
   created_at: string | null;
-  updated_at: string | null;
+  acted_at: string | null;
+  meta?: Record<string, unknown> | null;
+}
+export interface CROAgentRun {
+  status: string;
+  autonomy: string;
+  visitors: number;
+  cro_score: number | null;
+  biggest_leak?: CROLeak | null;
+  revenue_left_on_table?: number;
+  launched_experiment_id?: string | null;
+  created: { title: string; kind: string }[];
+  created_count?: number;
+  message?: string;
+}
+export interface CROSegment {
+  segment: string;
+  visitors: number;
+  conversions: number;
+  conversion_rate: number;
+  revenue: number;
+  low_data: boolean;
+}
+export interface CROSegments {
+  dimension: string;
+  dimensions: string[];
+  days: number;
+  min_segment_visitors: number;
+  segments: CROSegment[];
+  best_segment: CROSegment | null;
+  worst_segment: CROSegment | null;
+  insight: string | null;
+}
+export interface CROPredictionDriver {
+  attribute: string;
+  label: string;
+  draft_has: boolean;
+  effect_pct: number;
+}
+export interface CROPrediction {
+  low_data: boolean;
+  history_size: number;
+  score: number;
+  percentile?: number;
+  predicted_engagement_rate: number | null;
+  baseline_engagement_rate: number | null;
+  lift_vs_baseline_pct?: number;
+  draft_attributes: Record<string, unknown>;
+  drivers: CROPredictionDriver[];
+  suggestions: string[];
 }
 
-export const LinkedInGrowth = {
-  playbook: () =>
-    api<{
-      objectives: Array<{ id: string; label: string; description: string }>;
-      guardrails: string[];
-      sections: string[];
-      policy_safe_mode: string;
-      browser_note: string;
-    }>('/linkedin-growth/playbook', { workspace: true }),
-  profiles: () =>
-    api<LinkedInGrowthProfile[]>('/linkedin-growth/profiles', { workspace: true }),
-  createProfile: (body: {
-    account_label: string;
-    profile_url?: string | null;
-    objective?: string;
-    icp?: Record<string, unknown>;
-    offer?: string | null;
-    voice?: string | null;
-  }) => api<LinkedInGrowthProfile>('/linkedin-growth/profiles', { method: 'POST', body, workspace: true }),
-  updateProfile: (id: string, body: Partial<LinkedInGrowthProfile>) =>
-    api<LinkedInGrowthProfile>(`/linkedin-growth/profiles/${id}`, { method: 'PATCH', body, workspace: true }),
-  deleteProfile: (id: string) =>
-    api<void>(`/linkedin-growth/profiles/${id}`, { method: 'DELETE', workspace: true }),
-  audit: (id: string, body: Record<string, unknown>) =>
-    api<LinkedInAudit>(`/linkedin-growth/profiles/${id}/audit`, { method: 'POST', body, workspace: true }),
-  audits: (id: string) =>
-    api<LinkedInAudit[]>(`/linkedin-growth/profiles/${id}/audits`, { workspace: true }),
-  actions: (id: string, status?: string) =>
-    api<LinkedInActionItem[]>(
-      `/linkedin-growth/profiles/${id}/actions${status ? `?status=${status}` : ''}`,
-      { workspace: true },
-    ),
-  updateAction: (id: string, status: string) =>
-    api<LinkedInActionItem>(`/linkedin-growth/actions/${id}`, {
-      method: 'PATCH',
-      body: { status },
-      workspace: true,
-    }),
-  browserSession: (profile_url?: string | null) =>
-    api<{ url: string; mode: string; policy: string; guardrails: string[]; capture_steps: string[] }>(
-      '/linkedin-growth/browser-session',
-      { method: 'POST', body: { profile_url }, workspace: true },
-    ),
+// ---------- Decks (branded AI presentations) ----------
+export interface DeckTheme {
+  primary?: string;
+  accent?: string;
+  ink?: string;
+  style?: string;
+  logo_url?: string;
+  brand_name?: string;
+}
+export interface DeckSlide {
+  id: string;
+  position: number;
+  layout: string;
+  data: Record<string, unknown>;
+  speaker_notes?: string | null;
+}
+export interface Deck {
+  id: string;
+  title: string;
+  topic?: string | null;
+  audience?: string | null;
+  tone?: string | null;
+  style: string;
+  status: string;
+  error?: string | null;
+  theme?: DeckTheme | null;
+  meta?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+  slide_count?: number;
+  slides?: DeckSlide[];
+}
+export interface DeckGenerateBody {
+  topic: string;
+  audience?: string;
+  tone?: string;
+  style?: string;
+  slide_count?: number;
+  model_key?: string;
+  image_provider?: string;
+  image_source?: string;
+}
+
+function deckExportUrl(id: string, kind: 'pdf' | 'pptx'): string {
+  return `${API_URL}/api/v1/decks/${id}/export.${kind}`;
+}
+
+async function downloadDeck(id: string, kind: 'pdf' | 'pptx', filename: string): Promise<void> {
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const ws = getWorkspaceId();
+  if (ws) headers['X-Workspace-Id'] = ws;
+  const res = await fetch(deckExportUrl(id, kind), { headers });
+  if (!res.ok) {
+    let detail = `Export failed (${res.status})`;
+    try {
+      const data = await res.json();
+      detail = data.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(res.status, detail);
+  }
+  const blob = await res.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export const Decks = {
+  list: () => api<Deck[]>('/decks', { workspace: true }),
+  get: (id: string) => api<Deck>(`/decks/${id}`, { workspace: true }),
+  generate: (body: DeckGenerateBody) =>
+    api<Deck>('/decks/generate', { method: 'POST', body, workspace: true }),
+  update: (id: string, body: { title?: string; style?: string }) =>
+    api<Deck>(`/decks/${id}`, { method: 'PATCH', body, workspace: true }),
+  remove: (id: string) => api<void>(`/decks/${id}`, { method: 'DELETE', workspace: true }),
+  updateSlide: (
+    deckId: string,
+    slideId: string,
+    body: { layout?: string; data?: Record<string, unknown>; speaker_notes?: string },
+  ) => api<Deck>(`/decks/${deckId}/slides/${slideId}`, { method: 'PATCH', body, workspace: true }),
+  deleteSlide: (deckId: string, slideId: string) =>
+    api<Deck>(`/decks/${deckId}/slides/${slideId}`, { method: 'DELETE', workspace: true }),
+  reorder: (deckId: string, slideIds: string[]) =>
+    api<Deck>(`/decks/${deckId}/reorder`, { method: 'POST', body: { slide_ids: slideIds }, workspace: true }),
+  regenerateSlide: (
+    deckId: string,
+    slideId: string,
+    body: {
+      instruction?: string;
+      layout?: string;
+      model_key?: string;
+      with_image?: boolean;
+      rewrite_content?: boolean;
+    } = {},
+  ) => api<Deck>(`/decks/${deckId}/slides/${slideId}/regenerate`, { method: 'POST', body, workspace: true }),
+  regenerateSlideImage: (deckId: string, slideId: string) =>
+    api<Deck>(`/decks/${deckId}/slides/${slideId}/image`, { method: 'POST', body: {}, workspace: true }),
+  duplicateSlide: (deckId: string, slideId: string) =>
+    api<Deck>(`/decks/${deckId}/slides/${slideId}/duplicate`, { method: 'POST', body: {}, workspace: true }),
+  addSlide: (
+    deckId: string,
+    body: { after_slide_id?: string; layout?: string; instruction?: string; generate?: boolean; model_key?: string } = {},
+  ) => api<Deck>(`/decks/${deckId}/slides`, { method: 'POST', body, workspace: true }),
+  exportPdf: (id: string, filename: string) => downloadDeck(id, 'pdf', filename),
+  exportPptx: (id: string, filename: string) => downloadDeck(id, 'pptx', filename),
+};
+
+// ---------- Platform admin (superuser) ----------
+export interface AdminOrg {
+  id: string;
+  name: string;
+  slug: string;
+  org_type: string;
+  plan: string;
+  client_limit: number | null;
+  workspace_count: number;
+  has_subscription: boolean;
+}
+export interface AdminUser {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  is_superuser: boolean;
+  role: string | null;
+  created_at: string | null;
+  org: AdminOrg | null;
+}
+export interface AdminUserCreate {
+  email: string;
+  password: string;
+  full_name: string;
+  org_name: string;
+  org_type: string;
+  plan_code: string;
+  client_limit?: number | null;
+  is_superuser?: boolean;
+}
+export interface AdminUserUpdate {
+  full_name?: string;
+  is_active?: boolean;
+  is_superuser?: boolean;
+  password?: string;
+}
+export interface AdminOrgUpdate {
+  plan_code?: string;
+  org_type?: string;
+  client_limit?: number | null;
+}
+export interface AdminPlan {
+  id: string;
+  code: string;
+  name: string;
+  price_monthly: number;
+  limits: Record<string, number> | null;
+  features: string[] | null;
+  in_use: number;
+}
+export interface AdminPlanCreate {
+  code: string;
+  name: string;
+  price_monthly: number;
+  limits?: Record<string, number> | null;
+  features?: string[] | null;
+}
+export interface AdminPlanUpdate {
+  name?: string;
+  price_monthly?: number;
+  limits?: Record<string, number> | null;
+  features?: string[] | null;
+}
+
+export const Admin = {
+  listUsers: () => api<AdminUser[]>('/admin/users'),
+  createUser: (body: AdminUserCreate) =>
+    api<AdminUser>('/admin/users', { method: 'POST', body }),
+  updateUser: (id: string, body: AdminUserUpdate) =>
+    api<AdminUser>(`/admin/users/${id}`, { method: 'PATCH', body }),
+  deleteUser: (id: string) => api<void>(`/admin/users/${id}`, { method: 'DELETE' }),
+  updateOrg: (id: string, body: AdminOrgUpdate) =>
+    api<AdminOrg>(`/admin/orgs/${id}`, { method: 'PATCH', body }),
+  terminateOrg: (id: string) =>
+    api<AdminOrg>(`/admin/orgs/${id}/terminate`, { method: 'POST' }),
+  listPlans: () => api<AdminPlan[]>('/admin/plans'),
+  createPlan: (body: AdminPlanCreate) =>
+    api<AdminPlan>('/admin/plans', { method: 'POST', body }),
+  updatePlan: (id: string, body: AdminPlanUpdate) =>
+    api<AdminPlan>(`/admin/plans/${id}`, { method: 'PATCH', body }),
+  deletePlan: (id: string) => api<void>(`/admin/plans/${id}`, { method: 'DELETE' }),
 };

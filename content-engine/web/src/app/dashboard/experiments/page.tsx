@@ -9,10 +9,6 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   Grid,
   IconButton,
@@ -26,6 +22,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined';
 import ScienceIcon from '@mui/icons-material/ScienceOutlined';
+import ScienceRoundedIcon from '@mui/icons-material/ScienceRounded';
 import PlayArrowIcon from '@mui/icons-material/PlayArrowRounded';
 import InsightsIcon from '@mui/icons-material/InsightsOutlined';
 import ArchiveIcon from '@mui/icons-material/Inventory2Outlined';
@@ -35,6 +32,15 @@ import SplitscreenIcon from '@mui/icons-material/SplitscreenOutlined';
 import { useAuth } from '@/lib/auth';
 import { Experiments, type Experiment, type ExperimentVariant } from '@/lib/api';
 import { useConfirm } from '@/components/ConfirmDialog';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
 import { BRAND } from '@/theme/theme';
 
 const INK = '#11151B';
@@ -408,74 +414,132 @@ export default function ExperimentsPage() {
       )}
 
       {/* ── Create dialog ── */}
-      <Dialog open={open} onClose={() => !creating && setOpen(false)} fullWidth maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 4, overflow: 'hidden' } }}>
-        <Box sx={{ p: 3, background: 'linear-gradient(135deg, #11151B 0%, #1B2330 100%)', color: '#fff', position: 'relative', overflow: 'hidden' }}>
-          <Box sx={{ position: 'absolute', top: -50, right: -50, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,187,135,0.30), transparent 65%)' }} />
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ position: 'relative' }}>
-            <Box sx={{ width: 38, height: 38, borderRadius: 2, display: 'grid', placeItems: 'center', background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})` }}>
-              <ScienceIcon sx={{ color: '#fff', fontSize: 20 }} />
-            </Box>
-            <Box>
-              <Typography fontWeight={950} variant="h6">New experiment</Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.65)' }}>Define a hypothesis and the variants you want to test.</Typography>
-            </Box>
-          </Stack>
-        </Box>
-        <DialogTitle sx={{ display: 'none' }} />
-        <DialogContent sx={{ pt: 3 }}>
-          <Stack spacing={2.5}>
-            <TextField label="Experiment name" placeholder="e.g. Hook style: question vs. bold claim"
-              value={name} onChange={(e) => setName(e.target.value)} fullWidth autoFocus required />
-            <TextField label="Hypothesis" placeholder="e.g. A question-led hook will beat a claim-led hook on engagement."
-              value={hypothesis} onChange={(e) => setHypothesis(e.target.value)} fullWidth multiline minRows={2} />
-            <TextField select label="Success metric" value={successMetric} onChange={(e) => setSuccessMetric(e.target.value)} fullWidth
-              helperText="The metric used to decide the winner">
-              {METRIC_OPTIONS.map((m) => (
-                <MenuItem key={m} value={m}>{m}</MenuItem>
-              ))}
-            </TextField>
-
-            <Box>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                <Typography fontWeight={800} color={INK}>Variants</Typography>
-                <Button size="small" startIcon={<AddIcon />} onClick={addVariant}
-                  sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2 }}>
-                  Add variant
-                </Button>
-              </Stack>
-              <Stack spacing={1.5}>
-                {variants.map((v, idx) => (
-                  <Stack key={idx} direction="row" spacing={1} alignItems="flex-start">
-                    <TextField label="Key" value={v.key} onChange={(e) => updateVariant(idx, 'key', e.target.value)}
-                      sx={{ width: 88, flexShrink: 0 }} />
-                    <TextField label="Label" value={v.label} onChange={(e) => updateVariant(idx, 'label', e.target.value)}
-                      placeholder="Short name" fullWidth />
-                    <TextField label="Notes" value={v.notes} onChange={(e) => updateVariant(idx, 'notes', e.target.value)}
-                      placeholder="What's different" fullWidth />
-                    <Tooltip title="Remove variant">
-                      <span>
-                        <IconButton onClick={() => removeVariant(idx)} disabled={variants.length <= 1}
-                          sx={{ mt: 0.5, color: BRAND.pink }}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
+      <PremiumDialog open={open} onClose={() => !creating && setOpen(false)} maxWidth="md">
+        <DialogHero
+          icon={<ScienceRoundedIcon />}
+          title="New experiment"
+          subtitle="Define a hypothesis and the variants you want to test."
+          onClose={() => !creating && setOpen(false)}
+          tint={BRAND.tealDeep}
+          tintSoft={BRAND.tealSoft}
+        />
+        <DialogBody sx={{ p: 0 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.05fr 0.95fr' }, minHeight: { md: 440 } }}>
+            {/* Form column */}
+            <Box sx={{ px: { xs: 2.5, sm: 3.25 }, py: 3, borderRight: { md: `1px solid ${BORDER}` } }}>
+              <Stack spacing={2.5}>
+                <Box>
+                  <SectionLabel>Experiment basics</SectionLabel>
+                  <Stack spacing={2}>
+                    <TextField label="Experiment name" placeholder="e.g. Hook style: question vs. bold claim"
+                      value={name} onChange={(e) => setName(e.target.value)} fullWidth size="small" autoFocus required />
+                    <TextField label="Hypothesis" placeholder="e.g. A question-led hook will beat a claim-led hook on engagement."
+                      value={hypothesis} onChange={(e) => setHypothesis(e.target.value)} fullWidth size="small" multiline minRows={2} />
+                    <TextField select label="Success metric" value={successMetric} onChange={(e) => setSuccessMetric(e.target.value)} fullWidth size="small"
+                      helperText="The metric used to decide the winner">
+                      {METRIC_OPTIONS.map((m) => (
+                        <MenuItem key={m} value={m}>{m}</MenuItem>
+                      ))}
+                    </TextField>
                   </Stack>
-                ))}
+                </Box>
+
+                <Box>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                    <SectionLabel sx={{ mb: 0 }}>Variants</SectionLabel>
+                    <Button size="small" startIcon={<AddIcon />} onClick={addVariant}
+                      sx={{ textTransform: 'none', fontWeight: 800, borderRadius: 2 }}>
+                      Add variant
+                    </Button>
+                  </Stack>
+                  <Stack spacing={1.5}>
+                    {variants.map((v, idx) => (
+                      <Box key={idx} sx={{ p: 1.5, borderRadius: '14px', border: `1px solid ${BORDER}`, background: CANVAS }}>
+                        <Stack direction="row" spacing={1} alignItems="flex-start">
+                          <TextField label="Key" value={v.key} onChange={(e) => updateVariant(idx, 'key', e.target.value)}
+                            size="small" sx={{ width: 80, flexShrink: 0 }} />
+                          <TextField label="Label" value={v.label} onChange={(e) => updateVariant(idx, 'label', e.target.value)}
+                            placeholder="Short name" fullWidth size="small" />
+                          <Tooltip title="Remove variant">
+                            <span>
+                              <IconButton onClick={() => removeVariant(idx)} disabled={variants.length <= 1}
+                                sx={{ mt: 0.5, color: BRAND.pink }}>
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </Stack>
+                        <TextField label="Notes" value={v.notes} onChange={(e) => updateVariant(idx, 'notes', e.target.value)}
+                          placeholder="What's different" fullWidth size="small" sx={{ mt: 1 }} />
+                      </Box>
+                    ))}
+                  </Stack>
+                </Box>
               </Stack>
             </Box>
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setOpen(false)} color="inherit" disabled={creating}>Cancel</Button>
-          <Button onClick={handleCreate} variant="contained" disabled={creating || !name.trim()}
+
+            {/* Live preview column */}
+            <Box sx={{ background: 'rgba(14,17,22,0.025)', px: { xs: 2.5, sm: 3 }, py: 2.5, display: 'flex', flexDirection: 'column' }}>
+              <SectionLabel sx={{ mb: 1.5 }}>Live preview</SectionLabel>
+              <Box sx={{ background: '#fff', borderRadius: '18px', border: `1px solid ${BORDER}`, boxShadow: '0 8px 30px -12px rgba(14,17,22,0.18)', overflow: 'hidden' }}>
+                <Box sx={{ px: 2, py: 1.75, borderBottom: `1px solid ${BORDER}` }}>
+                  <Stack direction="row" alignItems="center" gap={1.25}>
+                    <Box sx={{ width: 34, height: 34, borderRadius: '10px', flexShrink: 0, display: 'grid', placeItems: 'center', background: BRAND.tealSoft, color: BRAND.tealDeep }}>
+                      <ScienceRoundedIcon sx={{ fontSize: 19 }} />
+                    </Box>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 800, fontSize: 14, color: INK, lineHeight: 1.25 }}>
+                        {name.trim() || 'Untitled experiment'}
+                      </Typography>
+                      <Chip label={successMetric} size="small" sx={{ mt: 0.4, height: 20, fontSize: 11, fontWeight: 700, bgcolor: `${BRAND.amber}1f`, color: BRAND.amberDeep }} />
+                    </Box>
+                  </Stack>
+                </Box>
+                <Box sx={{ px: 2, py: 1.75 }}>
+                  <Typography sx={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: SUBTLE, mb: 0.5 }}>
+                    Hypothesis
+                  </Typography>
+                  <Typography sx={{ fontSize: 13, color: hypothesis.trim() ? INK : SUBTLE, mb: 2 }}>
+                    {hypothesis.trim() || 'Describe what you expect to happen and why.'}
+                  </Typography>
+                  <Typography sx={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: SUBTLE, mb: 0.75 }}>
+                    Variants
+                  </Typography>
+                  <Stack spacing={1}>
+                    {variants.filter((v) => v.key.trim()).length === 0 ? (
+                      <Typography sx={{ fontSize: 13, color: SUBTLE }}>Add a variant key to see it here.</Typography>
+                    ) : (
+                      variants.filter((v) => v.key.trim()).map((v, idx) => (
+                        <Stack key={idx} direction="row" alignItems="flex-start" gap={1.25} sx={{ p: 1.25, borderRadius: '12px', border: `1px solid ${BORDER}` }}>
+                          <Box sx={{ width: 26, height: 26, borderRadius: '8px', flexShrink: 0, display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 13, background: INK, color: '#fff' }}>
+                            {v.key.trim().charAt(0).toUpperCase()}
+                          </Box>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK }}>
+                              {v.label.trim() || `Variant ${v.key.trim()}`}
+                            </Typography>
+                            {v.notes.trim() && (
+                              <Typography sx={{ fontSize: 12, color: SUBTLE }}>{v.notes.trim()}</Typography>
+                            )}
+                          </Box>
+                        </Stack>
+                      ))
+                    )}
+                  </Stack>
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setOpen(false)} disabled={creating} sx={ghostPillSx}>Cancel</Button>
+          <Button onClick={handleCreate} disabled={creating || !name.trim()}
             startIcon={creating ? <CircularProgress size={14} color="inherit" /> : undefined}
-            sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 900, background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})`, color: INK }}>
+            sx={inkPillSx}>
             {creating ? 'Creating…' : 'Create experiment'}
           </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogFooter>
+      </PremiumDialog>
 
       <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         {toast ? (

@@ -8,10 +8,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   Drawer,
   IconButton,
@@ -26,11 +22,13 @@ import {
 import ScienceIcon from '@mui/icons-material/ScienceOutlined';
 import InsightsIcon from '@mui/icons-material/InsightsOutlined';
 import DashboardIcon from '@mui/icons-material/GridViewOutlined';
+import PersonSearchIcon from '@mui/icons-material/PersonSearchOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/LogoutOutlined';
 import PaletteIcon from '@mui/icons-material/PaletteOutlined';
 import TravelExploreIcon from '@mui/icons-material/TravelExploreOutlined';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesomeOutlined';
+import SlideshowIcon from '@mui/icons-material/CoPresentOutlined';
 import SendIcon from '@mui/icons-material/SendOutlined';
 import CampaignIcon from '@mui/icons-material/CampaignOutlined';
 import BarChartIcon from '@mui/icons-material/BarChartOutlined';
@@ -41,6 +39,7 @@ import BiotechIcon from '@mui/icons-material/BiotechOutlined';
 import AutoGraphIcon from '@mui/icons-material/AutoGraphOutlined';
 import TrendingUpIcon from '@mui/icons-material/TrendingUpOutlined';
 import RadarIcon from '@mui/icons-material/RadarOutlined';
+import SpeedIcon from '@mui/icons-material/SpeedOutlined';
 import BusinessIcon from '@mui/icons-material/BusinessOutlined';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunchOutlined';
 import HubIcon from '@mui/icons-material/HubOutlined';
@@ -49,10 +48,34 @@ import GroupsIcon from '@mui/icons-material/GroupsOutlined';
 import MenuIcon from '@mui/icons-material/MenuOutlined';
 import BoltIcon from '@mui/icons-material/BoltOutlined';
 import TaskAltIcon from '@mui/icons-material/TaskAltOutlined';
-import LinkedInIcon from '@mui/icons-material/LinkedIn';
+import SettingsIcon from '@mui/icons-material/SettingsOutlined';
+import ForumIcon from '@mui/icons-material/ForumOutlined';
+import EmailIcon from '@mui/icons-material/EmailOutlined';
+import SmsIcon from '@mui/icons-material/SmsOutlined';
+import AllInboxIcon from '@mui/icons-material/AllInboxOutlined';
+import ManageSearchIcon from '@mui/icons-material/ManageSearchOutlined';
+import FilterAltIcon from '@mui/icons-material/FilterAltOutlined';
+import DynamicFormIcon from '@mui/icons-material/DynamicFormOutlined';
+import LeaderboardIcon from '@mui/icons-material/LeaderboardOutlined';
+import CardGiftcardIcon from '@mui/icons-material/CardGiftcardOutlined';
+import ReviewsIcon from '@mui/icons-material/ReviewsOutlined';
+import SavingsIcon from '@mui/icons-material/SavingsOutlined';
+import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOverOutlined';
+import PieChartIcon from '@mui/icons-material/PieChartOutlineOutlined';
+import ShieldIcon from '@mui/icons-material/ShieldOutlined';
 import { useAuth } from '@/lib/auth';
 import { Workspaces, Calendar } from '@/lib/api';
 import { BRAND } from '@/theme/theme';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
+import AddBusinessRoundedIcon from '@mui/icons-material/AddBusinessRounded';
 import { ConfirmProvider } from '@/components/ConfirmDialog';
 import NotificationBell from '@/components/NotificationBell';
 
@@ -65,16 +88,19 @@ const NAV: NavGroup[] = [
   {
     items: [
       { href: '/dashboard', label: 'Overview', icon: <DashboardIcon fontSize="small" />, color: BRAND.amber },
+      { href: '/dashboard/chat', label: 'Team Chat', icon: <ForumIcon fontSize="small" />, color: BRAND.teal },
     ],
   },
   {
     heading: 'Pipeline',
     items: [
+      { href: '/dashboard/icp', label: 'Customer Profile', icon: <PersonSearchIcon fontSize="small" />, color: '#7C3AED' },
       { href: '/dashboard/research', label: 'Research', icon: <ScienceIcon fontSize="small" />, color: BRAND.teal },
       { href: '/dashboard/insights', label: 'Insights', icon: <TravelExploreIcon fontSize="small" />, color: '#2563EB' },
       { href: '/dashboard/strategy', label: 'Strategy', icon: <InsightsIcon fontSize="small" />, color: BRAND.amber },
       { href: '/dashboard/calendar', label: 'Content Calendar', icon: <CalendarMonthIcon fontSize="small" />, color: '#2563EB' },
       { href: '/dashboard/studio', label: 'Content Studio', icon: <AutoAwesomeIcon fontSize="small" />, color: BRAND.pink },
+      { href: '/dashboard/decks', label: 'Decks', icon: <SlideshowIcon fontSize="small" />, color: '#7C3AED' },
       { href: '/dashboard/publishing', label: 'Publishing', icon: <SendIcon fontSize="small" />, color: BRAND.teal },
     ],
   },
@@ -84,15 +110,44 @@ const NAV: NavGroup[] = [
       { href: '/dashboard/brand', label: 'Brand Brain', icon: <PaletteIcon fontSize="small" />, color: BRAND.pink },
       { href: '/dashboard/ads', label: 'Ads', icon: <CampaignIcon fontSize="small" />, color: BRAND.amber },
       { href: '/dashboard/analytics', label: 'Analytics', icon: <BarChartIcon fontSize="small" />, color: BRAND.teal },
+      { href: '/dashboard/budget-pacing', label: 'Budget Pacing', icon: <SavingsIcon fontSize="small" />, color: BRAND.teal },
       { href: '/dashboard/reports', label: 'Reports', icon: <AssessmentIcon fontSize="small" />, color: '#7C3AED' },
+    ],
+  },
+  {
+    heading: 'Channels',
+    items: [
+      { href: '/dashboard/email', label: 'Email Marketing', icon: <EmailIcon fontSize="small" />, color: BRAND.amber },
+      { href: '/dashboard/messaging', label: 'SMS & WhatsApp', icon: <SmsIcon fontSize="small" />, color: BRAND.teal },
+      { href: '/dashboard/social-inbox', label: 'Social Inbox', icon: <AllInboxIcon fontSize="small" />, color: '#2563EB' },
+      { href: '/dashboard/influencers', label: 'Influencers & UGC', icon: <RecordVoiceOverIcon fontSize="small" />, color: BRAND.pink },
+    ],
+  },
+  {
+    heading: 'Acquisition',
+    items: [
+      { href: '/dashboard/seo', label: 'SEO Suite', icon: <ManageSearchIcon fontSize="small" />, color: '#7C3AED' },
+      { href: '/dashboard/funnels', label: 'Funnels & Pages', icon: <FilterAltIcon fontSize="small" />, color: BRAND.amber },
+      { href: '/dashboard/forms', label: 'Forms & Surveys', icon: <DynamicFormIcon fontSize="small" />, color: BRAND.teal },
+    ],
+  },
+  {
+    heading: 'Lifecycle',
+    items: [
+      { href: '/dashboard/leadscore', label: 'Lead Scoring', icon: <LeaderboardIcon fontSize="small" />, color: '#2563EB' },
+      { href: '/dashboard/referrals', label: 'Referrals & Loyalty', icon: <CardGiftcardIcon fontSize="small" />, color: BRAND.pink },
+      { href: '/dashboard/reputation', label: 'Reputation', icon: <ReviewsIcon fontSize="small" />, color: BRAND.amber },
     ],
   },
   {
     heading: 'Intelligence',
     items: [
+      { href: '/dashboard/cro', label: 'CRO Score', icon: <SpeedIcon fontSize="small" />, color: BRAND.pink },
       { href: '/dashboard/creative', label: 'Creative Intel', icon: <AutoGraphIcon fontSize="small" />, color: BRAND.pink },
       { href: '/dashboard/experiments', label: 'Experiments', icon: <BiotechIcon fontSize="small" />, color: BRAND.teal },
       { href: '/dashboard/forecast', label: 'Forecast', icon: <TrendingUpIcon fontSize="small" />, color: BRAND.amber },
+      { href: '/dashboard/mmm', label: 'Marketing Mix', icon: <PieChartIcon fontSize="small" />, color: '#2563EB' },
+      { href: '/dashboard/guardrails', label: 'Brand Guardrails', icon: <ShieldIcon fontSize="small" />, color: BRAND.teal },
       { href: '/dashboard/watchtower', label: 'Watchtower', icon: <RadarIcon fontSize="small" />, color: '#7C3AED' },
     ],
   },
@@ -100,7 +155,6 @@ const NAV: NavGroup[] = [
     heading: 'B2B Engine',
     items: [
       { href: '/dashboard/abm', label: 'ABM Accounts', icon: <BusinessIcon fontSize="small" />, color: '#2563EB' },
-      { href: '/dashboard/linkedin-growth', label: 'LinkedIn Growth', icon: <LinkedInIcon fontSize="small" />, color: '#0A66C2' },
       { href: '/dashboard/campaigns', label: 'Campaign Builder', icon: <RocketLaunchIcon fontSize="small" />, color: BRAND.amber },
       { href: '/dashboard/attribution', label: 'Revenue Attribution', icon: <AccountTreeIcon fontSize="small" />, color: BRAND.teal },
     ],
@@ -182,7 +236,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setWsSite('');
   };
 
-  const currentLabel = ALL_ITEMS.find((n) => isActive(n.href, pathname))?.label || 'Dashboard';
+  const navGroups: NavGroup[] = me?.user?.is_superuser
+    ? [
+        ...NAV,
+        {
+          heading: 'Superadmin',
+          items: [
+            { href: '/dashboard/admin/users', label: 'User Management', icon: <GroupsIcon fontSize="small" />, color: BRAND.teal },
+            { href: '/dashboard/admin/plans', label: 'Plans', icon: <CreditCardIcon fontSize="small" />, color: BRAND.pink },
+            { href: '/dashboard/settings/models', label: 'AI Models', icon: <SettingsIcon fontSize="small" />, color: BRAND.amber },
+          ],
+        },
+      ]
+    : NAV;
+
+  const currentLabel =
+    [
+      ...ALL_ITEMS,
+      { href: '/dashboard/admin/users', label: 'User Management' },
+      { href: '/dashboard/admin/plans', label: 'Plans' },
+      { href: '/dashboard/settings/models', label: 'AI Models' },
+    ].find((n) => isActive(n.href, pathname))?.label || 'Dashboard';
   const initials =
     (me.user.full_name || me.user.email || '?')
       .split(' ')
@@ -294,7 +368,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               '&:hover::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.3)' },
             }}
           >
-            {NAV.map((group, gi) => (
+            {navGroups.map((group, gi) => (
               <Box
                 key={gi}
                 sx={{
@@ -470,7 +544,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Typography sx={{ fontWeight: 800, fontSize: 16 }}>Trayarunya</Typography>
         </Stack>
         <Box sx={{ overflowY: 'auto' }}>
-          {NAV.map((group, gi) => (
+          {navGroups.map((group, gi) => (
             <Box key={gi} sx={{ mb: 1.5 }}>
               {group.heading && (
                 <Typography
@@ -609,15 +683,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Box>
 
       {/* New workspace dialog */}
-      <Dialog open={newWsOpen} onClose={() => setNewWsOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ fontWeight: 700 }}>New workspace</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2.5} sx={{ mt: 1 }}>
+      <PremiumDialog open={newWsOpen} onClose={() => setNewWsOpen(false)} maxWidth="sm">
+        <DialogHero
+          icon={<AddBusinessRoundedIcon />}
+          title="New workspace"
+          subtitle="Spin up a fresh brand workspace with its own data and settings"
+          onClose={() => setNewWsOpen(false)}
+        />
+        <DialogBody>
+          <SectionLabel>Workspace details</SectionLabel>
+          <Stack spacing={2.25}>
             <TextField
               label="Workspace / brand name"
               value={wsName}
               onChange={(e) => setWsName(e.target.value)}
               fullWidth
+              size="small"
               autoFocus
             />
             <TextField
@@ -626,18 +707,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               value={wsSite}
               onChange={(e) => setWsSite(e.target.value)}
               fullWidth
+              size="small"
             />
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setNewWsOpen(false)} color="inherit">
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setNewWsOpen(false)} sx={ghostPillSx}>
             Cancel
           </Button>
-          <Button onClick={createWs} variant="contained" color="primary">
+          <Button onClick={createWs} sx={inkPillSx}>
             Create workspace
           </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogFooter>
+      </PremiumDialog>
       </Box>
     </ConfirmProvider>
   );

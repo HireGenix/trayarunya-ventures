@@ -9,10 +9,6 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   Grid,
   IconButton,
@@ -35,6 +31,15 @@ import DescriptionIcon from '@mui/icons-material/DescriptionOutlined';
 import { useAuth } from '@/lib/auth';
 import { Reports, type ReportOut } from '@/lib/api';
 import { useConfirm } from '@/components/ConfirmDialog';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
 import { BRAND } from '@/theme/theme';
 
 const ORIGIN =
@@ -248,42 +253,33 @@ export default function ReportsPage() {
       )}
 
       {/* ── Create dialog ── */}
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 4, overflow: 'hidden' } }}>
-        <Box sx={{
-          p: 3, background: 'linear-gradient(135deg, #11151B 0%, #1B2330 100%)', color: '#fff',
-          position: 'relative', overflow: 'hidden',
-        }}>
-          <Box sx={{ position: 'absolute', top: -50, right: -50, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,187,135,0.30), transparent 65%)' }} />
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ position: 'relative' }}>
-            <Box sx={{ width: 38, height: 38, borderRadius: 2, display: 'grid', placeItems: 'center', background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})` }}>
-              <DescriptionIcon sx={{ color: '#fff', fontSize: 20 }} />
-            </Box>
-            <Box>
-              <Typography fontWeight={950} variant="h6">Generate client report</Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.65)' }}>Freeze a snapshot of your live metrics into a shareable page.</Typography>
-            </Box>
-          </Stack>
-        </Box>
-        <DialogContent sx={{ pt: 3 }}>
+      <PremiumDialog open={open} onClose={() => setOpen(false)} maxWidth="sm">
+        <DialogHero
+          icon={<AssessmentIcon />}
+          title="Generate client report"
+          subtitle="Freeze a snapshot of your live metrics into a shareable page"
+          onClose={() => setOpen(false)}
+        />
+        <DialogBody>
+          <SectionLabel>Report details</SectionLabel>
           <Stack spacing={2.5}>
-            <TextField label="Report title" placeholder="e.g. Q2 2026 Performance Report" value={title} onChange={(e) => setTitle(e.target.value)} fullWidth autoFocus required />
-            <TextField label="Client name (optional)" placeholder="e.g. Acme Corp" value={clientName} onChange={(e) => setClientName(e.target.value)} fullWidth />
+            <TextField label="Report title" placeholder="e.g. Q2 2026 Performance Report" value={title} onChange={(e) => setTitle(e.target.value)} fullWidth size="small" autoFocus required />
+            <TextField label="Client name (optional)" placeholder="e.g. Acme Corp" value={clientName} onChange={(e) => setClientName(e.target.value)} fullWidth size="small" />
             <TextField label="Lookback window (days)" type="number" value={days}
               onChange={(e) => setDays(Math.max(1, Math.min(365, Number(e.target.value))))}
-              fullWidth helperText="Metrics from the last N days will be included in the snapshot"
+              fullWidth size="small" helperText="Metrics from the last N days will be included in the snapshot"
               inputProps={{ min: 1, max: 365 }} />
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setOpen(false)} color="inherit" disabled={creating}>Cancel</Button>
-          <Button onClick={handleCreate} variant="contained" disabled={creating || !title.trim()}
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setOpen(false)} disabled={creating} sx={ghostPillSx}>Cancel</Button>
+          <Button onClick={handleCreate} disabled={creating || !title.trim()}
             startIcon={creating ? <CircularProgress size={14} color="inherit" /> : undefined}
-            sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 900, background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})`, color: '#11151B' }}>
+            sx={inkPillSx}>
             {creating ? 'Generating…' : 'Generate & share'}
           </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogFooter>
+      </PremiumDialog>
 
       <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity="success" onClose={() => setToast(null)} sx={{ width: '100%' }}>{toast}</Alert>

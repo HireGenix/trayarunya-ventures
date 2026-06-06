@@ -4,21 +4,23 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Card,
-  CardContent,
   Chip,
   CircularProgress,
   Divider,
   IconButton,
+  ListItemIcon,
+  Menu,
   MenuItem,
   Paper,
   Stack,
+  Switch,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -29,7 +31,6 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import CodeIcon from '@mui/icons-material/Code';
 import ImageIcon from '@mui/icons-material/Image';
-import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ViewCarouselIcon from '@mui/icons-material/ViewCarousel';
@@ -38,24 +39,46 @@ import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import TuneIcon from '@mui/icons-material/Tune';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
-import IosShareIcon from '@mui/icons-material/IosShare';
-import ZoomInIcon from '@mui/icons-material/ZoomIn';
-import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import ArrowBackIcon from '@mui/icons-material/ArrowBackIosNew';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunchOutlined';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonthOutlined';
+import EditNoteIcon from '@mui/icons-material/EditNote';
+import CheckCircleIcon from '@mui/icons-material/CheckCircleRounded';
+import MovieCreationOutlinedIcon from '@mui/icons-material/MovieCreationOutlined';
+import GraphicEqIcon from '@mui/icons-material/GraphicEq';
 import { useAuth } from '@/lib/auth';
 import {
   Content,
   Images,
+  Videos,
   Brand,
+  Calendar,
   assetUrl,
   downloadImage,
+  videoUrl,
   AI_MODELS,
   IMAGE_MODELS,
   IMAGE_STYLES,
+  VIDEO_FORMATS,
+  VIDEO_VOICES,
+  VIDEO_QUALITIES,
+  VIDEO_STYLES,
+  VIDEO_VISUALS,
   type ContentItem,
+  type ContentCalendar,
+  type CalendarEntry,
+  type ContentVideo,
+  type VideoFormat,
+  type VideoQuality,
+  type VideoStyle,
+  type VideoVisuals,
   type Brand as BrandType,
 } from '@/lib/api';
+import { useAIModels } from '@/lib/useAIModels';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { BRAND } from '@/theme/theme';
 
@@ -246,11 +269,6 @@ function downloadHtml(filename: string, html: string) {
   URL.revokeObjectURL(url);
 }
 
-function slideMeta(item: ContentItem): { heading?: string; body?: string }[] {
-  const slides = (item.meta as { slides?: { heading?: string; body?: string }[] } | null)?.slides;
-  return Array.isArray(slides) ? slides : [];
-}
-
 function deckKind(item: ContentItem): 'carousel' | 'pdf' | 'article' | 'newsletter' | 'image' | 'text' {
   const k = item.asset_kind;
   if (k === 'carousel' || k === 'pdf') return k;
@@ -315,105 +333,306 @@ function printAsPdf(item: ContentItem, brand?: BrandType | null) {
 
 /* ============================ shared bits ============================ */
 
-const STAGE_BG = '#171A21';
-
 /* shared premium styling tokens */
 const PANEL_SHADOW = '0 1px 3px rgba(0,0,0,0.04), 0 6px 24px rgba(0,0,0,0.06)';
 const PANEL_RADIUS = 5; // 20px
 const TRANSITION = 'all .18s cubic-bezier(.4,0,.2,1)';
+const INK_STUDIO = BRAND.ink;
 
-function InspectorSection({
-  icon,
-  title,
+/* ============================ create studio ============================ */
+
+const PLATFORM_META: Record<string, { label: string; color: string }> = {
+  linkedin: { label: 'LinkedIn', color: '#0A66C2' },
+  x: { label: 'X', color: '#0E1116' },
+  instagram: { label: 'Instagram', color: '#D92C7A' },
+  facebook: { label: 'Facebook', color: '#1877F2' },
+  youtube: { label: 'YouTube', color: '#FF0033' },
+  tiktok: { label: 'TikTok', color: '#0E1116' },
+};
+
+function FieldSelect({
+  label,
+  value,
+  onChange,
   children,
-  action,
+  minWidth = 132,
 }: {
-  icon?: React.ReactNode;
-  title: string;
+  label: string;
+  value: string | number;
+  onChange: (v: string) => void;
   children: React.ReactNode;
-  action?: React.ReactNode;
+  minWidth?: number;
 }) {
   return (
-    <Box sx={{ mb: 3.5 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-        <Stack direction="row" alignItems="center" spacing={0.85}>
-          {icon}
-          <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.1em', fontSize: 10.5, fontWeight: 700 }}>
-            {title}
-          </Typography>
-        </Stack>
-        {action}
-      </Stack>
-      {children}
-    </Box>
-  );
-}
-
-/* ============================ create rail ============================ */
-
-function FormatTile({
-  option,
-  selected,
-  onClick,
-}: {
-  option: FormatOption;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Box
-      role="button"
-      onClick={onClick}
+    <TextField
+      select
+      size="small"
+      label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
       sx={{
-        cursor: 'pointer',
-        borderRadius: 3.5,
-        p: 1.75,
-        textAlign: 'center',
-        border: '2px solid',
-        borderColor: selected ? BRAND.amber : 'rgba(0,0,0,0.06)',
-        bgcolor: selected ? BRAND.amberSoft : '#FAFBFC',
-        boxShadow: selected
-          ? `0 0 0 3px ${BRAND.amberSoft}, 0 4px 14px rgba(255,175,6,0.18)`
-          : '0 1px 4px rgba(0,0,0,0.04)',
-        transition: TRANSITION,
-        '&:hover': {
-          borderColor: selected ? BRAND.amber : '#CFD4DA',
-          transform: 'translateY(-2px)',
-          boxShadow: selected
-            ? `0 0 0 3px ${BRAND.amberSoft}, 0 6px 20px rgba(255,175,6,0.22)`
-            : '0 4px 16px rgba(0,0,0,0.08)',
-        },
+        minWidth,
+        '& .MuiOutlinedInput-root': { borderRadius: '12px', bgcolor: '#fff' },
+        '& .MuiInputLabel-root': { fontSize: 13 },
+        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(15,17,22,0.12)' },
       }}
     >
-      <Box
-        sx={{
-          width: 42,
-          height: 42,
-          mx: 'auto',
-          mb: 1,
-          borderRadius: 2.5,
-          display: 'grid',
-          placeItems: 'center',
-          color: selected ? '#fff' : 'text.secondary',
-          background: selected ? BRAND.gradient : 'linear-gradient(135deg, #F3F4F6 0%, #E8EAEE 100%)',
-          boxShadow: selected ? '0 4px 12px rgba(20,187,135,0.3)' : 'none',
-          transition: TRANSITION,
-        }}
-      >
-        {option.icon}
-      </Box>
-      <Typography sx={{ fontSize: 12, fontWeight: 700, lineHeight: 1.2, color: selected ? BRAND.amberDeep : 'text.primary' }}>
-        {option.label}
-      </Typography>
-    </Box>
+      {children}
+    </TextField>
   );
 }
 
-function CreateRail({
+function CalendarComposer({
+  provider,
+  initialCalId,
+  initialDate,
+  onPreview,
+  onCreated,
+}: {
+  provider: string;
+  initialCalId?: string;
+  initialDate?: string;
+  onPreview: (item: ContentItem) => void;
+  onCreated: (items: ContentItem[]) => void;
+}) {
+  const [calendars, setCalendars] = useState<ContentCalendar[]>([]);
+  const [loadingCals, setLoadingCals] = useState(true);
+  const [calId, setCalId] = useState('');
+  const [calDate, setCalDate] = useState(initialDate || '');
+  const [withImage, setWithImage] = useState(true);
+  const [imgStyle, setImgStyle] = useState<string>(IMAGE_STYLES[0].id);
+  const [imgModel, setImgModel] = useState<string>(IMAGE_MODELS[0].id);
+  const [emailFormat, setEmailFormat] = useState<'html' | 'plain'>('html');
+  const [busyEntry, setBusyEntry] = useState<string | null>(null);
+  const [busyDay, setBusyDay] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    Calendar.list()
+      .then((cals) => {
+        if (cancelled) return;
+        setCalendars(cals);
+        const preferred = initialCalId && cals.find((c) => c.id === initialCalId);
+        if (preferred) setCalId(preferred.id);
+        else if (cals[0]) setCalId(cals[0].id);
+      })
+      .catch(() => setCalendars([]))
+      .finally(() => { if (!cancelled) setLoadingCals(false); });
+    return () => { cancelled = true; };
+  }, [initialCalId]);
+
+  const activeCal = useMemo(() => calendars.find((c) => c.id === calId) || null, [calendars, calId]);
+
+  const dates = useMemo(() => {
+    if (!activeCal) return [];
+    return Array.from(new Set(activeCal.entries.map((e) => e.date))).sort();
+  }, [activeCal]);
+
+  useEffect(() => {
+    if (dates.length && !dates.includes(calDate)) setCalDate(dates[0]);
+  }, [dates, calDate]);
+
+  const dayEntries = useMemo(() => {
+    if (!activeCal || !calDate) return [];
+    return activeCal.entries.filter((e) => e.date === calDate);
+  }, [activeCal, calDate]);
+
+  const pendingCount = dayEntries.filter((e) => e.status !== 'generated').length;
+
+  const applyUpdated = async (updated: ContentCalendar, entryId?: string) => {
+    setCalendars((cur) => cur.map((c) => (c.id === updated.id ? updated : c)));
+    if (entryId) {
+      const fresh = updated.entries.find((e) => e.id === entryId);
+      if (fresh?.content_item_id) {
+        try {
+          const item = await Content.get(fresh.content_item_id);
+          onCreated([item]);
+          onPreview(item);
+        } catch { /* ignore */ }
+      }
+    }
+  };
+
+  const generateEntry = async (entry: CalendarEntry) => {
+    if (!activeCal) return;
+    setBusyEntry(entry.id);
+    setError('');
+    try {
+      const updated = await Calendar.generateEntry(activeCal.id, entry.id, {
+        provider,
+        with_image: withImage,
+        image_style: imgStyle,
+        image_provider: imgModel,
+        email_format: entry.content_type === 'newsletter' ? emailFormat : undefined,
+      });
+      await applyUpdated(updated, entry.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Generation failed');
+    } finally {
+      setBusyEntry(null);
+    }
+  };
+
+  const generateDay = async () => {
+    if (!activeCal || !calDate || pendingCount === 0) return;
+    setBusyDay(true);
+    setError('');
+    try {
+      const updated = await Calendar.generateDay(activeCal.id, {
+        date: calDate,
+        provider,
+        with_image: withImage,
+        image_style: imgStyle,
+        image_provider: imgModel,
+        email_format: emailFormat,
+      });
+      await applyUpdated(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Day generation failed');
+    } finally {
+      setBusyDay(false);
+    }
+  };
+
+  const openEntry = async (entry: CalendarEntry) => {
+    if (!entry.content_item_id) return;
+    try {
+      const item = await Content.get(entry.content_item_id);
+      onPreview(item);
+    } catch { /* ignore */ }
+  };
+
+  const prettyDate = (iso: string) =>
+    new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        borderRadius: '24px',
+        border: '1px solid rgba(15,17,22,0.08)',
+        boxShadow: '0 2px 4px rgba(15,17,22,0.04), 0 18px 48px rgba(15,17,22,0.08)',
+        overflow: 'hidden',
+        bgcolor: '#fff',
+      }}
+    >
+      {loadingCals ? (
+        <Box sx={{ display: 'grid', placeItems: 'center', py: 6 }}><CircularProgress size={24} /></Box>
+      ) : calendars.length === 0 ? (
+        <Box sx={{ textAlign: 'center', py: 6, px: 3, color: 'text.secondary' }}>
+          <CalendarMonthIcon sx={{ fontSize: 32, opacity: 0.5, mb: 1 }} />
+          <Typography sx={{ fontSize: 14, fontWeight: 700, color: INK_STUDIO }}>No content calendar yet</Typography>
+          <Typography sx={{ fontSize: 13, mt: 0.5 }}>
+            Create a calendar first in <Box component="a" href="/dashboard/calendar" sx={{ color: BRAND.tealDeep, fontWeight: 700, textDecoration: 'none' }}>Content Calendar</Box>, then generate planned posts here.
+          </Typography>
+        </Box>
+      ) : (
+        <>
+          {/* pickers */}
+          <Box sx={{ p: 2, display: 'flex', gap: 1.25, flexWrap: 'wrap', alignItems: 'center' }}>
+            <FieldSelect label="Content calendar" value={calId} onChange={setCalId} minWidth={220}>
+              {calendars.map((c) => <MenuItem key={c.id} value={c.id}>{c.title || c.client_name || 'Calendar'}</MenuItem>)}
+            </FieldSelect>
+            <FieldSelect label="Date" value={calDate} onChange={setCalDate} minWidth={170}>
+              {dates.map((d) => {
+                const n = activeCal?.entries.filter((e) => e.date === d).length || 0;
+                return <MenuItem key={d} value={d}>{prettyDate(d)} · {n} post{n === 1 ? '' : 's'}</MenuItem>;
+              })}
+            </FieldSelect>
+            <Box sx={{ flex: 1, minWidth: 8 }} />
+            <Button
+              variant="contained"
+              onClick={generateDay}
+              disabled={busyDay || pendingCount === 0}
+              startIcon={busyDay ? <CircularProgress size={16} color="inherit" /> : <AutoAwesomeIcon />}
+              sx={{
+                background: pendingCount > 0 ? BRAND.gradient : undefined,
+                fontWeight: 800, fontSize: 13.5, px: 2, py: 1, borderRadius: '12px', textTransform: 'none',
+                boxShadow: pendingCount > 0 ? '0 6px 18px rgba(255,175,6,0.3)' : undefined,
+              }}
+            >
+              {busyDay ? 'Generating…' : pendingCount > 0 ? `Generate all (${pendingCount})` : 'All generated'}
+            </Button>
+          </Box>
+
+          {/* asset options */}
+          <Box sx={{ px: 2, pb: 1.5, display: 'flex', gap: 1.25, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              <Switch size="small" checked={withImage} onChange={(e) => setWithImage(e.target.checked)} />
+              <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: 'text.secondary' }}>Generate images</Typography>
+            </Stack>
+            {withImage && (
+              <>
+                <FieldSelect label="Style" value={imgStyle} onChange={setImgStyle} minWidth={130}>
+                  {IMAGE_STYLES.map((s) => <MenuItem key={s.id} value={s.id}>{s.label}</MenuItem>)}
+                </FieldSelect>
+                <FieldSelect label="Image model" value={imgModel} onChange={setImgModel} minWidth={150}>
+                  {IMAGE_MODELS.map((m) => <MenuItem key={m.id} value={m.id}>{m.label}</MenuItem>)}
+                </FieldSelect>
+              </>
+            )}
+            <FieldSelect label="Email format" value={emailFormat} onChange={(v) => setEmailFormat(v as 'html' | 'plain')} minWidth={130}>
+              <MenuItem value="html">HTML email</MenuItem>
+              <MenuItem value="plain">Plain text</MenuItem>
+            </FieldSelect>
+          </Box>
+
+          <Divider sx={{ borderColor: 'rgba(15,17,22,0.06)' }} />
+
+          {/* entries for the day */}
+          {error && <Alert severity="error" sx={{ m: 2, borderRadius: '12px' }}>{error}</Alert>}
+          {dayEntries.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 5, color: 'text.secondary', fontSize: 13.5 }}>No posts planned for this date.</Box>
+          ) : (
+            <Stack divider={<Divider sx={{ borderColor: 'rgba(15,17,22,0.05)' }} />}>
+              {dayEntries.map((e) => {
+                const done = e.status === 'generated';
+                const busy = busyEntry === e.id;
+                const pm = PLATFORM_META[e.platform];
+                return (
+                  <Box key={e.id} sx={{ px: 2, py: 1.75, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.5, flexWrap: 'wrap' }}>
+                        <Chip size="small" label={pm?.label ?? e.platform} sx={{ height: 20, fontSize: 10.5, fontWeight: 700, bgcolor: '#EEF6F2', color: BRAND.tealDeep }} />
+                        <Chip size="small" label={(e.format || e.content_type).replace(/_/g, ' ')} sx={{ height: 20, fontSize: 10.5, fontWeight: 700, bgcolor: '#F0F2F4', color: 'text.secondary', textTransform: 'capitalize' }} />
+                        {done && <CheckCircleIcon sx={{ fontSize: 16, color: BRAND.teal }} />}
+                      </Stack>
+                      <Typography sx={{ fontSize: 13.5, fontWeight: 700, color: INK_STUDIO, lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        {e.title}
+                      </Typography>
+                      {e.hook && <Typography sx={{ fontSize: 12, color: 'text.secondary', mt: 0.25 }} noWrap>{e.hook}</Typography>}
+                    </Box>
+                    {done ? (
+                      <Button onClick={() => openEntry(e)} size="small" variant="outlined" startIcon={<VisibilityIcon sx={{ fontSize: 16 }} />}
+                        sx={{ textTransform: 'none', fontWeight: 700, fontSize: 12.5, borderRadius: '10px', borderColor: 'rgba(15,17,22,0.15)', color: INK_STUDIO, flexShrink: 0 }}>
+                        Open
+                      </Button>
+                    ) : (
+                      <Button onClick={() => generateEntry(e)} disabled={busy} size="small" variant="contained"
+                        startIcon={busy ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeIcon sx={{ fontSize: 16 }} />}
+                        sx={{ textTransform: 'none', fontWeight: 800, fontSize: 12.5, borderRadius: '10px', background: BRAND.gradient, flexShrink: 0, boxShadow: '0 4px 12px rgba(255,175,6,0.28)' }}>
+                        {busy ? 'Generating…' : 'Generate'}
+                      </Button>
+                    )}
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
+        </>
+      )}
+    </Paper>
+  );
+}
+
+function CreateStudio({
   provider,
   list,
   loading,
-  selectedId,
+  initialMode = 'prompt',
+  initialCalId,
+  initialDate,
   onPreview,
   onCreated,
   onDelete,
@@ -421,19 +640,22 @@ function CreateRail({
   provider: string;
   list: ContentItem[];
   loading: boolean;
-  selectedId?: string;
+  initialMode?: 'prompt' | 'calendar';
+  initialCalId?: string;
+  initialDate?: string;
   onPreview: (item: ContentItem) => void;
   onCreated: (items: ContentItem[]) => void;
   onDelete: (item: ContentItem) => void;
 }) {
-  const [tab, setTab] = useState<'create' | 'library'>('create');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [mode, setMode] = useState<'prompt' | 'calendar' | 'video'>(initialMode);
 
   const [contentType, setContentType] = useState('social_post');
   const [platform, setPlatform] = useState('linkedin');
   const [topic, setTopic] = useState('');
   const [notes, setNotes] = useState('');
+  const [showNotes, setShowNotes] = useState(false);
   const [format, setFormat] = useState('single');
   const [slides, setSlides] = useState(6);
   const [imgStyle, setImgStyle] = useState<string>(IMAGE_STYLES[0].id);
@@ -443,7 +665,6 @@ function CreateRail({
   const active = options.find((o) => o.value === format) ?? options[0];
   const isDeck = format === 'carousel' || format === 'pdf';
 
-  // Keep format valid when content type changes.
   useEffect(() => {
     const opts = formatsFor(contentType);
     if (!opts.find((o) => o.value === format)) {
@@ -472,6 +693,7 @@ function CreateRail({
       onCreated(created);
       if (created[0]) onPreview(created[0]);
       setTopic('');
+      setNotes('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Generation failed');
     } finally {
@@ -479,984 +701,693 @@ function CreateRail({
     }
   };
 
+  const canGenerate = !!topic.trim() && !generating;
+
   return (
-    <Box
-      sx={{
-        width: '100%',
-        minWidth: 0,
-        bgcolor: 'background.paper',
-        border: '1px solid',
-        borderColor: 'rgba(0,0,0,0.06)',
-        borderRadius: PANEL_RADIUS,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        height: { lg: '100%' },
-        minHeight: { xs: 440, lg: 0 },
-        boxShadow: PANEL_SHADOW,
-      }}
-    >
-      <ToggleButtonGroup
-        exclusive
-        value={tab}
-        onChange={(_, v) => v && setTab(v)}
-        sx={{
-          p: 1.25,
-          gap: 1,
-          '& .MuiToggleButton-root': {
-            flex: 1,
-            border: '1px solid',
-            borderColor: 'rgba(0,0,0,0.06)',
-            borderRadius: '12px !important',
-            textTransform: 'none',
-            fontWeight: 700,
-            py: 0.75,
-            fontSize: 13,
-            transition: TRANSITION,
-          },
-          '& .Mui-selected': {
-            bgcolor: `${BRAND.amberSoft} !important`,
-            color: `${BRAND.amberDeep} !important`,
-            borderColor: `${BRAND.amber} !important`,
-            boxShadow: `0 0 0 1px ${BRAND.amberSoft}`,
-          },
-        }}
-      >
-        <ToggleButton value="create">
-          <AutoAwesomeIcon fontSize="small" sx={{ mr: 0.75 }} /> Create
-        </ToggleButton>
-        <ToggleButton value="library">
-          <ViewCarouselIcon fontSize="small" sx={{ mr: 0.75 }} /> Library
-          {list.length > 0 && (
-            <Box component="span" sx={{ ml: 0.75, fontSize: 11, color: 'text.disabled' }}>
-              {list.length}
-            </Box>
-          )}
-        </ToggleButton>
-      </ToggleButtonGroup>
-      <Divider />
+    <Box sx={{ pb: 4 }}>
+      {/* ---------- HERO COMPOSER ---------- */}
+      <Box sx={{ maxWidth: 880, mx: 'auto', pt: { xs: 1, md: 4 }, px: { xs: 0, md: 2 } }}>
+        <Box sx={{ textAlign: 'center', mb: 3 }}>
+          <Chip
+            icon={<AutoAwesomeIcon sx={{ fontSize: 15, color: `${BRAND.amberDeep} !important` }} />}
+            label="AI Content Studio"
+            sx={{ bgcolor: BRAND.amberSoft, color: BRAND.amberDeep, fontWeight: 700, fontSize: 11.5, mb: 2, '& .MuiChip-label': { px: 1 } }}
+          />
+          <Typography sx={{ fontSize: { xs: 26, md: 34 }, fontWeight: 800, letterSpacing: '-0.025em', color: INK_STUDIO, lineHeight: 1.15 }}>
+            What should we{' '}
+            <Box component="span" sx={{ background: BRAND.gradientText, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+              create
+            </Box>{' '}
+            today?
+          </Typography>
+          <Typography sx={{ mt: 1, fontSize: 14.5, color: 'text.secondary', maxWidth: 560, mx: 'auto', lineHeight: 1.6 }}>
+            Describe it once — we write the copy and render brand-ready visuals, carousels, emails and PDFs.
+          </Typography>
+        </Box>
 
-      <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
-        {tab === 'create' ? (
-          <Stack spacing={2.5}>
-            <Stack direction="row" spacing={1.5}>
-              <TextField select label="Type" value={contentType} onChange={(e) => setContentType(e.target.value)} fullWidth>
-                {TYPES.map((t) => (
-                  <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>
-                ))}
-              </TextField>
-              <TextField select label="Platform" value={platform} onChange={(e) => setPlatform(e.target.value)} fullWidth>
-                {PLATFORMS.map((p) => (
-                  <MenuItem key={p} value={p}>{p}</MenuItem>
-                ))}
-              </TextField>
-            </Stack>
+        {/* mode toggle: free prompt vs from content calendar */}
+        <Stack direction="row" justifyContent="center" sx={{ mb: 2.5 }}>
+          <ToggleButtonGroup
+            exclusive
+            value={mode}
+            onChange={(_, v) => v && setMode(v)}
+            sx={{
+              bgcolor: '#F0F2F4',
+              borderRadius: '14px',
+              p: 0.5,
+              '& .MuiToggleButton-root': {
+                border: 0,
+                borderRadius: '11px !important',
+                textTransform: 'none',
+                fontWeight: 700,
+                fontSize: 13,
+                px: 2,
+                py: 0.65,
+                color: 'text.secondary',
+                gap: 0.75,
+                '&.Mui-selected': { bgcolor: '#fff', color: INK_STUDIO, boxShadow: '0 2px 8px rgba(15,17,22,0.1)', '&:hover': { bgcolor: '#fff' } },
+              },
+            }}
+          >
+            <ToggleButton value="prompt"><EditNoteIcon sx={{ fontSize: 18 }} />New prompt</ToggleButton>
+            <ToggleButton value="calendar"><CalendarMonthIcon sx={{ fontSize: 17 }} />From calendar</ToggleButton>
+            <ToggleButton value="video"><MovieCreationOutlinedIcon sx={{ fontSize: 17 }} />AI video</ToggleButton>
+          </ToggleButtonGroup>
+        </Stack>
 
-            <Box>
-              <Typography variant="overline" sx={{ color: 'text.secondary' }}>Format</Typography>
+        {mode === 'calendar' ? (
+          <CalendarComposer provider={provider} initialCalId={initialCalId} initialDate={initialDate} onPreview={onPreview} onCreated={onCreated} />
+        ) : mode === 'video' ? (
+          <VideoComposer />
+        ) : (
+        <Box>
+        {/* format quick-pick */}
+        <Stack direction="row" spacing={1} sx={{ mb: 2, overflowX: 'auto', pb: 0.5, justifyContent: { md: 'center' }, '&::-webkit-scrollbar': { display: 'none' } }}>
+          {options.map((o) => {
+            const sel = o.value === active.value;
+            return (
               <Box
+                key={o.value}
+                role="button"
+                onClick={() => { setFormat(o.value); if (o.slides) setSlides(o.slides); }}
                 sx={{
-                  mt: 0.75,
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: 1.25,
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  px: 1.75,
+                  py: 1,
+                  borderRadius: '14px',
+                  cursor: 'pointer',
+                  border: '1.5px solid',
+                  borderColor: sel ? 'transparent' : 'rgba(15,17,22,0.1)',
+                  bgcolor: sel ? INK_STUDIO : '#fff',
+                  color: sel ? '#fff' : INK_STUDIO,
+                  boxShadow: sel ? '0 6px 18px rgba(14,17,22,0.18)' : '0 1px 2px rgba(15,17,22,0.04)',
+                  transition: TRANSITION,
+                  '&:hover': { borderColor: sel ? 'transparent' : 'rgba(15,17,22,0.22)', transform: 'translateY(-1px)' },
                 }}
               >
-                {options.map((o) => (
-                  <FormatTile
-                    key={o.value}
-                    option={o}
-                    selected={o.value === active.value}
-                    onClick={() => {
-                      setFormat(o.value);
-                      if (o.slides) setSlides(o.slides);
-                    }}
-                  />
-                ))}
+                <Box sx={{ display: 'grid', placeItems: 'center', color: sel ? BRAND.amber : 'text.secondary', '& svg': { fontSize: 18 } }}>{o.icon}</Box>
+                <Typography sx={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>{o.label}</Typography>
               </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                {active.hint}
-              </Typography>
+            );
+          })}
+        </Stack>
+
+        {/* composer card */}
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: '24px',
+            border: '1px solid rgba(15,17,22,0.08)',
+            boxShadow: '0 2px 4px rgba(15,17,22,0.04), 0 18px 48px rgba(15,17,22,0.08)',
+            overflow: 'hidden',
+            bgcolor: '#fff',
+          }}
+        >
+          <TextField
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            multiline
+            minRows={3}
+            maxRows={8}
+            fullWidth
+            placeholder={`Describe your ${active.label.toLowerCase()}… e.g. "Why Series B SaaS teams should rethink their payments stack — punchy, contrarian, data-backed."`}
+            variant="standard"
+            InputProps={{ disableUnderline: true }}
+            sx={{ p: 2.5, '& textarea': { fontSize: 16, lineHeight: 1.6, color: INK_STUDIO } }}
+            onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') generate(); }}
+          />
+
+          {showNotes ? (
+            <Box sx={{ px: 2.5, pb: 1 }}>
+              <TextField
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                fullWidth
+                size="small"
+                placeholder="Angle / notes — tone, hook, CTA, must-mention points…"
+                variant="standard"
+                InputProps={{ disableUnderline: true }}
+                sx={{ '& input': { fontSize: 13.5, color: 'text.secondary' } }}
+              />
             </Box>
+          ) : (
+            <Box sx={{ px: 2.5, pb: 0.5 }}>
+              <Button onClick={() => setShowNotes(true)} startIcon={<TuneIcon sx={{ fontSize: 15 }} />} sx={{ textTransform: 'none', fontSize: 12.5, fontWeight: 600, color: 'text.secondary', px: 0.5, '&:hover': { bgcolor: 'transparent', color: INK_STUDIO } }}>
+                Add angle / notes
+              </Button>
+            </Box>
+          )}
 
-            <TextField
-              label="Topic / brief"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              multiline
-              minRows={3}
-              fullWidth
-              placeholder="What should this be about?"
-            />
-            <TextField
-              label="Notes / angle (optional)"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              fullWidth
-            />
+          <Divider sx={{ borderColor: 'rgba(15,17,22,0.06)' }} />
 
-            {(isDeck || active.withImage) && (
-              <Stack spacing={1.5}>
-                {isDeck && (
-                  <TextField
-                    select
-                    label="Slides"
-                    value={slides}
-                    onChange={(e) => setSlides(Number(e.target.value))}
-                    fullWidth
-                  >
-                    {[3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                      <MenuItem key={n} value={n}>{n} slides</MenuItem>
-                    ))}
-                  </TextField>
-                )}
-                {active.withImage && (
-                  <Stack direction="row" spacing={1.5}>
-                    <TextField select label="Graphic style" value={imgStyle} onChange={(e) => setImgStyle(e.target.value)} fullWidth>
-                      {IMAGE_STYLES.map((s) => (
-                        <MenuItem key={s.id} value={s.id}>{s.label}</MenuItem>
-                      ))}
-                    </TextField>
-                    <TextField select label="Image model" value={imgModel} onChange={(e) => setImgModel(e.target.value)} fullWidth>
-                      {IMAGE_MODELS.map((m) => (
-                        <MenuItem key={m.id} value={m.id}>{m.label}</MenuItem>
-                      ))}
-                    </TextField>
-                  </Stack>
-                )}
-              </Stack>
+          {/* toolbar */}
+          <Box sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <FieldSelect label="Type" value={contentType} onChange={setContentType} minWidth={140}>
+              {TYPES.map((t) => <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>)}
+            </FieldSelect>
+            <FieldSelect label="Platform" value={platform} onChange={setPlatform} minWidth={130}>
+              {PLATFORMS.map((p) => <MenuItem key={p} value={p}>{PLATFORM_META[p]?.label ?? p}</MenuItem>)}
+            </FieldSelect>
+            {isDeck && (
+              <FieldSelect label="Slides" value={slides} onChange={(v) => setSlides(Number(v))} minWidth={104}>
+                {[3, 4, 5, 6, 7, 8, 9, 10].map((n) => <MenuItem key={n} value={n}>{n} slides</MenuItem>)}
+              </FieldSelect>
             )}
-
+            {active.withImage && (
+              <>
+                <FieldSelect label="Style" value={imgStyle} onChange={setImgStyle} minWidth={132}>
+                  {IMAGE_STYLES.map((s) => <MenuItem key={s.id} value={s.id}>{s.label}</MenuItem>)}
+                </FieldSelect>
+                <FieldSelect label="Image model" value={imgModel} onChange={setImgModel} minWidth={150}>
+                  {IMAGE_MODELS.map((m) => <MenuItem key={m.id} value={m.id}>{m.label}</MenuItem>)}
+                </FieldSelect>
+              </>
+            )}
+            <Box sx={{ flex: 1, minWidth: 8 }} />
             <Button
               variant="contained"
-              size="large"
               onClick={generate}
-              disabled={generating || !topic.trim()}
-              startIcon={generating ? <CircularProgress size={18} color="inherit" /> : <AutoAwesomeIcon />}
+              disabled={!canGenerate}
+              startIcon={generating ? <CircularProgress size={17} color="inherit" /> : <AutoAwesomeIcon />}
               sx={{
-                background: generating || !topic.trim() ? undefined : BRAND.gradient,
-                fontWeight: 700,
-                fontSize: 15,
-                py: 1.5,
-                borderRadius: 3,
-                boxShadow: generating || !topic.trim() ? undefined : '0 6px 20px rgba(255,175,6,0.3)',
+                background: canGenerate ? BRAND.gradient : undefined,
+                fontWeight: 800,
+                fontSize: 14.5,
+                px: 2.5,
+                py: 1.1,
+                borderRadius: '14px',
+                textTransform: 'none',
+                boxShadow: canGenerate ? '0 6px 18px rgba(255,175,6,0.3)' : undefined,
                 transition: TRANSITION,
-                '&:hover': {
-                  background: generating || !topic.trim() ? undefined : `linear-gradient(135deg,${BRAND.amberDeep},${BRAND.tealDeep})`,
-                  boxShadow: generating || !topic.trim() ? undefined : '0 8px 28px rgba(255,175,6,0.4)',
-                  transform: generating ? 'none' : 'translateY(-1px)',
-                },
+                '&:hover': { background: canGenerate ? `linear-gradient(135deg,${BRAND.amberDeep},${BRAND.tealDeep})` : undefined, transform: canGenerate ? 'translateY(-1px)' : 'none' },
               }}
             >
-              {generating ? 'Generating…' : 'Generate content'}
+              {generating ? 'Generating…' : 'Generate'}
             </Button>
-            {generating && active.withImage && (
-              <Typography variant="caption" color="text.secondary">
-                Writing copy and rendering {isDeck ? `${slides} branded slides` : 'a branded graphic'} — this can take up to a minute.
-              </Typography>
-            )}
-            {error && <Alert severity="error">{error}</Alert>}
-          </Stack>
-        ) : (
-          <Stack spacing={1.25}>
-            {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                <CircularProgress size={22} />
-              </Box>
-            ) : list.length === 0 ? (
-              <Typography color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-                No content yet — create your first deliverable.
-              </Typography>
-            ) : (
-              list.map((c) => {
-                const thumb = assetUrls(c)[0];
-                const selected = c.id === selectedId;
-                return (
-                  <Box
-                    key={c.id}
-                    onClick={() => onPreview(c)}
-                    sx={{
-                      display: 'flex',
-                      gap: 1.5,
-                      p: 1.25,
-                      borderRadius: 3,
-                      cursor: 'pointer',
-                      border: '1.5px solid',
-                      borderColor: selected ? BRAND.amber : 'rgba(0,0,0,0.05)',
-                      bgcolor: selected ? BRAND.amberSoft : '#FAFBFC',
-                      boxShadow: selected ? `0 0 0 2px ${BRAND.amberSoft}` : '0 1px 3px rgba(0,0,0,0.03)',
-                      transition: TRANSITION,
-                      '&:hover': {
-                        borderColor: selected ? BRAND.amber : '#CFD4DA',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-                        transform: 'translateY(-1px)',
-                      },
-                      '&:hover .del-btn': { opacity: 1 },
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 50,
-                        height: 50,
-                        borderRadius: 2.5,
-                        flexShrink: 0,
-                        overflow: 'hidden',
-                        bgcolor: '#F0F1F4',
-                        display: 'grid',
-                        placeItems: 'center',
-                        color: 'text.disabled',
-                        boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.06)',
-                      }}
-                    >
-                      {thumb ? (
-                        <Box component="img" src={thumb} alt="" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <TextFieldsIcon fontSize="small" />
-                      )}
-                    </Box>
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600 }} noWrap>
-                        {c.title || c.body.slice(0, 50)}
-                      </Typography>
-                      <Stack direction="row" spacing={0.5} sx={{ mt: 0.4, flexWrap: 'wrap', gap: 0.4 }}>
-                        <Chip size="small" label={c.content_type} sx={{ height: 18, fontSize: 10 }} />
-                        {c.platform && <Chip size="small" label={c.platform} sx={{ height: 18, fontSize: 10 }} />}
-                      </Stack>
-                    </Box>
-                    <IconButton
-                      className="del-btn"
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(c);
-                      }}
-                      sx={{ opacity: { xs: 1, lg: 0 }, transition: 'opacity .14s', alignSelf: 'center', color: 'text.disabled' }}
-                      aria-label="delete"
-                    >
-                      <DeleteOutlineIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                );
-              })
-            )}
-          </Stack>
-        )}
-      </Box>
-    </Box>
-  );
-}
-
-/* ============================ canvas stage ============================ */
-
-function CanvasStage({
-  item,
-  kind,
-  urls,
-  slides,
-  activeIdx,
-  setActiveIdx,
-  portrait,
-  isNewsletter,
-  emailHtml,
-  emailView,
-  setEmailView,
-  brand,
-}: {
-  item: ContentItem;
-  kind: ReturnType<typeof deckKind>;
-  urls: string[];
-  slides: { heading?: string; body?: string }[];
-  activeIdx: number;
-  setActiveIdx: (i: number) => void;
-  portrait: boolean;
-  isNewsletter: boolean;
-  emailHtml: string | null;
-  emailView: 'rendered' | 'source';
-  setEmailView: (v: 'rendered' | 'source') => void;
-  brand: BrandType | null;
-}) {
-  const [zoom, setZoom] = useState(1);
-  const hasImages = urls.length > 0;
-  const spec = slides[activeIdx];
-  const go = (d: number) => setActiveIdx((activeIdx + d + urls.length) % urls.length);
-  const showEmailFrame = isNewsletter && !!emailHtml;
-  const primary = brand?.primary_color || BRAND.amberDeep;
-
-  // The "artboard" rendered in the centre of the stage.
-  let artboard: React.ReactNode;
-  if (showEmailFrame && emailView === 'rendered') {
-    artboard = (
-      <Box
-        sx={{
-          width: 'min(680px, 96%)',
-          borderRadius: 4,
-          overflow: 'hidden',
-          bgcolor: '#fff',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 32px 80px rgba(0,0,0,0.25)',
-        }}
-      >
-        <Box
-          sx={{
-            height: 40,
-            px: 1.5,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.75,
-            bgcolor: '#2A2E37',
-          }}
-        >
-          {['#FF5F57', '#FEBC2E', '#28C840'].map((c) => (
-            <Box key={c} sx={{ width: 11, height: 11, borderRadius: '50%', bgcolor: c }} />
-          ))}
-          <Box
-            sx={{
-              ml: 1,
-              flex: 1,
-              height: 22,
-              borderRadius: 1.5,
-              bgcolor: '#1F232B',
-              color: '#9AA4B2',
-              fontSize: 11,
-              display: 'flex',
-              alignItems: 'center',
-              px: 1.25,
-            }}
-          >
-            {item.title || 'Newsletter preview'}
           </Box>
-        </Box>
-        <Box
-          component="iframe"
-          title="email preview"
-          srcDoc={emailHtml || ''}
-          sandbox=""
-          sx={{ width: '100%', height: 620, border: 0, display: 'block', bgcolor: '#f4f4f5' }}
-        />
-      </Box>
-    );
-  } else if (showEmailFrame && emailView === 'source') {
-    artboard = (
-      <Paper
-        sx={{
-          width: 'min(720px, 96%)',
-          maxHeight: '88%',
-          overflow: 'auto',
-          p: 2.5,
-          bgcolor: '#0E1116',
-          border: '1px solid #2A2E37',
-          borderRadius: 4,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 32px 80px rgba(0,0,0,0.25)',
-        }}
-      >
-        <Box component="pre" sx={{ m: 0, fontSize: 12, color: '#C7D0DC', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-          {emailHtml}
-        </Box>
-      </Paper>
-    );
-  } else if (hasImages) {
-    artboard = (
-      <Box
-        component="img"
-        src={urls[activeIdx]}
-        alt={spec?.heading || item.title || 'graphic'}
-        sx={{
-          maxWidth: '100%',
-          maxHeight: '100%',
-          width: 'auto',
-          height: 'auto',
-          objectFit: 'contain',
-          borderRadius: 3,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.35), 0 32px 80px rgba(0,0,0,0.25)',
-          transform: `scale(${zoom})`,
-          transition: 'transform .18s ease',
-        }}
-      />
-    );
-  } else {
-    // Pure text / document artboard.
-    artboard = (
-      <Paper
-        sx={{
-          width: 'min(720px, 96%)',
-          maxHeight: '92%',
-          overflow: 'auto',
-          p: { xs: 3, md: 5 },
-          boxShadow: '0 8px 32px rgba(0,0,0,0.3), 0 32px 80px rgba(0,0,0,0.2)',
-          borderRadius: 4,
-          transform: `scale(${zoom})`,
-          transformOrigin: 'top center',
-          transition: 'transform .18s ease',
-        }}
-      >
-        {item.title && (
-          <Typography variant="h5" fontWeight={800} sx={{ mb: 2 }}>
-            {item.title}
+        </Paper>
+
+        <Stack direction="row" alignItems="center" justifyContent="center" spacing={1} sx={{ mt: 1.5 }}>
+          <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>{active.hint}</Typography>
+          <Box sx={{ width: 3, height: 3, borderRadius: '50%', bgcolor: 'text.disabled' }} />
+          <Typography sx={{ fontSize: 12, color: 'text.disabled' }}>⌘↵ to generate</Typography>
+        </Stack>
+        {generating && active.withImage && (
+          <Typography sx={{ mt: 1, fontSize: 12.5, color: 'text.secondary', textAlign: 'center' }}>
+            Writing copy and rendering {isDeck ? `${slides} branded slides` : 'a branded graphic'} — this can take up to a minute.
           </Typography>
         )}
-        <Box
-          sx={{
-            '& h1': { fontSize: 24, fontWeight: 800, mt: 2 },
-            '& h2': { fontSize: 19, fontWeight: 700, mt: 2.5, color: primary },
-            '& h3': { fontSize: 16, fontWeight: 700, mt: 2 },
-            '& p': { my: 1, lineHeight: 1.75 },
-            '& ul': { pl: 3, my: 1 },
-            '& li': { mb: 0.5 },
-            '& hr': { border: 0, borderTop: '1px solid', borderColor: 'divider', my: 2 },
-          }}
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(item.body) }}
-        />
-      </Paper>
-    );
-  }
-
-  const pillSx = {
-    bgcolor: 'rgba(20,24,32,0.88)',
-    backdropFilter: 'blur(12px)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    color: '#E7EAEF',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-    '&:hover': { bgcolor: 'rgba(40,46,56,0.95)' },
-  } as const;
-
-  return (
-    <Box
-      sx={{
-        width: '100%',
-        minWidth: 0,
-        position: 'relative',
-        borderRadius: PANEL_RADIUS,
-        overflow: 'hidden',
-        bgcolor: STAGE_BG,
-        backgroundImage:
-          'radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)',
-        backgroundSize: '24px 24px',
-        display: 'flex',
-        flexDirection: 'column',
-        height: { lg: '100%' },
-        minHeight: { xs: 480, lg: 420 },
-        boxShadow: '0 2px 8px rgba(0,0,0,0.12), 0 12px 40px rgba(0,0,0,0.15)',
-      }}
-    >
-      {/* top artboard toolbar */}
-      <Box
-        sx={{
-          px: 2.5,
-          py: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          flexWrap: 'wrap',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-          bgcolor: 'rgba(14,17,22,0.65)',
-          backdropFilter: 'blur(12px)',
-          zIndex: 2,
-        }}
-      >
-        <Typography sx={{ color: '#fff', fontWeight: 700, fontSize: 14, letterSpacing: '-0.01em' }} noWrap>
-          {item.title || 'Untitled'}
-        </Typography>
-        <Chip
-          size="small"
-          label={item.content_type}
-          sx={{ bgcolor: 'rgba(255,175,6,0.16)', color: '#FFCF66', border: '1px solid rgba(255,175,6,0.2)', height: 22, fontWeight: 600, fontSize: 11 }}
-        />
-        {item.platform && (
-          <Chip size="small" label={item.platform} sx={{ bgcolor: 'rgba(255,255,255,0.07)', color: '#C7D0DC', border: '1px solid rgba(255,255,255,0.08)', height: 22, fontWeight: 600, fontSize: 11 }} />
-        )}
-        {urls.length > 1 && (
-          <Chip
-            size="small"
-            icon={<ViewCarouselIcon sx={{ fontSize: 14, color: '#9FE7CE !important' }} />}
-            label={`${urls.length} ${kind === 'pdf' ? 'pages' : 'slides'}`}
-            sx={{ bgcolor: 'rgba(20,187,135,0.14)', color: '#9FE7CE', border: '1px solid rgba(20,187,135,0.2)', height: 22, fontWeight: 600, fontSize: 11 }}
-          />
-        )}
-        <Box sx={{ flex: 1 }} />
-        {showEmailFrame && (
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={emailView}
-            onChange={(_, v) => v && setEmailView(v)}
-            sx={{
-              '& .MuiToggleButton-root': {
-                color: '#9AA4B2',
-                border: '1px solid rgba(255,255,255,0.12)',
-                px: 1.5,
-                py: 0.35,
-                textTransform: 'none',
-                fontSize: 12,
-                fontWeight: 600,
-                borderRadius: '10px !important',
-                transition: TRANSITION,
-              },
-              '& .Mui-selected': { bgcolor: 'rgba(255,255,255,0.14) !important', color: '#fff !important', borderColor: 'rgba(255,255,255,0.2) !important' },
-            }}
-          >
-            <ToggleButton value="rendered">
-              <VisibilityIcon sx={{ fontSize: 15, mr: 0.5 }} /> Preview
-            </ToggleButton>
-            <ToggleButton value="source">
-              <CodeIcon sx={{ fontSize: 15, mr: 0.5 }} /> HTML
-            </ToggleButton>
-          </ToggleButtonGroup>
-        )}
-      </Box>
-
-      {/* stage */}
-      <Box
-        sx={{
-          flex: 1,
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          p: { xs: 1.5, md: 2.5 },
-          overflow: 'hidden',
-        }}
-      >
-        {artboard}
-
-        {/* slide navigation */}
-        {urls.length > 1 && !showEmailFrame && (
-          <>
-            <IconButton onClick={() => go(-1)} sx={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, ...pillSx, transition: TRANSITION, '&:hover': { ...pillSx['&:hover'], transform: 'translateY(-50%) scale(1.08)' } }} aria-label="previous">
-              <ChevronLeftIcon />
-            </IconButton>
-            <IconButton onClick={() => go(1)} sx={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, ...pillSx, transition: TRANSITION, '&:hover': { ...pillSx['&:hover'], transform: 'translateY(-50%) scale(1.08)' } }} aria-label="next">
-              <ChevronRightIcon />
-            </IconButton>
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 14,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                px: 2,
-                py: 0.6,
-                borderRadius: 99,
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                ...pillSx,
-              }}
-            >
-              {activeIdx + 1} / {urls.length}
-            </Box>
-          </>
-        )}
-
-        {/* zoom controls (images & docs) */}
-        {!showEmailFrame && (
-          <Stack
-            direction="row"
-            spacing={0.5}
-            alignItems="center"
-            sx={{ position: 'absolute', bottom: 14, right: 14, borderRadius: 99, px: 0.75, py: 0.5, ...pillSx }}
-          >
-            <IconButton size="small" onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))} sx={{ color: 'inherit' }} aria-label="zoom out">
-              <ZoomOutIcon fontSize="small" />
-            </IconButton>
-            <Typography sx={{ fontSize: 12, fontWeight: 600, minWidth: 38, textAlign: 'center' }}>
-              {Math.round(zoom * 100)}%
-            </Typography>
-            <IconButton size="small" onClick={() => setZoom((z) => Math.min(1.75, +(z + 0.25).toFixed(2)))} sx={{ color: 'inherit' }} aria-label="zoom in">
-              <ZoomInIcon fontSize="small" />
-            </IconButton>
-          </Stack>
-        )}
-      </Box>
-
-      {/* filmstrip */}
-      {urls.length > 1 && !showEmailFrame && (
-        <Box
-          sx={{
-            px: 2.5,
-            py: 1.5,
-            display: 'flex',
-            gap: 1.25,
-            overflowX: 'auto',
-            borderTop: '1px solid rgba(255,255,255,0.07)',
-            bgcolor: 'rgba(14,17,22,0.65)',
-            backdropFilter: 'blur(8px)',
-            '&::-webkit-scrollbar': { height: 4 },
-            '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.15)', borderRadius: 2 },
-          }}
-        >
-          {urls.map((u, i) => (
-            <Box
-              key={u}
-              component="img"
-              src={u}
-              onClick={() => setActiveIdx(i)}
-              alt={`thumb ${i + 1}`}
-              sx={{
-                height: portrait ? 72 : 60,
-                width: portrait ? 58 : 60,
-                objectFit: 'cover',
-                borderRadius: 2,
-                cursor: 'pointer',
-                flexShrink: 0,
-                border: '2.5px solid',
-                borderColor: i === activeIdx ? primary : 'transparent',
-                opacity: i === activeIdx ? 1 : 0.5,
-                boxShadow: i === activeIdx ? `0 0 0 2px ${primary}, 0 4px 12px rgba(0,0,0,0.3)` : '0 2px 6px rgba(0,0,0,0.2)',
-                transition: TRANSITION,
-                '&:hover': { opacity: 1, transform: 'translateY(-2px)' },
-              }}
-            />
-          ))}
+        {error && <Alert severity="error" sx={{ mt: 2, borderRadius: '14px' }}>{error}</Alert>}
         </Box>
-      )}
+        )}
+      </Box>
+
+      {/* ---------- LIBRARY GALLERY ---------- */}
+      <Box sx={{ maxWidth: 1180, mx: 'auto', mt: { xs: 4, md: 6 }, px: { xs: 0, md: 2 } }}>
+        <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 2 }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 800, color: INK_STUDIO, letterSpacing: '-0.01em' }}>Your library</Typography>
+          {list.length > 0 && (
+            <Box sx={{ px: 1, py: 0.2, borderRadius: 99, bgcolor: '#F0F2F4', fontSize: 12, fontWeight: 700, color: 'text.secondary' }}>{list.length}</Box>
+          )}
+        </Stack>
+
+        {loading ? (
+          <Box sx={{ display: 'grid', placeItems: 'center', py: 8 }}><CircularProgress size={26} /></Box>
+        ) : list.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 7, border: '1.5px dashed rgba(15,17,22,0.12)', borderRadius: '20px', color: 'text.secondary' }}>
+            <ViewCarouselIcon sx={{ fontSize: 30, opacity: 0.5, mb: 1 }} />
+            <Typography sx={{ fontSize: 14 }}>No content yet — generate your first deliverable above.</Typography>
+          </Box>
+        ) : (
+          <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3,1fr)', lg: 'repeat(4,1fr)' } }}>
+            {list.map((c) => <LibraryCard key={c.id} item={c} onOpen={() => onPreview(c)} onDelete={() => onDelete(c)} />)}
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 }
 
-/* ============================ inspector ============================ */
+const VIDEO_DURATIONS = [15, 30, 45, 60, 90];
 
-type InspectorTab = 'design' | 'image' | 'copy' | 'export';
+function VideoComposer() {
+  const [topic, setTopic] = useState('');
+  const [fmt, setFmt] = useState<VideoFormat>('reels');
+  const [seconds, setSeconds] = useState(30);
+  const [voice, setVoice] = useState<string>('alloy');
+  const [tone, setTone] = useState('');
+  const [quality, setQuality] = useState<VideoQuality>('1080p');
+  const [style, setStyle] = useState<VideoStyle>('dynamic');
+  const [visuals, setVisuals] = useState<VideoVisuals>('hybrid');
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+  const [videos, setVideos] = useState<ContentVideo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
 
-function Inspector({
-  item,
-  brand,
-  kind,
-  urls,
-  activeIdx,
-  isNewsletter,
-  emailHtml,
-  emailFormat,
-  setEmailFormat,
-  imgStyle,
-  setImgStyle,
-  imgModel,
-  setImgModel,
-  busy,
-  error,
-  onRebuild,
-  onCopy,
-  onRefresh,
-}: {
-  item: ContentItem;
-  brand: BrandType | null;
-  kind: ReturnType<typeof deckKind>;
-  urls: string[];
-  activeIdx: number;
-  isNewsletter: boolean;
-  emailHtml: string | null;
-  emailFormat: string;
-  setEmailFormat: (v: string) => void;
-  imgStyle: string;
-  setImgStyle: (v: string) => void;
-  imgModel: string;
-  setImgModel: (v: string) => void;
-  busy: boolean;
-  error: string;
-  onRebuild: () => void;
-  onCopy: (text: string) => void;
-  onRefresh: (updated: ContentItem) => void;
-}) {
-  const hasImages = urls.length > 0;
-  const isText = kind === 'text';
-  const portrait = kind === 'pdf';
-  const [tab, setTab] = useState<InspectorTab>(isText ? 'copy' : 'design');
+  const activeFmt = VIDEO_FORMATS.find((f) => f.value === fmt) ?? VIDEO_FORMATS[0];
+  const maxSeconds = fmt === 'youtube' ? 180 : fmt === 'youtube_shorts' ? 60 : 90;
+  const durations = VIDEO_DURATIONS.filter((d) => d <= maxSeconds).concat(
+    fmt === 'youtube' ? [120, 180] : [],
+  );
 
-  // Edit-with-prompt state for the currently selected image.
-  const [instruction, setInstruction] = useState('');
-  const [editBusy, setEditBusy] = useState(false);
-  const [editError, setEditError] = useState('');
-  const selectedUrl = urls[activeIdx];
-  const selectedImgId = selectedUrl ? imageIdFromUrl(selectedUrl) : null;
+  useEffect(() => {
+    let cancelled = false;
+    Videos.list()
+      .then((v) => { if (!cancelled) setVideos(v); })
+      .catch(() => { /* ignore */ })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
-  const regenImage = async () => {
-    if (!selectedImgId || !instruction.trim()) return;
-    setEditBusy(true);
-    setEditError('');
+  useEffect(() => {
+    if (seconds > maxSeconds) setSeconds(maxSeconds);
+  }, [fmt, maxSeconds, seconds]);
+
+  const generate = async () => {
+    if (!topic.trim() || generating) return;
+    setGenerating(true);
+    setError('');
     try {
-      await Images.regenerate(selectedImgId, { instruction: instruction.trim(), replace: true });
-      const fresh = await Content.get(item.id);
-      onRefresh(fresh);
-      setInstruction('');
+      const v = await Videos.generate({
+        topic: topic.trim(),
+        fmt,
+        seconds,
+        voice,
+        tone: tone.trim() || undefined,
+        quality,
+        style,
+        visuals,
+      });
+      setVideos((prev) => [v, ...prev]);
+      setTopic('');
     } catch (e) {
-      setEditError(e instanceof Error ? e.message : 'Could not regenerate the image');
+      setError(e instanceof Error ? e.message : 'Video generation failed');
     } finally {
-      setEditBusy(false);
+      setGenerating(false);
     }
   };
 
-  const downloadPdf = () => {
-    if (urls.length && (kind === 'carousel' || kind === 'pdf')) {
-      printDeck(item, urls, portrait);
-    } else {
-      printAsPdf(item, brand);
-    }
+  const remove = async (v: ContentVideo) => {
+    const ok = await confirm({
+      title: 'Delete video?',
+      message: 'This permanently removes the rendered video.',
+      confirmText: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await Videos.remove(v.id);
+      setVideos((prev) => prev.filter((x) => x.id !== v.id));
+    } catch { /* ignore */ }
   };
 
-  const TABS: { id: InspectorTab; icon: React.ReactNode; label: string; hidden?: boolean }[] = [
-    { id: 'design', icon: <TuneIcon fontSize="small" />, label: 'Design', hidden: isText },
-    { id: 'image', icon: <ImageOutlinedIcon fontSize="small" />, label: 'Image', hidden: !hasImages },
-    { id: 'copy', icon: <TextFieldsIcon fontSize="small" />, label: 'Copy' },
-    { id: 'export', icon: <IosShareIcon fontSize="small" />, label: 'Export' },
-  ];
-  const visibleTabs = TABS.filter((t) => !t.hidden);
-  const activeTab = visibleTabs.find((t) => t.id === tab) ? tab : visibleTabs[0].id;
+  const canGenerate = !!topic.trim() && !generating;
 
   return (
+    <Box>
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 2, md: 2.5 },
+          borderRadius: '20px',
+          border: '1.5px solid rgba(15,17,22,0.08)',
+          boxShadow: '0 10px 34px rgba(15,17,22,0.06)',
+        }}
+      >
+        <TextField
+          fullWidth
+          multiline
+          minRows={2}
+          maxRows={5}
+          placeholder="What's the video about? e.g. '5 reasons nonprofits should invest in storytelling'"
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+          onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') generate(); }}
+          variant="standard"
+          InputProps={{ disableUnderline: true, sx: { fontSize: 16, fontWeight: 500, color: INK_STUDIO } }}
+          sx={{ mb: 1 }}
+        />
+
+        {/* format pills */}
+        <Stack direction="row" spacing={1} sx={{ mb: 1.5, overflowX: 'auto', pb: 0.5, '&::-webkit-scrollbar': { display: 'none' } }}>
+          {VIDEO_FORMATS.map((f) => {
+            const sel = f.value === fmt;
+            return (
+              <Box
+                key={f.value}
+                role="button"
+                onClick={() => setFmt(f.value)}
+                sx={{
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  px: 1.5,
+                  py: 0.85,
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  border: `1.5px solid ${sel ? BRAND.tealDeep : 'rgba(15,17,22,0.1)'}`,
+                  bgcolor: sel ? 'rgba(20,124,124,0.06)' : '#fff',
+                  transition: TRANSITION,
+                }}
+              >
+                <MovieCreationOutlinedIcon sx={{ fontSize: 16, color: sel ? BRAND.tealDeep : 'text.secondary' }} />
+                <Box>
+                  <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: sel ? BRAND.tealDeep : INK_STUDIO, lineHeight: 1.1 }}>{f.label}</Typography>
+                  <Typography sx={{ fontSize: 10.5, color: 'text.disabled' }}>{f.aspect}</Typography>
+                </Box>
+              </Box>
+            );
+          })}
+        </Stack>
+
+        <Divider sx={{ my: 1.5 }} />
+
+        {/* controls */}
+        <Stack spacing={1.5}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+            <TextField
+              select size="small" label="Duration" value={seconds}
+              onChange={(e) => setSeconds(Number(e.target.value))}
+              sx={{ flex: '1 1 120px', minWidth: 120, '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
+            >
+              {durations.map((d) => <MenuItem key={d} value={d}>{d}s</MenuItem>)}
+            </TextField>
+            <TextField
+              select size="small" label="Voice" value={voice}
+              onChange={(e) => setVoice(e.target.value)}
+              SelectProps={{ startAdornment: <GraphicEqIcon sx={{ fontSize: 15, mr: 0.5, color: 'text.disabled' }} /> }}
+              sx={{ flex: '1 1 130px', minWidth: 130, '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
+            >
+              {VIDEO_VOICES.map((v) => <MenuItem key={v} value={v} sx={{ textTransform: 'capitalize' }}>{v}</MenuItem>)}
+            </TextField>
+            <TextField
+              select size="small" label="Quality" value={quality}
+              onChange={(e) => setQuality(e.target.value as VideoQuality)}
+              sx={{ flex: '1 1 140px', minWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
+            >
+              {VIDEO_QUALITIES.map((q) => <MenuItem key={q.value} value={q.value}>{q.label}</MenuItem>)}
+            </TextField>
+            <TextField
+              select size="small" label="Style" value={style}
+              onChange={(e) => setStyle(e.target.value as VideoStyle)}
+              sx={{ flex: '1 1 130px', minWidth: 130, '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
+            >
+              {VIDEO_STYLES.map((s) => <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>)}
+            </TextField>
+            <TextField
+              select size="small" label="Visuals" value={visuals}
+              onChange={(e) => setVisuals(e.target.value as VideoVisuals)}
+              sx={{ flex: '1 1 140px', minWidth: 140, '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
+            >
+              {VIDEO_VISUALS.map((v) => <MenuItem key={v.value} value={v.value}>{v.label}</MenuItem>)}
+            </TextField>
+          </Box>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
+            <TextField
+              size="small" label="Tone (optional)" placeholder="energetic, warm…"
+              value={tone} onChange={(e) => setTone(e.target.value)}
+              sx={{ flex: 1, minWidth: 180, '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
+            />
+            <Button
+              onClick={generate}
+              disabled={!canGenerate}
+              variant="contained"
+              startIcon={generating ? <CircularProgress size={15} color="inherit" /> : <MovieCreationOutlinedIcon />}
+              sx={{
+                fontWeight: 800,
+                fontSize: 14,
+                px: 2.5, py: 1.05,
+                borderRadius: '12px',
+                textTransform: 'none',
+                flexShrink: 0,
+                background: canGenerate ? `linear-gradient(135deg,${BRAND.amberDeep},${BRAND.tealDeep})` : undefined,
+                boxShadow: canGenerate ? '0 6px 18px rgba(255,175,6,0.28)' : undefined,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {generating ? 'Rendering…' : 'Generate video'}
+            </Button>
+          </Box>
+        </Stack>
+
+        <Typography sx={{ mt: 1.25, fontSize: 12, color: 'text.disabled' }}>
+          {activeFmt.hint} · AI script + Pexels footage + voiceover + auto captions.
+          {generating
+            ? (quality === '4k' ? ' 4K renders can take a few minutes.' : ' This takes up to ~90 seconds.')
+            : ' ⌘↵ to generate.'}
+        </Typography>
+        {error && <Alert severity="error" sx={{ mt: 1.5, borderRadius: '12px' }}>{error}</Alert>}
+      </Paper>
+
+      {/* rendered videos */}
+      <Box sx={{ mt: 3 }}>
+        <Typography sx={{ fontSize: 15, fontWeight: 800, color: INK_STUDIO, mb: 1.5 }}>Your videos</Typography>
+        {loading ? (
+          <Box sx={{ display: 'grid', placeItems: 'center', py: 5 }}><CircularProgress size={24} /></Box>
+        ) : videos.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 5, border: '1.5px dashed rgba(15,17,22,0.12)', borderRadius: '18px', color: 'text.secondary' }}>
+            <MovieCreationOutlinedIcon sx={{ fontSize: 28, opacity: 0.5, mb: 1 }} />
+            <Typography sx={{ fontSize: 13.5 }}>No videos yet — generate your first Reel or Short above.</Typography>
+          </Box>
+        ) : (
+          <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(3,1fr)', lg: 'repeat(4,1fr)' } }}>
+            {videos.map((v) => <VideoCard key={v.id} video={v} onDelete={() => remove(v)} />)}
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+function VideoCard({ video, onDelete }: { video: ContentVideo; onDelete: () => void }) {
+  const portrait = (video.height ?? 1920) >= (video.width ?? 1080);
+  const fmtLabel = VIDEO_FORMATS.find((f) => f.value === video.fmt)?.label ?? video.fmt;
+  const shortSide = Math.min(video.width ?? 0, video.height ?? 0);
+  const resLabel = shortSide >= 2000 ? '4K' : shortSide >= 1000 ? '1080p' : shortSide >= 700 ? '720p' : '';
+  return (
+    <Box sx={{ borderRadius: '18px', overflow: 'hidden', border: '1.5px solid rgba(15,17,22,0.08)', bgcolor: '#0b0d10', position: 'relative' }}>
+      <Box sx={{ position: 'relative', aspectRatio: portrait ? '9 / 16' : '16 / 9', bgcolor: '#000' }}>
+        {resLabel && (
+          <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2, px: 0.85, py: 0.25, borderRadius: '6px', bgcolor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+            <Typography sx={{ fontSize: 10.5, fontWeight: 800, color: '#fff', letterSpacing: 0.3 }}>{resLabel}</Typography>
+          </Box>
+        )}
+        <video
+          src={videoUrl(video)}
+          controls
+          playsInline
+          preload="metadata"
+          style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+        />
+      </Box>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1.25, py: 1, bgcolor: '#fff' }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography noWrap sx={{ fontSize: 12.5, fontWeight: 700, color: INK_STUDIO }}>{fmtLabel}</Typography>
+          <Typography sx={{ fontSize: 11, color: 'text.disabled' }}>
+            {video.duration_s ? `${video.duration_s}s` : ''}{video.voice ? ` · ${video.voice}` : ''}
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={0.5}>
+          <IconButton size="small" onClick={() => downloadImage(videoUrl(video), `video-${video.id}.mp4`)}>
+            <DownloadIcon sx={{ fontSize: 17 }} />
+          </IconButton>
+          <IconButton size="small" onClick={onDelete}>
+            <DeleteOutlineIcon sx={{ fontSize: 17 }} />
+          </IconButton>
+        </Stack>
+      </Stack>
+    </Box>
+  );
+}
+
+/* ===================== turn a post/script into a video ===================== */
+
+function ScriptToVideo({ item }: { item: ContentItem }) {
+  const [fmt, setFmt] = useState<VideoFormat>(
+    (item.platform || '').toLowerCase().includes('youtube') ? 'youtube_shorts' : 'reels',
+  );
+  const [voice, setVoice] = useState<string>('coral');
+  const [tone, setTone] = useState('');
+  const [quality, setQuality] = useState<VideoQuality>('1080p');
+  const [style, setStyle] = useState<VideoStyle>('dynamic');
+  const [visuals, setVisuals] = useState<VideoVisuals>('hybrid');
+  const [videos, setVideos] = useState<ContentVideo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const confirm = useConfirm();
+
+  const words = (item.body || '').trim().split(/\s+/).filter(Boolean).length;
+  const estSeconds = Math.max(5, Math.round(words / 2.5));
+
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    Videos.list(item.id)
+      .then((v) => { if (live) setVideos(v); })
+      .catch(() => { if (live) setVideos([]); })
+      .finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [item.id]);
+
+  const generate = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const v = await Videos.generate({
+        content_item_id: item.id,
+        fmt,
+        voice,
+        tone: tone.trim() || undefined,
+        platform: item.platform || undefined,
+        quality,
+        style,
+        visuals,
+      });
+      setVideos((prev) => [v, ...prev]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not generate the video');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (v: ContentVideo) => {
+    const ok = await confirm({ title: 'Delete video?', message: 'This permanently removes the rendered video.', confirmText: 'Delete', danger: true });
+    if (!ok) return;
+    try {
+      await Videos.remove(v.id);
+      setVideos((prev) => prev.filter((x) => x.id !== v.id));
+    } catch { /* ignore */ }
+  };
+
+  const hasScript = !!(item.body && item.body.trim());
+
+  return (
+    <EditorSection
+      title="Turn script into video"
+      subtitle="AI voiceover + matching stock footage + auto captions — from this post"
+      action={<Chip size="small" icon={<MovieCreationOutlinedIcon sx={{ fontSize: 14, color: '#fff !important' }} />} label="AI video" sx={{ height: 24, fontSize: 10.5, fontWeight: 700, color: '#fff', background: BRAND.gradient, '& .MuiChip-label': { px: 0.75 } }} />}
+    >
+      {!hasScript ? (
+        <Alert severity="info" sx={{ borderRadius: '12px' }}>Add some body text above first — that script becomes the voiceover.</Alert>
+      ) : (
+        <Stack spacing={1.5}>
+          <TextField select size="small" label="Format" value={fmt} onChange={(e) => setFmt(e.target.value as VideoFormat)} fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}>
+            {VIDEO_FORMATS.map((f) => (
+              <MenuItem key={f.value} value={f.value}>{f.label} · {f.aspect}</MenuItem>
+            ))}
+          </TextField>
+          <TextField select size="small" label="Voice" value={voice} onChange={(e) => setVoice(e.target.value)} fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}>
+            {VIDEO_VOICES.map((v) => (
+              <MenuItem key={v} value={v} sx={{ textTransform: 'capitalize' }}>{v}</MenuItem>
+            ))}
+          </TextField>
+          <Stack direction="row" spacing={1.5}>
+            <TextField select size="small" label="Quality" value={quality} onChange={(e) => setQuality(e.target.value as VideoQuality)} fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}>
+              {VIDEO_QUALITIES.map((q) => (
+                <MenuItem key={q.value} value={q.value}>{q.label}</MenuItem>
+              ))}
+            </TextField>
+            <TextField select size="small" label="Style" value={style} onChange={(e) => setStyle(e.target.value as VideoStyle)} fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}>
+              {VIDEO_STYLES.map((s) => (
+                <MenuItem key={s.value} value={s.value}>{s.label}</MenuItem>
+              ))}
+            </TextField>
+          </Stack>
+          <TextField select size="small" label="Visuals" value={visuals} onChange={(e) => setVisuals(e.target.value as VideoVisuals)} fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}>
+            {VIDEO_VISUALS.map((v) => (
+              <MenuItem key={v.value} value={v.value}>{v.label} — {v.hint}</MenuItem>
+            ))}
+          </TextField>
+          <TextField size="small" label="Delivery style (optional)" value={tone} onChange={(e) => setTone(e.target.value)} placeholder="e.g. warm and inspiring, energetic, calm" fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }} />
+          <Button
+            variant="contained"
+            onClick={generate}
+            disabled={busy}
+            startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <MovieCreationOutlinedIcon />}
+            sx={{ background: busy ? undefined : BRAND.gradient, fontWeight: 800, borderRadius: '12px', textTransform: 'none', py: 1, '&:hover': { background: busy ? undefined : `linear-gradient(135deg,${BRAND.amberDeep},${BRAND.tealDeep})` } }}
+          >
+            {busy ? 'Rendering video…' : 'Turn script into video (AI powered)'}
+          </Button>
+          <Typography variant="caption" color="text.secondary">
+            {busy
+              ? 'Synthesizing voiceover, pulling stock footage and burning captions — this can take a minute.'
+              : `Narrates your script verbatim · ~${estSeconds}s of voiceover.`}
+          </Typography>
+          {error && <Alert severity="error" sx={{ borderRadius: '12px' }}>{error}</Alert>}
+
+          {loading ? (
+            <Box sx={{ display: 'grid', placeItems: 'center', py: 2 }}><CircularProgress size={22} /></Box>
+          ) : videos.length > 0 ? (
+            <Stack spacing={1.5} sx={{ mt: 0.5 }}>
+              <Typography sx={{ fontSize: 12, fontWeight: 800, color: INK_STUDIO, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rendered videos</Typography>
+              {videos.map((v) => <VideoCard key={v.id} video={v} onDelete={() => remove(v)} />)}
+            </Stack>
+          ) : null}
+        </Stack>
+      )}
+    </EditorSection>
+  );
+}
+
+function LibraryCard({ item, onOpen, onDelete }: { item: ContentItem; onOpen: () => void; onDelete: () => void }) {
+  const urls = assetUrls(item);
+  const thumb = urls[0];
+  const kind = deckKind(item);
+  const count = urls.length;
+  return (
     <Box
+      onClick={onOpen}
       sx={{
-        width: '100%',
-        minWidth: 0,
-        bgcolor: 'background.paper',
-        border: '1px solid',
-        borderColor: 'rgba(0,0,0,0.06)',
-        borderRadius: PANEL_RADIUS,
-        display: 'flex',
-        flexDirection: 'column',
+        borderRadius: '18px',
         overflow: 'hidden',
-        height: { lg: '100%' },
-        minHeight: { xs: 440, lg: 0 },
-        boxShadow: PANEL_SHADOW,
+        cursor: 'pointer',
+        bgcolor: '#fff',
+        border: '1px solid rgba(15,17,22,0.08)',
+        boxShadow: '0 1px 2px rgba(15,17,22,0.04)',
+        transition: TRANSITION,
+        '&:hover': { transform: 'translateY(-3px)', boxShadow: '0 14px 34px rgba(15,17,22,0.12)', borderColor: 'rgba(15,17,22,0.14)' },
+        '&:hover .lib-del': { opacity: 1 },
       }}
     >
-      <Box sx={{ display: 'flex', gap: 0.5, p: 1.25, borderBottom: '1px solid', borderColor: 'rgba(0,0,0,0.06)' }}>
-        {visibleTabs.map((t) => (
-          <Box
-            key={t.id}
-            role="button"
-            onClick={() => setTab(t.id)}
-            sx={{
-              flex: 1,
-              py: 1,
-              borderRadius: 2.5,
-              textAlign: 'center',
-              cursor: 'pointer',
-              color: activeTab === t.id ? BRAND.amberDeep : 'text.secondary',
-              bgcolor: activeTab === t.id ? BRAND.amberSoft : 'transparent',
-              border: '1.5px solid',
-              borderColor: activeTab === t.id ? BRAND.amber : 'transparent',
-              transition: TRANSITION,
-              '&:hover': {
-                bgcolor: activeTab === t.id ? BRAND.amberSoft : '#F5F6F8',
-                transform: 'translateY(-1px)',
-              },
-            }}
-          >
-            <Box sx={{ display: 'grid', placeItems: 'center' }}>{t.icon}</Box>
-            <Typography sx={{ fontSize: 10.5, fontWeight: 700, mt: 0.3, letterSpacing: '0.02em' }}>{t.label}</Typography>
+      <Box sx={{ position: 'relative', aspectRatio: '4 / 3', bgcolor: '#0E1116', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+        {thumb ? (
+          <Box component="img" src={thumb} alt={item.title || ''} sx={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <Box sx={{ textAlign: 'center', color: 'rgba(255,255,255,0.7)', p: 2 }}>
+            <TextFieldsIcon sx={{ fontSize: 24, mb: 0.5 }} />
+            <Typography sx={{ fontSize: 11, px: 1, lineHeight: 1.4, opacity: 0.85, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              {item.body?.slice(0, 70)}
+            </Typography>
           </Box>
-        ))}
+        )}
+        <Box sx={{ position: 'absolute', top: 8, left: 8, px: 0.9, py: 0.3, borderRadius: 99, bgcolor: 'rgba(14,17,22,0.7)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 10.5, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 0.4 }}>
+          {KIND_LABEL[kind]}{count > 1 ? ` · ${count}` : ''}
+        </Box>
+        <IconButton
+          className="lib-del"
+          size="small"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          sx={{ position: 'absolute', top: 6, right: 6, width: 28, height: 28, bgcolor: 'rgba(14,17,22,0.62)', color: '#fff', opacity: { xs: 1, lg: 0 }, transition: 'opacity .14s', '&:hover': { bgcolor: BRAND.pink } }}
+          aria-label="delete"
+        >
+          <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+        </IconButton>
       </Box>
-
-      <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-
-        {/* ---- DESIGN ---- */}
-        {activeTab === 'design' && (
-          <>
-            <InspectorSection icon={<TuneIcon fontSize="small" color="action" />} title="Graphics">
-              <Stack spacing={1.5}>
-                <TextField select size="small" label="Style" value={imgStyle} onChange={(e) => setImgStyle(e.target.value)} fullWidth>
-                  {IMAGE_STYLES.map((s) => (
-                    <MenuItem key={s.id} value={s.id}>{s.label}</MenuItem>
-                  ))}
-                </TextField>
-                <TextField select size="small" label="Image model" value={imgModel} onChange={(e) => setImgModel(e.target.value)} fullWidth>
-                  {IMAGE_MODELS.map((m) => (
-                    <MenuItem key={m.id} value={m.id}>{m.label}</MenuItem>
-                  ))}
-                </TextField>
-                {isNewsletter && (
-                  <TextField select size="small" label="Email format" value={emailFormat} onChange={(e) => setEmailFormat(e.target.value)} fullWidth>
-                    <MenuItem value="html">Branded HTML</MenuItem>
-                    <MenuItem value="normal">Plain / markdown</MenuItem>
-                  </TextField>
-                )}
-                <Button
-                  variant="contained"
-                  onClick={onRebuild}
-                  disabled={busy}
-                  startIcon={busy ? <CircularProgress size={16} color="inherit" /> : hasImages ? <RefreshIcon /> : <AddPhotoAlternateIcon />}
-                  sx={{
-                    background: busy ? undefined : BRAND.gradient,
-                    fontWeight: 700,
-                    borderRadius: 2.5,
-                    boxShadow: busy ? undefined : '0 4px 14px rgba(255,175,6,0.25)',
-                    transition: TRANSITION,
-                    '&:hover': {
-                      background: busy ? undefined : `linear-gradient(135deg,${BRAND.amberDeep},${BRAND.tealDeep})`,
-                      boxShadow: busy ? undefined : '0 6px 20px rgba(255,175,6,0.35)',
-                    },
-                  }}
-                >
-                  {busy ? 'Rendering…' : hasImages ? 'Regenerate graphics' : 'Add graphics'}
-                </Button>
-                {busy && (
-                  <Typography variant="caption" color="text.secondary">
-                    Rendering brand-aware graphics — a full carousel can take a minute.
-                  </Typography>
-                )}
-              </Stack>
-            </InspectorSection>
-
-            {isNewsletter && !emailHtml && emailFormat === 'html' && (
-              <Alert severity="info" sx={{ mt: 1 }}>
-                No branded HTML yet. Keep <strong>Branded HTML</strong> selected and regenerate to build a responsive email.
-              </Alert>
-            )}
-          </>
-        )}
-
-        {/* ---- IMAGE (edit selected) ---- */}
-        {activeTab === 'image' && hasImages && (
-          <>
-            <InspectorSection
-              icon={<ImageOutlinedIcon fontSize="small" color="action" />}
-              title={urls.length > 1 ? `Selected — ${activeIdx + 1} / ${urls.length}` : 'Selected graphic'}
-            >
-              <Card variant="outlined" sx={{ overflow: 'hidden', mb: 1.5, borderRadius: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <Box component="img" src={selectedUrl} alt="selected" sx={{ width: '100%', display: 'block' }} />
-              </Card>
-              <Button
-                fullWidth
-                variant="outlined"
-                size="small"
-                startIcon={<DownloadIcon />}
-                onClick={() => downloadImage(selectedUrl, `${slugify(item.title || 'graphic')}-${activeIdx + 1}.png`)}
-              >
-                Download this image
-              </Button>
-            </InspectorSection>
-
-            <InspectorSection icon={<AutoFixHighIcon fontSize="small" color="action" />} title="Edit with a prompt">
-              <Stack spacing={1.25}>
-                <TextField
-                  size="small"
-                  fullWidth
-                  multiline
-                  minRows={3}
-                  value={instruction}
-                  onChange={(e) => setInstruction(e.target.value)}
-                  placeholder="Describe the change — e.g. 'make the background deep navy and add a laptop on the desk'"
-                />
-                <Button
-                  variant="contained"
-                  onClick={regenImage}
-                  disabled={editBusy || !instruction.trim() || !selectedImgId}
-                  startIcon={editBusy ? <CircularProgress size={14} color="inherit" /> : <RefreshIcon />}
-                >
-                  {editBusy ? 'Regenerating…' : 'Apply change'}
-                </Button>
-                {editError && <Alert severity="error">{editError}</Alert>}
-                <Typography variant="caption" color="text.secondary">
-                  Regenerates this exact slot, keeping brand colours, style and the composited logo.
-                </Typography>
-              </Stack>
-            </InspectorSection>
-          </>
-        )}
-
-        {/* ---- COPY ---- */}
-        {activeTab === 'copy' && (
-          <>
-            <InspectorSection
-              icon={<TextFieldsIcon fontSize="small" color="action" />}
-              title={isNewsletter ? 'Newsletter' : kind === 'article' ? 'Article' : 'Copy'}
-              action={
-                <Tooltip title="Copy text">
-                  <IconButton size="small" onClick={() => onCopy(item.body)}>
-                    <ContentCopyIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              }
-            >
-              {kind === 'article' || isNewsletter || kind === 'pdf' ? (
-                <Box
-                  sx={{
-                    fontSize: 14,
-                    '& h1': { fontSize: 20, fontWeight: 800, mt: 1.5 },
-                    '& h2': { fontSize: 17, fontWeight: 700, mt: 2, color: 'primary.main' },
-                    '& h3': { fontSize: 15, fontWeight: 700, mt: 1.5 },
-                    '& p': { my: 1, lineHeight: 1.7 },
-                    '& ul': { pl: 3, my: 1 },
-                    '& li': { mb: 0.5 },
-                    '& hr': { border: 0, borderTop: '1px solid', borderColor: 'divider', my: 2 },
-                  }}
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(item.body) }}
-                />
-              ) : (
-                <Typography sx={{ whiteSpace: 'pre-wrap', fontSize: 14 }}>{item.body}</Typography>
-              )}
-            </InspectorSection>
-
-            {item.variants && Object.keys(item.variants).length > 0 && (
-              <InspectorSection title="Caption & variants">
-                <Stack spacing={1.25}>
-                  {Object.entries(item.variants).map(([k, text]) => (
-                    <Paper key={k} variant="outlined" sx={{ p: 1.75, borderRadius: 3, border: '1px solid rgba(0,0,0,0.06)' }}>
-                      <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Chip size="small" label={k} color="primary" />
-                        <IconButton size="small" onClick={() => onCopy(String(text))} aria-label="copy variant">
-                          <ContentCopyIcon fontSize="small" />
-                        </IconButton>
-                      </Stack>
-                      <Typography sx={{ whiteSpace: 'pre-wrap', mt: 1, fontSize: 13 }}>
-                        {Array.isArray(text) ? (text as string[]).join(' ') : String(text)}
-                      </Typography>
-                    </Paper>
-                  ))}
-                </Stack>
-              </InspectorSection>
-            )}
-          </>
-        )}
-
-        {/* ---- EXPORT ---- */}
-        {activeTab === 'export' && (
-          <InspectorSection icon={<IosShareIcon fontSize="small" color="action" />} title="Download & export">
-            <Stack spacing={1.25}>
-              {hasImages && (
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<DownloadIcon />}
-                  onClick={() => downloadImage(urls[activeIdx], `${slugify(item.title || 'graphic')}-${activeIdx + 1}.png`)}
-                >
-                  Download current image
-                </Button>
-              )}
-              {urls.length > 1 && (
-                <Button fullWidth variant="outlined" startIcon={<PictureAsPdfIcon />} onClick={downloadPdf}>
-                  Download all {kind === 'pdf' ? 'pages' : 'slides'} as PDF
-                </Button>
-              )}
-              {urls.length <= 1 && (
-                <Button fullWidth variant="outlined" startIcon={<PictureAsPdfIcon />} onClick={downloadPdf}>
-                  Download as PDF
-                </Button>
-              )}
-              {isNewsletter && emailHtml && (
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<CodeIcon />}
-                  onClick={() => downloadHtml(`${slugify(item.title || 'newsletter')}.html`, emailHtml)}
-                >
-                  Download .html email
-                </Button>
-              )}
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<DownloadIcon />}
-                onClick={() => downloadText(`${slugify(item.title || 'content')}.md`, itemToMarkdown(item))}
-              >
-                Download .md (copy)
-              </Button>
-              <Button fullWidth variant="text" startIcon={<ContentCopyIcon />} onClick={() => onCopy(itemToMarkdown(item))}>
-                Copy everything
-              </Button>
-            </Stack>
-          </InspectorSection>
-        )}
+      <Box sx={{ p: 1.5 }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 700, color: INK_STUDIO, lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', minHeight: 36 }}>
+          {item.title || item.body?.slice(0, 50) || 'Untitled'}
+        </Typography>
+        <Stack direction="row" spacing={0.5} sx={{ mt: 0.75, flexWrap: 'wrap', gap: 0.4 }}>
+          {item.platform && <Chip size="small" label={PLATFORM_META[item.platform]?.label ?? item.platform} sx={{ height: 19, fontSize: 10, bgcolor: '#EEF6F2', color: BRAND.tealDeep, fontWeight: 700 }} />}
+          <Chip size="small" label={(item.status || 'draft')} sx={{ height: 19, fontSize: 10, bgcolor: '#F0F2F4', color: 'text.secondary', fontWeight: 600, textTransform: 'capitalize' }} />
+        </Stack>
       </Box>
     </Box>
   );
@@ -1464,14 +1395,137 @@ function Inspector({
 
 /* ============================ studio editor ============================ */
 
+const KIND_LABEL: Record<string, string> = {
+  carousel: 'Carousel',
+  pdf: 'PDF Playbook',
+  article: 'Article',
+  newsletter: 'Newsletter',
+  image: 'Image Post',
+  text: 'Text Post',
+};
+
+const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = {
+  draft: { bg: '#FFF6E0', fg: '#9A6B00', label: 'Draft' },
+  ready: { bg: '#E6F7F0', fg: '#0FA874', label: 'Ready' },
+  generating: { bg: '#EEF0F3', fg: '#5A6472', label: 'Generating' },
+  published: { bg: '#E8F0FE', fg: '#1A56DB', label: 'Published' },
+  scheduled: { bg: '#F3E8FF', fg: '#7E22CE', label: 'Scheduled' },
+  failed: { bg: '#FDE8E8', fg: '#C0392B', label: 'Failed' },
+};
+
+function StatusBadge({ status }: { status?: string }) {
+  const s = (status || 'draft').toLowerCase();
+  const c = STATUS_STYLE[s] || STATUS_STYLE.draft;
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 0.6,
+        px: 1.1,
+        height: 24,
+        borderRadius: 99,
+        bgcolor: c.bg,
+        color: c.fg,
+        fontSize: 11.5,
+        fontWeight: 700,
+        letterSpacing: '0.02em',
+      }}
+    >
+      <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: c.fg }} />
+      {c.label}
+    </Box>
+  );
+}
+
+function EditorSection({ title, subtitle, action, children }: { title: string; subtitle?: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <Box>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.25 }}>
+        <Box>
+          <Typography sx={{ fontSize: 13.5, fontWeight: 800, color: INK_STUDIO, letterSpacing: '-0.01em' }}>{title}</Typography>
+          {subtitle && <Typography sx={{ fontSize: 11.5, color: 'text.secondary', mt: 0.1 }}>{subtitle}</Typography>}
+        </Box>
+        {action}
+      </Stack>
+      {children}
+    </Box>
+  );
+}
+
+function MiniCalendar({ selected, onSelect }: { selected: number | null; onSelect: (d: number) => void }) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = now.getDate();
+  const cells: (number | null)[] = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  const monthLabel = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  return (
+    <Box sx={{ border: '1px solid rgba(15,17,22,0.08)', borderRadius: '14px', p: 1.5, bgcolor: '#fff' }}>
+      <Typography sx={{ fontSize: 12.5, fontWeight: 800, color: INK_STUDIO, mb: 1, textAlign: 'center' }}>{monthLabel}</Typography>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 0.5 }}>
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+          <Typography key={i} sx={{ fontSize: 10, fontWeight: 700, color: 'text.secondary', textAlign: 'center', py: 0.25 }}>{d}</Typography>
+        ))}
+        {cells.map((c, i) => {
+          if (c === null) return <Box key={`e${i}`} />;
+          const isToday = c === today;
+          const isSel = c === selected;
+          return (
+            <Box
+              key={c}
+              role="button"
+              onClick={() => onSelect(c)}
+              sx={{
+                aspectRatio: '1 / 1',
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: 11.5,
+                fontWeight: isSel || isToday ? 800 : 600,
+                borderRadius: '9px',
+                cursor: 'pointer',
+                color: isSel ? '#fff' : isToday ? BRAND.amberDeep : INK_STUDIO,
+                bgcolor: isSel ? INK_STUDIO : 'transparent',
+                border: isToday && !isSel ? `1.5px solid ${BRAND.amber}` : '1.5px solid transparent',
+                transition: TRANSITION,
+                '&:hover': { bgcolor: isSel ? INK_STUDIO : '#F3F5F7' },
+              }}
+            >
+              {c}
+            </Box>
+          );
+        })}
+      </Box>
+    </Box>
+  );
+}
+
+function MetaCell({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</Typography>
+      <Typography component="div" sx={{ fontSize: 13.5, fontWeight: 600, color: INK_STUDIO, mt: 0.25, wordBreak: 'break-word' }}>{value}</Typography>
+    </Box>
+  );
+}
+
+type EditorTab = 'details' | 'design' | 'export';
+
 function StudioEditor({
   item,
+  onBack,
   onCopy,
   onRefresh,
+  onDelete,
 }: {
   item: ContentItem;
+  onBack: () => void;
   onCopy: (text: string) => void;
   onRefresh: (updated: ContentItem) => void;
+  onDelete: () => void;
 }) {
   const [brand, setBrand] = useState<BrandType | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1482,22 +1536,50 @@ function StudioEditor({
   const [emailView, setEmailView] = useState<'rendered' | 'source'>('rendered');
   const [activeIdx, setActiveIdx] = useState(0);
 
+  const [tab, setTab] = useState<EditorTab>('details');
+  const [title, setTitle] = useState(item.title || '');
+  const [slug, setSlug] = useState(slugify(item.title || ''));
+  const [desc, setDesc] = useState(item.body || '');
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  const [exclusive, setExclusive] = useState(false);
+  const [allowLikes, setAllowLikes] = useState(true);
+  const [scheduleOn, setScheduleOn] = useState(false);
+  const [scheduleDay, setScheduleDay] = useState<number | null>(new Date().getDate());
+  const [scheduleTime, setScheduleTime] = useState('09:00');
+
+  const [instruction, setInstruction] = useState('');
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  const [menuEl, setMenuEl] = useState<null | HTMLElement>(null);
+  const [publishing, setPublishing] = useState(false);
+
   useEffect(() => {
     Brand.get().then(setBrand).catch(() => setBrand(null));
   }, []);
 
   useEffect(() => {
+    setTitle(item.title || '');
+    setSlug(slugify(item.title || ''));
+    setDesc(item.body || '');
     setEmailFormat(item.email_format || 'html');
     setActiveIdx(0);
-  }, [item.id, item.email_format]);
+    setSavedAt(null);
+  }, [item.id, item.email_format, item.title, item.body]);
 
   const urls = assetUrls(item);
-  const slides = slideMeta(item);
   const kind = deckKind(item);
   const portrait = kind === 'pdf';
   const isNewsletter = kind === 'newsletter';
   const emailHtml = item.email_html || null;
+  const showEmailFrame = isNewsletter && !!emailHtml;
+  const hasImages = urls.length > 0;
   const safeIdx = Math.max(0, Math.min(activeIdx, Math.max(0, urls.length - 1)));
+  const selectedUrl = urls[safeIdx];
+  const selectedImgId = selectedUrl ? imageIdFromUrl(selectedUrl) : null;
+  const accent = brand?.primary_color || BRAND.amberDeep;
 
   const rebuildFormat =
     kind === 'carousel' ? 'carousel'
@@ -1505,6 +1587,8 @@ function StudioEditor({
     : kind === 'article' ? 'article'
     : kind === 'newsletter' ? 'newsletter'
     : 'single';
+
+  const go = (d: number) => urls.length && setActiveIdx((safeIdx + d + urls.length) % urls.length);
 
   const rebuild = async () => {
     setBusy(true);
@@ -1524,43 +1608,428 @@ function StudioEditor({
     }
   };
 
+  const regenImage = async () => {
+    if (!selectedImgId || !instruction.trim()) return;
+    setEditBusy(true);
+    setEditError('');
+    try {
+      await Images.regenerate(selectedImgId, { instruction: instruction.trim(), replace: true });
+      const fresh = await Content.get(item.id);
+      onRefresh(fresh);
+      setInstruction('');
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : 'Could not regenerate the image');
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const updated = await Content.update(item.id, { title, body: desc });
+      onRefresh(updated);
+      setSavedAt(Date.now());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save changes');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const togglePublish = async () => {
+    setPublishing(true);
+    try {
+      const next = item.status === 'published' ? 'ready' : 'published';
+      const updated = await Content.update(item.id, { status: next });
+      onRefresh(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update status');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const downloadPdf = () => {
+    if (urls.length && (kind === 'carousel' || kind === 'pdf')) printDeck(item, urls, portrait);
+    else printAsPdf(item, brand);
+  };
+
+  const share = () => {
+    onCopy(itemToMarkdown(item));
+    setSavedAt(Date.now());
+  };
+
+  const dirty = title !== (item.title || '') || desc !== (item.body || '');
+
+  // ----- metadata derivations -----
+  const m = (item.meta || {}) as Record<string, unknown>;
+  const mstr = (k: string): string | null => {
+    const v = m[k];
+    return typeof v === 'string' && v.trim() ? v : null;
+  };
+  const topics: string[] = Array.isArray(m.topics) ? (m.topics as unknown[]).map(String) : [];
+  const audience = mstr('audience') || mstr('target_audience') || 'General audience';
+  const tone = mstr('tone') || 'Professional';
+  const funnel = mstr('funnel_stage') || mstr('funnel') || 'Awareness';
+  const wordCount = (item.body || '').trim().split(/\s+/).filter(Boolean).length;
+  const lengthLabel = urls.length > 1 ? `${urls.length} ${kind === 'pdf' ? 'pages' : 'slides'}` : `${wordCount} words`;
+  const dateLabel = new Date(item.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  const creatorName = (typeof (brand?.profile as Record<string, unknown>)?.name === 'string' ? String((brand?.profile as Record<string, unknown>).name) : null) || 'Trayarunya Studio';
+  const keywords: string[] = Array.isArray(brand?.keywords) ? (brand!.keywords as unknown[]).slice(0, 8).map(String) : topics;
+
+  const cardSx = {
+    bgcolor: '#fff',
+    border: '1px solid rgba(15,17,22,0.07)',
+    borderRadius: '20px',
+    boxShadow: '0 1px 2px rgba(15,17,22,0.04), 0 10px 30px rgba(15,17,22,0.05)',
+  } as const;
+
+  const tabs: { id: EditorTab; label: string }[] = [
+    { id: 'details', label: 'Details' },
+    { id: 'design', label: 'Design' },
+    { id: 'export', label: 'Export' },
+  ];
+
+  // ----- preview hero by kind -----
+  let hero: React.ReactNode;
+  if (showEmailFrame) {
+    hero = (
+      <Box sx={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(15,17,22,0.08)', bgcolor: '#fff' }}>
+        <Stack direction="row" alignItems="center" sx={{ px: 1.5, height: 38, bgcolor: '#F3F5F7', borderBottom: '1px solid rgba(15,17,22,0.06)' }}>
+          {['#FF5F57', '#FEBC2E', '#28C840'].map((c) => (
+            <Box key={c} sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: c, mr: 0.6 }} />
+          ))}
+          <Box sx={{ flex: 1 }} />
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={emailView}
+            onChange={(_, v) => v && setEmailView(v)}
+            sx={{ '& .MuiToggleButton-root': { px: 1.2, py: 0.2, textTransform: 'none', fontSize: 11.5, fontWeight: 700, border: '1px solid rgba(15,17,22,0.12)', borderRadius: '8px !important' }, '& .Mui-selected': { bgcolor: `${INK_STUDIO} !important`, color: '#fff !important' } }}
+          >
+            <ToggleButton value="rendered">Preview</ToggleButton>
+            <ToggleButton value="source">HTML</ToggleButton>
+          </ToggleButtonGroup>
+        </Stack>
+        {emailView === 'rendered' ? (
+          <Box component="iframe" title="email preview" srcDoc={emailHtml || ''} sandbox="" sx={{ width: '100%', height: 560, border: 0, display: 'block', bgcolor: '#f4f4f5' }} />
+        ) : (
+          <Box component="pre" sx={{ m: 0, p: 2, maxHeight: 560, overflow: 'auto', fontSize: 11.5, color: '#3A4250', whiteSpace: 'pre-wrap', wordBreak: 'break-word', bgcolor: '#FAFBFC' }}>{emailHtml}</Box>
+        )}
+      </Box>
+    );
+  } else if (hasImages) {
+    hero = (
+      <Box>
+        <Box sx={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', bgcolor: '#0E1116', display: 'grid', placeItems: 'center', minHeight: 280 }}>
+          <Box component="img" src={selectedUrl} alt={item.title || 'graphic'} sx={{ width: '100%', maxHeight: 520, objectFit: 'contain', display: 'block' }} />
+          {urls.length > 1 && (
+            <>
+              <IconButton onClick={() => go(-1)} sx={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', bgcolor: 'rgba(255,255,255,0.9)', '&:hover': { bgcolor: '#fff' }, width: 34, height: 34 }}><ChevronLeftIcon /></IconButton>
+              <IconButton onClick={() => go(1)} sx={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', bgcolor: 'rgba(255,255,255,0.9)', '&:hover': { bgcolor: '#fff' }, width: 34, height: 34 }}><ChevronRightIcon /></IconButton>
+              <Box sx={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', px: 1.4, py: 0.4, borderRadius: 99, bgcolor: 'rgba(14,17,22,0.78)', color: '#fff', fontSize: 11.5, fontWeight: 700 }}>{safeIdx + 1} / {urls.length}</Box>
+            </>
+          )}
+        </Box>
+        {urls.length > 1 && (
+          <Stack direction="row" spacing={1} sx={{ mt: 1.25, overflowX: 'auto', pb: 0.5 }}>
+            {urls.map((u, i) => (
+              <Box key={u} component="img" src={u} onClick={() => setActiveIdx(i)} alt={`thumb ${i + 1}`}
+                sx={{ height: portrait ? 64 : 54, width: portrait ? 50 : 54, objectFit: 'cover', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, border: '2px solid', borderColor: i === safeIdx ? accent : 'transparent', opacity: i === safeIdx ? 1 : 0.55, transition: TRANSITION, '&:hover': { opacity: 1 } }} />
+            ))}
+          </Stack>
+        )}
+      </Box>
+    );
+  } else {
+    hero = (
+      <Box sx={{ borderRadius: '16px', border: '1px solid rgba(15,17,22,0.08)', bgcolor: '#fff', p: { xs: 2.5, md: 3.5 }, maxHeight: 560, overflow: 'auto' }}>
+        <Box
+          sx={{
+            '& h1': { fontSize: 22, fontWeight: 800, mt: 1.5 },
+            '& h2': { fontSize: 18, fontWeight: 700, mt: 2.5, color: accent },
+            '& h3': { fontSize: 15, fontWeight: 700, mt: 2 },
+            '& p': { my: 1, lineHeight: 1.75, fontSize: 14.5 },
+            '& ul': { pl: 3, my: 1 },
+            '& li': { mb: 0.5, fontSize: 14.5 },
+            '& hr': { border: 0, borderTop: '1px solid', borderColor: 'divider', my: 2 },
+          }}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(item.body) }}
+        />
+      </Box>
+    );
+  }
+
   return (
-    <>
-      <CanvasStage
-        item={item}
-        kind={kind}
-        urls={urls}
-        slides={slides}
-        activeIdx={safeIdx}
-        setActiveIdx={setActiveIdx}
-        portrait={portrait}
-        isNewsletter={isNewsletter}
-        emailHtml={emailHtml}
-        emailView={emailView}
-        setEmailView={setEmailView}
-        brand={brand}
-      />
-      <Inspector
-        item={item}
-        brand={brand}
-        kind={kind}
-        urls={urls}
-        activeIdx={safeIdx}
-        isNewsletter={isNewsletter}
-        emailHtml={emailHtml}
-        emailFormat={emailFormat}
-        setEmailFormat={setEmailFormat}
-        imgStyle={imgStyle}
-        setImgStyle={setImgStyle}
-        imgModel={imgModel}
-        setImgModel={setImgModel}
-        busy={busy}
-        error={error}
-        onRebuild={rebuild}
-        onCopy={onCopy}
-        onRefresh={onRefresh}
-      />
-    </>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 520 }}>
+      {/* top bar */}
+      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ pb: 2, flexWrap: 'wrap', rowGap: 1 }}>
+        <IconButton onClick={onBack} sx={{ width: 38, height: 38, borderRadius: '12px', border: '1px solid rgba(15,17,22,0.1)', bgcolor: '#fff', '&:hover': { bgcolor: '#F3F5F7' } }} aria-label="back">
+          <ArrowBackIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography noWrap sx={{ fontSize: 16, fontWeight: 800, color: INK_STUDIO, letterSpacing: '-0.01em', maxWidth: { xs: 180, sm: 360 } }}>{title || 'Untitled'}</Typography>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.3 }}>
+            <Typography sx={{ fontSize: 11.5, color: 'text.secondary' }}>{KIND_LABEL[kind]}{item.platform ? ` · ${item.platform}` : ''}</Typography>
+            <StatusBadge status={item.status} />
+          </Stack>
+        </Box>
+        <Box sx={{ flex: 1 }} />
+        <Button onClick={share} startIcon={<ShareOutlinedIcon sx={{ fontSize: 16 }} />} sx={{ textTransform: 'none', fontWeight: 700, color: INK_STUDIO, borderRadius: '12px', px: 1.5, '&:hover': { bgcolor: '#F3F5F7' } }}>Share</Button>
+        <Button onClick={() => setTab('export')} startIcon={<VisibilityIcon sx={{ fontSize: 16 }} />} variant="outlined" sx={{ textTransform: 'none', fontWeight: 700, color: INK_STUDIO, borderColor: 'rgba(15,17,22,0.14)', borderRadius: '12px', px: 1.75, '&:hover': { borderColor: INK_STUDIO, bgcolor: '#F3F5F7' } }}>Export</Button>
+        <Button
+          onClick={togglePublish}
+          disabled={publishing}
+          startIcon={publishing ? <CircularProgress size={15} color="inherit" /> : <RocketLaunchIcon sx={{ fontSize: 16 }} />}
+          variant="contained"
+          sx={{ textTransform: 'none', fontWeight: 800, borderRadius: '12px', px: 2, bgcolor: INK_STUDIO, '&:hover': { bgcolor: '#000' } }}
+        >
+          {item.status === 'published' ? 'Unpublish' : 'Publish'}
+        </Button>
+        <IconButton onClick={(e) => setMenuEl(e.currentTarget)} sx={{ width: 38, height: 38, borderRadius: '12px', border: '1px solid rgba(15,17,22,0.1)', bgcolor: '#fff', '&:hover': { bgcolor: '#F3F5F7' } }} aria-label="more">
+          <MoreHorizIcon sx={{ fontSize: 18 }} />
+        </IconButton>
+        <Menu anchorEl={menuEl} open={!!menuEl} onClose={() => setMenuEl(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
+          <MenuItem onClick={() => { setMenuEl(null); downloadPdf(); }}>
+            <ListItemIcon><PictureAsPdfIcon fontSize="small" /></ListItemIcon>Download as PDF
+          </MenuItem>
+          {hasImages && (
+            <MenuItem onClick={() => { setMenuEl(null); downloadImage(selectedUrl, `${slugify(item.title || 'graphic')}-${safeIdx + 1}.png`); }}>
+              <ListItemIcon><DownloadIcon fontSize="small" /></ListItemIcon>Download current image
+            </MenuItem>
+          )}
+          {showEmailFrame && (
+            <MenuItem onClick={() => { setMenuEl(null); downloadHtml(`${slugify(item.title || 'newsletter')}.html`, emailHtml!); }}>
+              <ListItemIcon><CodeIcon fontSize="small" /></ListItemIcon>Download .html email
+            </MenuItem>
+          )}
+          <MenuItem onClick={() => { setMenuEl(null); downloadText(`${slugify(item.title || 'content')}.md`, itemToMarkdown(item)); }}>
+            <ListItemIcon><DownloadIcon fontSize="small" /></ListItemIcon>Download .md (copy)
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={() => { setMenuEl(null); onDelete(); }} sx={{ color: 'error.main' }}>
+            <ListItemIcon><DeleteOutlineIcon fontSize="small" color="error" /></ListItemIcon>Delete content
+          </MenuItem>
+        </Menu>
+      </Stack>
+
+      {/* two-pane body */}
+      <Box sx={{ flex: 1, minHeight: 0, display: 'grid', gap: 2.5, gridTemplateColumns: { xs: '1fr', lg: 'minmax(360px, 430px) minmax(0, 1fr)' }, overflow: { lg: 'hidden' } }}>
+        {/* LEFT — form card */}
+        <Box sx={{ ...cardSx, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+          <Box sx={{ display: 'flex', gap: 0.5, p: 1, borderBottom: '1px solid rgba(15,17,22,0.06)' }}>
+            {tabs.map((t) => (
+              <Box key={t.id} role="button" onClick={() => setTab(t.id)}
+                sx={{ flex: 1, py: 0.9, textAlign: 'center', borderRadius: '11px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700,
+                  color: tab === t.id ? '#fff' : 'text.secondary', bgcolor: tab === t.id ? INK_STUDIO : 'transparent', transition: TRANSITION,
+                  '&:hover': { bgcolor: tab === t.id ? INK_STUDIO : '#F3F5F7' } }}>
+                {t.label}
+              </Box>
+            ))}
+          </Box>
+
+          <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+            {tab === 'details' && (
+              <Stack spacing={3}>
+                <EditorSection
+                  title="Basic Information"
+                  action={<Chip size="small" icon={<AutoAwesomeIcon sx={{ fontSize: 13, color: '#fff !important' }} />} label="AI Generated" sx={{ height: 24, fontSize: 10.5, fontWeight: 700, color: '#fff', background: BRAND.gradient, '& .MuiChip-label': { px: 0.75 } }} />}
+                >
+                  <Stack spacing={1.75}>
+                    <Box>
+                      <TextField label="Title" size="small" fullWidth value={title} onChange={(e) => setTitle(e.target.value)} inputProps={{ maxLength: 120 }} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }} />
+                      <Typography sx={{ fontSize: 10.5, color: 'text.secondary', textAlign: 'right', mt: 0.4 }}>{title.length}/120</Typography>
+                    </Box>
+                    <TextField label="Slug" size="small" fullWidth value={slug} onChange={(e) => setSlug(slugify(e.target.value))} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }} />
+                    <Box>
+                      <TextField label="Description / body" size="small" fullWidth multiline minRows={5} value={desc} onChange={(e) => setDesc(e.target.value)} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }} />
+                      <Typography sx={{ fontSize: 10.5, color: 'text.secondary', textAlign: 'right', mt: 0.4 }}>{desc.trim().split(/\s+/).filter(Boolean).length} words</Typography>
+                    </Box>
+                    <Stack direction="row" spacing={1.25} alignItems="center">
+                      <Button onClick={save} disabled={saving || !dirty} variant="contained" startIcon={saving ? <CircularProgress size={15} color="inherit" /> : undefined}
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', bgcolor: INK_STUDIO, '&:hover': { bgcolor: '#000' } }}>
+                        {saving ? 'Saving…' : 'Save changes'}
+                      </Button>
+                      {savedAt && !dirty && (
+                        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: BRAND.tealDeep }}>
+                          <CheckCircleIcon sx={{ fontSize: 16 }} />
+                          <Typography sx={{ fontSize: 12, fontWeight: 600 }}>Saved</Typography>
+                        </Stack>
+                      )}
+                    </Stack>
+                  </Stack>
+                </EditorSection>
+
+                {hasImages && (
+                  <EditorSection title="Thumbnail">
+                    <Box component="img" src={urls[0]} alt="thumbnail" sx={{ width: '100%', borderRadius: '14px', border: '1px solid rgba(15,17,22,0.08)', display: 'block' }} />
+                  </EditorSection>
+                )}
+
+                <EditorSection title="Visibility">
+                  <Stack spacing={0.5}>
+                    {([['Exclusive content', exclusive, setExclusive], ['Allow likes & reactions', allowLikes, setAllowLikes], ['Schedule publication', scheduleOn, setScheduleOn]] as [string, boolean, (v: boolean) => void][]).map(([label, val, set]) => (
+                      <Stack key={label} direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 0.4 }}>
+                        <Typography sx={{ fontSize: 13.5, color: INK_STUDIO }}>{label}</Typography>
+                        <Switch checked={val} onChange={(e) => set(e.target.checked)} size="small" sx={{ '& .Mui-checked': { color: BRAND.tealDeep }, '& .Mui-checked + .MuiSwitch-track': { bgcolor: `${BRAND.teal} !important` } }} />
+                      </Stack>
+                    ))}
+                  </Stack>
+                  {scheduleOn && (
+                    <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+                      <MiniCalendar selected={scheduleDay} onSelect={setScheduleDay} />
+                      <TextField label="Time" type="time" size="small" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }} />
+                    </Stack>
+                  )}
+                </EditorSection>
+
+                <EditorSection title="Creators">
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                    <Chip avatar={<Avatar sx={{ bgcolor: INK_STUDIO, color: '#fff !important', fontSize: 12 }}>{creatorName.charAt(0)}</Avatar>} label={creatorName} sx={{ borderRadius: '999px', fontWeight: 600 }} />
+                  </Stack>
+                </EditorSection>
+              </Stack>
+            )}
+
+            {tab === 'design' && (
+              <Stack spacing={3}>
+                <ScriptToVideo item={item} />
+
+                <EditorSection title="Graphics" subtitle="Brand-aware images, carousels & email">
+                  <Stack spacing={1.5}>
+                    <TextField select size="small" label="Style" value={imgStyle} onChange={(e) => setImgStyle(e.target.value)} fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}>
+                      {IMAGE_STYLES.map((s) => <MenuItem key={s.id} value={s.id}>{s.label}</MenuItem>)}
+                    </TextField>
+                    <TextField select size="small" label="Image model" value={imgModel} onChange={(e) => setImgModel(e.target.value)} fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}>
+                      {IMAGE_MODELS.map((mm) => <MenuItem key={mm.id} value={mm.id}>{mm.label}</MenuItem>)}
+                    </TextField>
+                    {isNewsletter && (
+                      <TextField select size="small" label="Email format" value={emailFormat} onChange={(e) => setEmailFormat(e.target.value)} fullWidth sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}>
+                        <MenuItem value="html">Branded HTML</MenuItem>
+                        <MenuItem value="normal">Plain / markdown</MenuItem>
+                      </TextField>
+                    )}
+                    <Button variant="contained" onClick={rebuild} disabled={busy}
+                      startIcon={busy ? <CircularProgress size={16} color="inherit" /> : hasImages ? <RefreshIcon /> : <AddPhotoAlternateIcon />}
+                      sx={{ background: busy ? undefined : BRAND.gradient, fontWeight: 700, borderRadius: '12px', textTransform: 'none', '&:hover': { background: busy ? undefined : `linear-gradient(135deg,${BRAND.amberDeep},${BRAND.tealDeep})` } }}>
+                      {busy ? 'Rendering…' : hasImages ? 'Regenerate graphics' : 'Add graphics'}
+                    </Button>
+                    {busy && <Typography variant="caption" color="text.secondary">Rendering brand-aware graphics — a full carousel can take a minute.</Typography>}
+                  </Stack>
+                  {isNewsletter && !emailHtml && emailFormat === 'html' && (
+                    <Alert severity="info" sx={{ mt: 1.5 }}>No branded HTML yet. Keep <strong>Branded HTML</strong> selected and regenerate to build a responsive email.</Alert>
+                  )}
+                </EditorSection>
+
+                {hasImages && (
+                  <EditorSection title={urls.length > 1 ? `Edit image — ${safeIdx + 1} / ${urls.length}` : 'Edit image'} subtitle="Regenerates this exact slot, keeping brand colours & logo">
+                    <Card variant="outlined" sx={{ overflow: 'hidden', mb: 1.5, borderRadius: '14px' }}>
+                      <Box component="img" src={selectedUrl} alt="selected" sx={{ width: '100%', display: 'block' }} />
+                    </Card>
+                    <Stack spacing={1.25}>
+                      <TextField size="small" fullWidth multiline minRows={3} value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="Describe the change — e.g. 'make the background deep navy and add a laptop on the desk'" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '12px' } }} />
+                      <Button variant="contained" onClick={regenImage} disabled={editBusy || !instruction.trim() || !selectedImgId} startIcon={editBusy ? <CircularProgress size={14} color="inherit" /> : <AutoFixHighIcon />}
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: '12px', bgcolor: INK_STUDIO, '&:hover': { bgcolor: '#000' } }}>
+                        {editBusy ? 'Regenerating…' : 'Apply change'}
+                      </Button>
+                      {editError && <Alert severity="error">{editError}</Alert>}
+                    </Stack>
+                  </EditorSection>
+                )}
+              </Stack>
+            )}
+
+            {tab === 'export' && (
+              <Stack spacing={3}>
+                <EditorSection title="Download & export">
+                  <Stack spacing={1.25}>
+                    {hasImages && (
+                      <Button fullWidth variant="outlined" startIcon={<DownloadIcon />} onClick={() => downloadImage(selectedUrl, `${slugify(item.title || 'graphic')}-${safeIdx + 1}.png`)} sx={{ textTransform: 'none', borderRadius: '12px', justifyContent: 'flex-start' }}>Download current image</Button>
+                    )}
+                    <Button fullWidth variant="outlined" startIcon={<PictureAsPdfIcon />} onClick={downloadPdf} sx={{ textTransform: 'none', borderRadius: '12px', justifyContent: 'flex-start' }}>
+                      {urls.length > 1 ? `Download all ${kind === 'pdf' ? 'pages' : 'slides'} as PDF` : 'Download as PDF'}
+                    </Button>
+                    {showEmailFrame && (
+                      <Button fullWidth variant="outlined" startIcon={<CodeIcon />} onClick={() => downloadHtml(`${slugify(item.title || 'newsletter')}.html`, emailHtml!)} sx={{ textTransform: 'none', borderRadius: '12px', justifyContent: 'flex-start' }}>Download .html email</Button>
+                    )}
+                    <Button fullWidth variant="outlined" startIcon={<DownloadIcon />} onClick={() => downloadText(`${slugify(item.title || 'content')}.md`, itemToMarkdown(item))} sx={{ textTransform: 'none', borderRadius: '12px', justifyContent: 'flex-start' }}>Download .md (copy)</Button>
+                    <Button fullWidth variant="text" startIcon={<ContentCopyIcon />} onClick={() => onCopy(itemToMarkdown(item))} sx={{ textTransform: 'none', borderRadius: '12px', justifyContent: 'flex-start' }}>Copy everything</Button>
+                  </Stack>
+                </EditorSection>
+
+                {item.variants && Object.keys(item.variants).length > 0 && (
+                  <EditorSection title="Caption & variants">
+                    <Stack spacing={1.25}>
+                      {Object.entries(item.variants).map(([k, text]) => (
+                        <Paper key={k} variant="outlined" sx={{ p: 1.75, borderRadius: '14px', border: '1px solid rgba(15,17,22,0.08)' }}>
+                          <Stack direction="row" justifyContent="space-between" alignItems="center">
+                            <Chip size="small" label={k} sx={{ bgcolor: BRAND.amberSoft, color: BRAND.amberDeep, fontWeight: 700 }} />
+                            <IconButton size="small" onClick={() => onCopy(String(text))} aria-label="copy variant"><ContentCopyIcon fontSize="small" /></IconButton>
+                          </Stack>
+                          <Typography sx={{ whiteSpace: 'pre-wrap', mt: 1, fontSize: 13 }}>{Array.isArray(text) ? (text as string[]).join(' ') : String(text)}</Typography>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  </EditorSection>
+                )}
+              </Stack>
+            )}
+          </Box>
+        </Box>
+
+        {/* RIGHT — live preview */}
+        <Box sx={{ ...cardSx, minHeight: 0, overflowY: { lg: 'auto' }, p: { xs: 2.5, md: 3.5 } }}>
+          {hero}
+
+          <Typography sx={{ fontSize: 24, fontWeight: 800, color: INK_STUDIO, letterSpacing: '-0.02em', mt: 3 }}>{title || 'Untitled'}</Typography>
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 1 }}>
+            <Stack direction="row" spacing={0.75} alignItems="center">
+              <Avatar sx={{ width: 26, height: 26, bgcolor: INK_STUDIO, fontSize: 12 }}>{creatorName.charAt(0)}</Avatar>
+              <Typography sx={{ fontSize: 13, fontWeight: 600, color: INK_STUDIO }}>{creatorName}</Typography>
+            </Stack>
+            <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: 'text.disabled' }} />
+            <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{dateLabel}</Typography>
+          </Stack>
+
+          {(topics.length > 0 || item.platform) && (
+            <Stack direction="row" spacing={1} sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
+              {item.platform && <Chip size="small" label={item.platform} sx={{ bgcolor: '#EEF6F2', color: BRAND.tealDeep, fontWeight: 700 }} />}
+              {topics.slice(0, 5).map((t) => <Chip key={t} size="small" label={t} variant="outlined" sx={{ borderColor: 'rgba(15,17,22,0.14)' }} />)}
+            </Stack>
+          )}
+
+          {desc && (
+            <Typography sx={{ mt: 2.5, fontSize: 14.5, lineHeight: 1.8, color: '#3A4250', whiteSpace: kind === 'text' || kind === 'image' ? 'pre-wrap' : 'normal' }}>
+              {desc.length > 600 ? `${desc.slice(0, 600)}…` : desc}
+            </Typography>
+          )}
+
+          <Divider sx={{ my: 3 }} />
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3,1fr)' }, gap: 2.5 }}>
+            <MetaCell label="Format" value={KIND_LABEL[kind]} />
+            <MetaCell label="Audience" value={audience} />
+            <MetaCell label="Tone" value={tone} />
+            <MetaCell label="Funnel" value={funnel} />
+            <MetaCell label="Length" value={lengthLabel} />
+            <MetaCell label="Status" value={<StatusBadge status={item.status} />} />
+          </Box>
+
+          {keywords.length > 0 && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.06em', mb: 1 }}>Keywords</Typography>
+              <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                {keywords.map((k) => <Chip key={k} size="small" label={k} variant="outlined" sx={{ borderColor: 'rgba(15,17,22,0.12)', fontSize: 11.5 }} />)}
+              </Stack>
+            </>
+          )}
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
@@ -1569,9 +2038,13 @@ function StudioEditor({
 function StudioContent() {
   const searchParams = useSearchParams();
   const itemId = searchParams.get('item');
+  const initialMode = searchParams.get('mode') === 'calendar' ? 'calendar' : 'prompt';
+  const initialCalId = searchParams.get('cal') || undefined;
+  const initialDate = searchParams.get('date') || undefined;
   const { activeWorkspace } = useAuth();
   const confirm = useConfirm();
 
+  const { models: aiModels } = useAIModels();
   const [provider, setProvider] = useState<string>(AI_MODELS[0].id);
   const [preview, setPreview] = useState<ContentItem | null>(null);
   const [list, setList] = useState<ContentItem[]>([]);
@@ -1629,14 +2102,26 @@ function StudioContent() {
     }
   };
 
+  if (preview) {
+    return (
+      <StudioEditor
+        item={preview}
+        onBack={() => setPreview(null)}
+        onCopy={copy}
+        onRefresh={onRefresh}
+        onDelete={() => remove(preview)}
+      />
+    );
+  }
+
   return (
-    <Stack spacing={3} sx={{ height: { lg: 'calc(100vh - 140px)' } }}>
+    <Stack spacing={2.5}>
       {/* header */}
       <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ md: 'center' }} spacing={2}>
         <Box>
           <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>Content Studio</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            A real editor for your brand — generate, preview on the canvas, fine-tune images, and export.
+            A real editor for your brand — generate, preview, fine-tune images, and export.
           </Typography>
         </Box>
         <TextField
@@ -1650,79 +2135,23 @@ function StudioContent() {
             '& .MuiOutlinedInput-root': { borderRadius: 3 },
           }}
         >
-          {AI_MODELS.map((m) => (
+          {aiModels.map((m) => (
             <MenuItem key={m.id} value={m.id}>{m.label}</MenuItem>
           ))}
         </TextField>
       </Stack>
 
-      {/* editor shell */}
-      <Box
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          display: 'grid',
-          gap: 2,
-          gridTemplateColumns: { xs: '1fr', lg: '360px minmax(0, 1fr) 340px' },
-          alignItems: 'stretch',
-        }}
-      >
-        <CreateRail
-          provider={provider}
-          list={list}
-          loading={loading}
-          selectedId={preview?.id}
-          onPreview={setPreview}
-          onCreated={onCreated}
-          onDelete={remove}
-        />
-
-        {preview ? (
-          <StudioEditor item={preview} onCopy={copy} onRefresh={onRefresh} />
-        ) : (
-          <Box
-            sx={{
-              gridColumn: { lg: '2 / 4' },
-              minWidth: 0,
-              minHeight: { xs: 420, lg: 0 },
-              borderRadius: PANEL_RADIUS,
-              bgcolor: STAGE_BG,
-              backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)',
-              backgroundSize: '24px 24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              p: 4,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.12), 0 12px 40px rgba(0,0,0,0.15)',
-            }}
-          >
-            <Box sx={{ textAlign: 'center', color: 'rgba(255,255,255,0.65)', maxWidth: 440 }}>
-              <Box
-                sx={{
-                  width: 80,
-                  height: 80,
-                  mx: 'auto',
-                  mb: 2.5,
-                  borderRadius: 5,
-                  display: 'grid',
-                  placeItems: 'center',
-                  background: BRAND.gradient,
-                  boxShadow: '0 12px 36px rgba(20,187,135,0.35), 0 4px 12px rgba(255,175,6,0.2)',
-                }}
-              >
-                <AutoAwesomeIcon sx={{ color: '#fff', fontSize: 38 }} />
-              </Box>
-              <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700, mb: 0.75, letterSpacing: '-0.01em' }}>
-                Your canvas is ready
-              </Typography>
-              <Typography variant="body2" sx={{ lineHeight: 1.7 }}>
-                Use <strong>Create</strong> on the left to generate a post, carousel, article, newsletter or PDF —
-                it appears here on the canvas where you can preview slides, edit images with a prompt, and export.
-              </Typography>
-            </Box>
-          </Box>
-        )}
-      </Box>
+      <CreateStudio
+        provider={provider}
+        list={list}
+        loading={loading}
+        initialMode={initialMode}
+        initialCalId={initialCalId}
+        initialDate={initialDate}
+        onPreview={setPreview}
+        onCreated={onCreated}
+        onDelete={remove}
+      />
     </Stack>
   );
 }

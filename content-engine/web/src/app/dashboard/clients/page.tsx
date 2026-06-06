@@ -9,10 +9,6 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   IconButton,
   InputAdornment,
   MenuItem,
@@ -35,6 +31,8 @@ import RestartAltIcon from '@mui/icons-material/RestartAltOutlined';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUserOutlined';
 import VisibilityIcon from '@mui/icons-material/VisibilityOutlined';
+import PersonAddAlt1RoundedIcon from '@mui/icons-material/PersonAddAlt1Rounded';
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import { useAuth } from '@/lib/auth';
 import {
   PortalAdmin,
@@ -43,6 +41,15 @@ import {
   type PortalRole,
   type PortalInviteCreated,
 } from '@/lib/api';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
 import { BRAND } from '@/theme/theme';
 
 const INK = '#11151B';
@@ -335,13 +342,28 @@ export default function ClientsPage() {
         </Stack>
       )}
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>
-          {created ? 'Invite created' : 'Invite a client'}
-        </DialogTitle>
-        <DialogContent dividers>
+      <PremiumDialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm">
+        {created ? (
+          <DialogHero
+            icon={<CheckCircleRoundedIcon />}
+            title="Invite created"
+            subtitle="Share the secure link below — it is shown only once."
+            onClose={() => { setCreated(null); setDialogOpen(false); }}
+            tint={BRAND.tealDeep}
+            tintSoft={BRAND.tealSoft}
+          />
+        ) : (
+          <DialogHero
+            icon={<PersonAddAlt1RoundedIcon />}
+            title="Invite a client"
+            subtitle="Bring a partner on board with a branded, read-only portal."
+            onClose={() => setDialogOpen(false)}
+          />
+        )}
+        <DialogBody>
           {created ? (
             <Stack spacing={2}>
+              <SectionLabel>Secure invite link</SectionLabel>
               <Alert severity="success" sx={{ borderRadius: 2 }}>
                 Share this secure link with <strong>{created.invite.email}</strong>. It is shown once.
               </Alert>
@@ -367,7 +389,8 @@ export default function ClientsPage() {
               </Typography>
             </Stack>
           ) : (
-            <Stack spacing={2.5} sx={{ pt: 1 }}>
+            <Stack spacing={2.5}>
+              <SectionLabel>Invite details</SectionLabel>
               <TextField
                 label="Client email"
                 type="email"
@@ -394,35 +417,34 @@ export default function ClientsPage() {
               </TextField>
             </Stack>
           )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
+        </DialogBody>
+        <DialogFooter>
           {created ? (
             <>
-              <Button onClick={() => copy(inviteLink(created.token))} startIcon={<ContentCopyIcon />} sx={{ textTransform: 'none', fontWeight: 700 }}>
+              <Button onClick={() => copy(inviteLink(created.token))} startIcon={<ContentCopyIcon />} sx={ghostPillSx}>
                 Copy link
               </Button>
-              <Button variant="contained" onClick={() => { setCreated(null); setDialogOpen(false); }} sx={{ textTransform: 'none', fontWeight: 700 }}>
+              <Button onClick={() => { setCreated(null); setDialogOpen(false); }} sx={inkPillSx}>
                 Done
               </Button>
             </>
           ) : (
             <>
-              <Button onClick={() => setDialogOpen(false)} sx={{ textTransform: 'none', fontWeight: 700 }}>
+              <Button onClick={() => setDialogOpen(false)} sx={ghostPillSx}>
                 Cancel
               </Button>
               <Button
-                variant="contained"
                 onClick={submitInvite}
                 disabled={submitting || !email.trim()}
                 startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <MailOutlineIcon />}
-                sx={{ textTransform: 'none', fontWeight: 700 }}
+                sx={inkPillSx}
               >
                 Send invite
               </Button>
             </>
           )}
-        </DialogActions>
-      </Dialog>
+        </DialogFooter>
+      </PremiumDialog>
 
       <Snackbar
         open={!!toast}

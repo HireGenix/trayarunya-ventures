@@ -2,18 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
+  alpha,
   Alert,
+  Avatar,
   Box,
   Button,
   Card,
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Grid,
   IconButton,
   MenuItem,
   Stack,
@@ -31,6 +28,24 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import ShareIcon from '@mui/icons-material/Share';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
+import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded';
+import EventBusyRoundedIcon from '@mui/icons-material/EventBusyRounded';
+import AddLinkRoundedIcon from '@mui/icons-material/AddLinkRounded';
+import LinkRoundedIcon from '@mui/icons-material/LinkRounded';
+import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded';
+import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
+import RocketLaunchRoundedIcon from '@mui/icons-material/RocketLaunchRounded';
+import LinkedInIcon from '@mui/icons-material/LinkedIn';
+import FacebookIcon from '@mui/icons-material/Facebook';
+import InstagramIcon from '@mui/icons-material/Instagram';
+import YouTubeIcon from '@mui/icons-material/YouTube';
+import PinterestIcon from '@mui/icons-material/Pinterest';
+import RedditIcon from '@mui/icons-material/Reddit';
+import TwitterIcon from '@mui/icons-material/Twitter';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
+import PublicRoundedIcon from '@mui/icons-material/PublicRounded';
+import AlternateEmailRoundedIcon from '@mui/icons-material/AlternateEmailRounded';
+import type { SvgIconComponent } from '@mui/icons-material';
 import { useAuth } from '@/lib/auth';
 import {
   Social,
@@ -45,22 +60,167 @@ import {
   type PostStat,
 } from '@/lib/api';
 import { useConfirm } from '@/components/ConfirmDialog';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  FieldGrid,
+  FullSpan,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
+import { BRAND } from '@/theme/theme';
 
-const PLATFORM_LABEL: Record<string, string> = {
-  linkedin: 'LinkedIn',
-  x: 'X (Twitter)',
-  twitter: 'X (Twitter)',
-  facebook: 'Facebook',
-  instagram: 'Instagram',
-  youtube: 'YouTube',
-  tiktok: 'TikTok',
-  threads: 'Threads',
-  blog: 'Blog',
-  newsletter: 'Newsletter',
-  quora: 'Quora',
-  reddit: 'Reddit',
-  medium: 'Medium',
+interface PlatformMeta {
+  label: string;
+  color: string;
+  Icon: SvgIconComponent;
+}
+
+const PLATFORM_META: Record<string, PlatformMeta> = {
+  linkedin: { label: 'LinkedIn', color: '#0A66C2', Icon: LinkedInIcon },
+  x: { label: 'X (Twitter)', color: '#0F1419', Icon: TwitterIcon },
+  twitter: { label: 'X (Twitter)', color: '#0F1419', Icon: TwitterIcon },
+  facebook: { label: 'Facebook', color: '#1877F2', Icon: FacebookIcon },
+  instagram: { label: 'Instagram', color: '#E4405F', Icon: InstagramIcon },
+  youtube: { label: 'YouTube', color: '#FF0000', Icon: YouTubeIcon },
+  tiktok: { label: 'TikTok', color: '#111111', Icon: MusicNoteIcon },
+  pinterest: { label: 'Pinterest', color: '#E60023', Icon: PinterestIcon },
+  threads: { label: 'Threads', color: '#101010', Icon: AlternateEmailRoundedIcon },
+  reddit: { label: 'Reddit', color: '#FF4500', Icon: RedditIcon },
+  blog: { label: 'Blog', color: '#5A6472', Icon: PublicRoundedIcon },
+  newsletter: { label: 'Newsletter', color: '#5A6472', Icon: AlternateEmailRoundedIcon },
+  quora: { label: 'Quora', color: '#B92B27', Icon: PublicRoundedIcon },
+  medium: { label: 'Medium', color: '#5A6472', Icon: PublicRoundedIcon },
 };
+
+const PLATFORM_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(PLATFORM_META).map(([k, v]) => [k, v.label]),
+);
+
+const platformMeta = (p?: string | null): PlatformMeta =>
+  (p && PLATFORM_META[p]) || { label: p || 'Other', color: '#5A6472', Icon: PublicRoundedIcon };
+
+// Networks shown in the connect catalogue. One-click OAuth when configured on the
+// server; otherwise a token connect for enum-supported networks; the rest are
+// surfaced as "coming soon" so the platform line-up is always visible.
+const CONNECT_CATALOG = [
+  'instagram',
+  'tiktok',
+  'pinterest',
+  'linkedin',
+  'x',
+  'facebook',
+  'youtube',
+  'threads',
+  'reddit',
+];
+const MANUAL_OK = new Set(['linkedin', 'x', 'instagram', 'facebook', 'youtube', 'tiktok']);
+
+function fmtFullDate(date?: string | null): string {
+  if (!date) return '';
+  return new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+/** A compact calendar tile that makes a post's go-live date unmissable. */
+function DateBadge({ date, onClick }: { date?: string | null; onClick?: () => void }) {
+  if (!date) {
+    return (
+      <Stack
+        onClick={onClick}
+        alignItems="center"
+        justifyContent="center"
+        spacing={0.3}
+        sx={{
+          width: 60,
+          height: 66,
+          borderRadius: 2,
+          flexShrink: 0,
+          border: '1px dashed',
+          borderColor: 'divider',
+          color: 'text.disabled',
+          cursor: onClick ? 'pointer' : 'default',
+          '&:hover': onClick ? { borderColor: BRAND.amber, color: BRAND.amberDeep } : undefined,
+        }}
+      >
+        <EventBusyRoundedIcon sx={{ fontSize: 18 }} />
+        <Typography sx={{ fontSize: 9, fontWeight: 800, lineHeight: 1, letterSpacing: 0.3 }}>
+          SET DATE
+        </Typography>
+      </Stack>
+    );
+  }
+  const d = new Date(date + 'T00:00:00');
+  const wd = d.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase();
+  const day = d.getDate();
+  const mon = d.toLocaleDateString(undefined, { month: 'short' }).toUpperCase();
+  return (
+    <Stack
+      alignItems="center"
+      justifyContent="flex-start"
+      sx={{
+        width: 60,
+        height: 66,
+        borderRadius: 2,
+        flexShrink: 0,
+        overflow: 'hidden',
+        border: '1px solid',
+        borderColor: 'divider',
+        bgcolor: '#fff',
+        boxShadow: '0 1px 3px rgba(14,17,22,0.06)',
+      }}
+    >
+      <Box
+        sx={{
+          width: '100%',
+          textAlign: 'center',
+          bgcolor: BRAND.amberDeep,
+          color: '#fff',
+          fontSize: 9.5,
+          fontWeight: 800,
+          py: 0.25,
+          letterSpacing: 0.5,
+        }}
+      >
+        {mon}
+      </Box>
+      <Typography sx={{ fontSize: 22, fontWeight: 800, lineHeight: 1.15, color: BRAND.ink }}>
+        {day}
+      </Typography>
+      <Typography sx={{ fontSize: 9.5, fontWeight: 700, color: 'text.secondary', lineHeight: 1 }}>
+        {wd}
+      </Typography>
+    </Stack>
+  );
+}
+
+/** Brand-coloured platform chip with the network's icon. */
+function PlatformPill({ platform }: { platform: string }) {
+  const m = platformMeta(platform);
+  const Icon = m.Icon;
+  return (
+    <Chip
+      size="small"
+      icon={<Icon sx={{ fontSize: 15, color: `${m.color} !important` }} />}
+      label={m.label}
+      sx={{
+        height: 24,
+        fontWeight: 700,
+        fontSize: 11.5,
+        bgcolor: alpha(m.color, 0.1),
+        color: m.color,
+        border: `1px solid ${alpha(m.color, 0.25)}`,
+        '& .MuiChip-icon': { ml: 0.6 },
+      }}
+    />
+  );
+}
 
 interface ClientGroup {
   client: string;
@@ -113,6 +273,15 @@ export default function PublishingPage() {
   const [scheduling, setScheduling] = useState(false);
   const [postStats, setPostStats] = useState<Record<string, PostStat>>({});
   const [refreshingStats, setRefreshingStats] = useState(false);
+
+  // LinkedIn company-page selection
+  const [liOpen, setLiOpen] = useState(false);
+  const [liAccount, setLiAccount] = useState<SocialAccount | null>(null);
+  const [liPages, setLiPages] = useState<{ urn: string; id: string; name: string }[]>([]);
+  const [liSelected, setLiSelected] = useState<string | null>(null);
+  const [liLoading, setLiLoading] = useState(false);
+  const [liSaving, setLiSaving] = useState(false);
+  const [liError, setLiError] = useState('');
 
   const refresh = () => {
     Promise.all([
@@ -186,6 +355,41 @@ export default function PublishingPage() {
       }, 1200);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start OAuth');
+    }
+  };
+
+  const openLinkedinPages = async (acc: SocialAccount) => {
+    setLiAccount(acc);
+    setLiOpen(true);
+    setLiError('');
+    setLiPages([]);
+    setLiSelected(acc.external_id?.startsWith('urn:li:organization:') ? acc.external_id : null);
+    setLiLoading(true);
+    try {
+      const { pages, selected } = await Social.linkedinPages(acc.id);
+      setLiPages(pages);
+      setLiSelected(selected);
+    } catch (e) {
+      setLiError(e instanceof Error ? e.message : 'Could not load your LinkedIn pages');
+    } finally {
+      setLiLoading(false);
+    }
+  };
+
+  const chooseLinkedinTarget = async (urn: string | null, name?: string) => {
+    if (!liAccount) return;
+    setLiSaving(true);
+    setLiError('');
+    try {
+      await Social.setLinkedinTarget(liAccount.id, { urn, name });
+      setLiSelected(urn);
+      setMsg(urn ? `LinkedIn posts will publish to “${name}”.` : 'LinkedIn posts will publish to your personal profile.');
+      setLiOpen(false);
+      refresh();
+    } catch (e) {
+      setLiError(e instanceof Error ? e.message : 'Could not save your selection');
+    } finally {
+      setLiSaving(false);
     }
   };
 
@@ -334,9 +538,55 @@ export default function PublishingPage() {
     );
   }
 
-  const supported = Object.keys(providers).length
-    ? Object.keys(providers)
-    : ['linkedin', 'x', 'facebook', 'youtube'];
+  const activeAccounts = accounts.filter((a) => a.is_active);
+  const accountById = new Map(accounts.map((a) => [a.id, a]));
+  const contentById = new Map(content.map((c) => [c.id, c]));
+
+  // Flatten every ready post into a single date-sorted schedule list so the
+  // page reads as "what goes out, and when" instead of nested platform buckets.
+  type ScheduleRow = {
+    client: string;
+    platform: string;
+    item: ContentItem;
+    account?: SocialAccount;
+    date: string;
+  };
+  const scheduleRows: ScheduleRow[] = groups.flatMap((g) =>
+    Object.entries(g.platforms).flatMap(([platform, items]) =>
+      items.map((item) => ({
+        client: g.client,
+        platform,
+        item,
+        account: accountFor(platform),
+        date: (item.meta?.scheduled_date as string) || '',
+      })),
+    ),
+  );
+  scheduleRows.sort((a, b) => {
+    if (a.date && b.date) return a.date.localeCompare(b.date);
+    if (a.date) return -1;
+    if (b.date) return 1;
+    return (a.item.title || '').localeCompare(b.item.title || '');
+  });
+
+  const publishedCount = schedules.filter((s) => s.status === 'published').length;
+  const queuedCount = schedules.filter(
+    (s) => s.status !== 'published' && s.status !== 'failed',
+  ).length;
+  const datedCount = scheduleRows.filter((r) => r.date).length;
+
+  const stats: { label: string; value: number; Icon: SvgIconComponent; color: string }[] = [
+    { label: 'Ready posts', value: scheduleRows.length, Icon: RocketLaunchRoundedIcon, color: BRAND.amberDeep },
+    { label: 'With a date', value: datedCount, Icon: CalendarMonthRoundedIcon, color: BRAND.teal },
+    { label: 'Queued', value: queuedCount, Icon: ScheduleIcon, color: '#0A66C2' },
+    { label: 'Published', value: publishedCount, Icon: CheckCircleOutlineIcon, color: BRAND.tealDeep },
+    { label: 'Connected', value: activeAccounts.length, Icon: AddLinkRoundedIcon, color: BRAND.pink },
+  ];
+
+  const openManual = (platform: string) => {
+    setMPlatform(platform);
+    setManualOpen(true);
+  };
 
   return (
     <Stack spacing={3}>
@@ -351,323 +601,515 @@ export default function PublishingPage() {
         </Alert>
       )}
 
-      {/* Connected accounts */}
+      {/* Hero header with scheduling stats */}
+      <Card
+        sx={{
+          borderRadius: 3,
+          background: `linear-gradient(120deg, ${alpha(BRAND.amber, 0.16)} 0%, ${alpha(
+            BRAND.teal,
+            0.16,
+          )} 100%)`,
+          border: `1px solid ${alpha(BRAND.amberDeep, 0.18)}`,
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={2}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', md: 'center' }}
+          >
+            <Box>
+              <Stack direction="row" spacing={1.2} alignItems="center" sx={{ mb: 0.5 }}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 2,
+                    display: 'grid',
+                    placeItems: 'center',
+                    background: BRAND.gradient,
+                    color: '#fff',
+                  }}
+                >
+                  <RocketLaunchRoundedIcon />
+                </Box>
+                <Typography variant="h5" fontWeight={800} color={BRAND.ink}>
+                  Publishing
+                </Typography>
+              </Stack>
+              <Typography color="text.secondary" sx={{ maxWidth: 560 }}>
+                Every approved post, sorted by its go-live date. Connect your networks once, then
+                schedule or publish — TikTok, Instagram, Pinterest and more all live here.
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+              {stats.map((s) => {
+                const Icon = s.Icon;
+                return (
+                  <Stack
+                    key={s.label}
+                    alignItems="center"
+                    sx={{
+                      px: 2,
+                      py: 1.2,
+                      minWidth: 92,
+                      borderRadius: 2.5,
+                      bgcolor: '#fff',
+                      border: '1px solid',
+                      borderColor: alpha(s.color, 0.25),
+                      boxShadow: '0 2px 8px rgba(14,17,22,0.05)',
+                    }}
+                  >
+                    <Icon sx={{ fontSize: 20, color: s.color, mb: 0.3 }} />
+                    <Typography fontWeight={800} sx={{ fontSize: 22, lineHeight: 1, color: BRAND.ink }}>
+                      {s.value}
+                    </Typography>
+                    <Typography
+                      sx={{ fontSize: 10.5, fontWeight: 700, color: 'text.secondary', mt: 0.3 }}
+                    >
+                      {s.label}
+                    </Typography>
+                  </Stack>
+                );
+              })}
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {/* Connect a network — full brand catalogue */}
       <Card>
         <CardContent sx={{ p: 3 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
             <Typography variant="h6" fontWeight={800}>
-              Connected accounts
+              Connect your networks
             </Typography>
-            <Button size="small" color="inherit" onClick={() => setManualOpen(true)}>
-              Advanced: paste token
+            <Button
+              size="small"
+              color="inherit"
+              startIcon={<AddLinkRoundedIcon fontSize="small" />}
+              onClick={() => setManualOpen(true)}
+            >
+              Paste a token
             </Button>
           </Stack>
-          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
-            {accounts.length === 0 && (
-              <Typography color="text.secondary">No accounts connected yet.</Typography>
-            )}
-            {accounts.map((a) => (
-              <Card key={a.id} variant="outlined" sx={{ minWidth: 200 }}>
-                <Stack direction="row" alignItems="center" sx={{ p: 1.5 }}>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography fontWeight={600}>
-                      {PLATFORM_LABEL[a.platform] || a.platform}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {a.display_name || a.external_id || 'connected'}
-                    </Typography>
-                  </Box>
-                  <Chip
-                    size="small"
-                    label={a.is_active ? 'active' : 'inactive'}
-                    color={a.is_active ? 'success' : 'default'}
-                    sx={{ mr: 1 }}
-                  />
-                  <Tooltip title="Disconnect">
-                    <IconButton onClick={() => removeAccount(a)} aria-label="remove" size="small">
-                      <DeleteOutlineIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Stack>
-              </Card>
-            ))}
-          </Stack>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            CONNECT A NETWORK
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            One-click sign-in turns on once a network&apos;s app credentials are added to the server.
+            Until then you can connect with a token, and a few networks are arriving soon.
           </Typography>
-          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1 }}>
-            {supported.map((p) => {
-              const ready = !!providers[p];
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(5, 1fr)' },
+              gap: 1.5,
+            }}
+          >
+            {CONNECT_CATALOG.map((key) => {
+              const meta = platformMeta(key);
+              const Icon = meta.Icon;
+              const acc = accountFor(key);
+              const connected = !!acc;
+              const oneClick = !!providers[key];
+              const manual = MANUAL_OK.has(key);
+              let badge = 'Soon';
+              let badgeColor = '#9AA1AC';
+              let onClick: (() => void) | undefined;
+              if (connected) {
+                badge = 'Connected';
+                badgeColor = BRAND.tealDeep;
+                onClick = () => removeAccount(acc!);
+              } else if (oneClick) {
+                badge = '1-click';
+                badgeColor = meta.color;
+                onClick = () => connect(key);
+              } else if (manual) {
+                badge = 'Token';
+                badgeColor = BRAND.amberDeep;
+                onClick = () => openManual(key);
+              }
+              const disabled = !onClick;
               return (
                 <Tooltip
-                  key={p}
+                  key={key}
                   title={
-                    ready
-                      ? `Sign in securely with ${PLATFORM_LABEL[p] || p} — no tokens to copy`
-                      : `One-time setup needed: add the ${PLATFORM_LABEL[p] || p} app credentials in the server .env to enable one-click sign-in`
+                    connected
+                      ? `${meta.label} connected${acc?.display_name ? ` · ${acc.display_name}` : ''} — click to disconnect`
+                      : oneClick
+                        ? `Sign in securely with ${meta.label}`
+                        : manual
+                          ? `Connect ${meta.label} with an access token`
+                          : `${meta.label} support is coming soon`
                   }
                 >
-                  <span>
-                    <Button
-                      variant={ready ? 'contained' : 'outlined'}
+                  <Box
+                    onClick={onClick}
+                    sx={{
+                      position: 'relative',
+                      p: 1.5,
+                      borderRadius: 2.5,
+                      border: '1px solid',
+                      borderColor: connected ? alpha(BRAND.tealDeep, 0.4) : 'divider',
+                      bgcolor: connected ? alpha(BRAND.teal, 0.06) : '#fff',
+                      cursor: disabled ? 'default' : 'pointer',
+                      opacity: disabled ? 0.6 : 1,
+                      transition: 'all .15s',
+                      '&:hover': disabled
+                        ? undefined
+                        : { borderColor: meta.color, boxShadow: `0 4px 14px ${alpha(meta.color, 0.18)}` },
+                    }}
+                  >
+                    <Chip
+                      label={badge}
                       size="small"
-                      onClick={() => connect(p)}
-                      disabled={!ready}
-                      startIcon={<SendIcon sx={{ transform: 'rotate(-45deg)' }} />}
-                    >
-                      {ready ? `Sign in with ${PLATFORM_LABEL[p] || p}` : `${PLATFORM_LABEL[p] || p} (setup)`}
-                    </Button>
-                  </span>
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        height: 18,
+                        fontSize: 9.5,
+                        fontWeight: 800,
+                        bgcolor: alpha(badgeColor, 0.14),
+                        color: badgeColor,
+                      }}
+                    />
+                    <Stack spacing={0.8} alignItems="flex-start">
+                      <Avatar
+                        sx={{
+                          width: 34,
+                          height: 34,
+                          bgcolor: alpha(meta.color, 0.12),
+                          color: meta.color,
+                        }}
+                      >
+                        <Icon sx={{ fontSize: 20 }} />
+                      </Avatar>
+                      <Typography fontWeight={700} sx={{ fontSize: 13, color: BRAND.ink }}>
+                        {meta.label}
+                      </Typography>
+                      <Typography sx={{ fontSize: 11, color: 'text.secondary' }} noWrap>
+                        {connected
+                          ? acc?.display_name || 'Connected'
+                          : oneClick
+                            ? 'Sign in'
+                            : manual
+                              ? 'Use a token'
+                              : 'Coming soon'}
+                      </Typography>
+                    </Stack>
+                  </Box>
                 </Tooltip>
               );
             })}
-          </Stack>
-          {supported.some((p) => !providers[p]) && (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              <strong>One-click sign-in is built in</strong> — you don&apos;t paste tokens. A network
-              shows <em>(setup)</em> until its developer app is registered once. Each platform
-              (LinkedIn, X, Meta/Instagram, Google/YouTube) requires its own OAuth app with posting
-              permissions — that&apos;s a platform requirement every tool (Buffer, Hootsuite…) follows.
-              Add the <code>CLIENT_ID</code>/<code>CLIENT_SECRET</code> to the API <code>.env</code>{' '}
-              (see <code>OAUTH_SETUP.md</code>) and the button turns into one-click{' '}
-              &quot;Sign in with…&quot;. &quot;Paste token&quot; stays as an advanced fallback only.
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* LinkedIn — choose where posts publish (personal profile vs company page) */}
+      {accountFor('linkedin') && (
+        <Card>
+          <CardContent sx={{ p: 3 }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              alignItems={{ xs: 'flex-start', sm: 'center' }}
+              justifyContent="space-between"
+              spacing={1.5}
+            >
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Avatar sx={{ bgcolor: alpha('#0A66C2', 0.12), color: '#0A66C2', width: 38, height: 38 }}>
+                  <LinkedInIcon />
+                </Avatar>
+                <Box>
+                  <Typography fontWeight={800} sx={{ fontSize: 14, color: BRAND.ink }}>
+                    LinkedIn posting target
+                  </Typography>
+                  <Typography sx={{ fontSize: 12.5, color: 'text.secondary' }}>
+                    {accountFor('linkedin')?.external_id?.startsWith('urn:li:organization:')
+                      ? `Posting to company page · ${accountFor('linkedin')?.display_name || 'Selected page'}`
+                      : 'Posting to your personal profile'}
+                  </Typography>
+                </Box>
+              </Stack>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => openLinkedinPages(accountFor('linkedin')!)}
+                sx={{ fontWeight: 700, textTransform: 'none', borderColor: alpha('#0A66C2', 0.5), color: '#0A66C2' }}
+              >
+                Choose company page
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* LinkedIn page picker dialog */}
+      <PremiumDialog open={liOpen} onClose={() => setLiOpen(false)} maxWidth="xs">
+        <DialogHero
+          icon={<BusinessRoundedIcon />}
+          title="Where should LinkedIn posts go?"
+          subtitle="Publish as yourself or to a company page you administer."
+          onClose={() => setLiOpen(false)}
+          tint={BRAND.tealDeep}
+          tintSoft={BRAND.tealSoft}
+        />
+        <DialogBody>
+          {liError && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {liError}
             </Alert>
+          )}
+          {liLoading ? (
+            <Stack alignItems="center" sx={{ py: 4 }}>
+              <CircularProgress size={26} />
+              <Typography sx={{ mt: 1.5, fontSize: 13, color: 'text.secondary' }}>
+                Loading your company pages…
+              </Typography>
+            </Stack>
+          ) : (
+            <Stack spacing={1}>
+              <Box
+                onClick={() => !liSaving && chooseLinkedinTarget(null)}
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: liSelected === null ? '#0A66C2' : 'divider',
+                  bgcolor: liSelected === null ? alpha('#0A66C2', 0.06) : '#fff',
+                  cursor: liSaving ? 'default' : 'pointer',
+                }}
+              >
+                <Typography fontWeight={700} sx={{ fontSize: 13.5 }}>
+                  Personal profile
+                </Typography>
+                <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+                  Publish as yourself (default)
+                </Typography>
+              </Box>
+              {liPages.map((pg) => (
+                <Box
+                  key={pg.urn}
+                  onClick={() => !liSaving && chooseLinkedinTarget(pg.urn, pg.name)}
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: liSelected === pg.urn ? '#0A66C2' : 'divider',
+                    bgcolor: liSelected === pg.urn ? alpha('#0A66C2', 0.06) : '#fff',
+                    cursor: liSaving ? 'default' : 'pointer',
+                  }}
+                >
+                  <Typography fontWeight={700} sx={{ fontSize: 13.5 }}>
+                    {pg.name}
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Company page</Typography>
+                </Box>
+              ))}
+              {!liLoading && liPages.length === 0 && !liError && (
+                <Alert severity="info">
+                  No company pages found for this account. You need an Administrator role on a LinkedIn
+                  page, and your app must be approved for the Community Management API.
+                </Alert>
+              )}
+            </Stack>
+          )}
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setLiOpen(false)} disabled={liSaving} sx={ghostPillSx}>
+            Close
+          </Button>
+        </DialogFooter>
+      </PremiumDialog>
+
+      {/* Ready to publish — date-forward schedule rows */}
+      <Card>
+        <CardContent sx={{ p: 3 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+            <Typography variant="h6" fontWeight={800}>
+              Publishing schedule
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {scheduleRows.length} post{scheduleRows.length === 1 ? '' : 's'} ·{' '}
+              {datedCount} dated
+            </Typography>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Each row shows the exact date a post goes live and the network it targets. No date yet?
+            Click <strong>SET DATE</strong> to schedule it.
+          </Typography>
+          {scheduleRows.length === 0 ? (
+            <Alert severity="info">
+              No generated posts yet. Generate content in <strong>Content Studio</strong> — approved
+              posts with their planned dates will line up here.
+            </Alert>
+          ) : (
+            <Stack spacing={1.25}>
+              {scheduleRows.map(({ item, platform, account, date, client }) => {
+                const v = (item.variants || {}) as Record<string, unknown>;
+                const caption = (v.caption as string) || item.body || '';
+                const approved = ['approved', 'scheduled', 'published'].includes(item.status);
+                return (
+                  <Stack
+                    key={`${item.id}-${platform}`}
+                    direction="row"
+                    spacing={1.75}
+                    alignItems="center"
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2.5,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: '#fff',
+                      transition: 'box-shadow .15s',
+                      '&:hover': { boxShadow: '0 4px 16px rgba(14,17,22,0.07)' },
+                    }}
+                  >
+                    <DateBadge date={date} onClick={() => openSchedule(item)} />
+
+                    {item.image_url ? (
+                      <Box
+                        component="img"
+                        src={assetUrl(item.image_url)}
+                        alt={item.title || 'post'}
+                        sx={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: 2,
+                          objectFit: 'cover',
+                          flexShrink: 0,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                        }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          width: 64,
+                          height: 64,
+                          borderRadius: 2,
+                          flexShrink: 0,
+                          display: 'grid',
+                          placeItems: 'center',
+                          bgcolor: 'action.hover',
+                          color: 'text.disabled',
+                        }}
+                      >
+                        <ImageIcon />
+                      </Box>
+                    )}
+
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.4 }}>
+                        <PlatformPill platform={platform} />
+                        <Chip
+                          size="small"
+                          label={item.status}
+                          variant="outlined"
+                          sx={{ height: 20, fontSize: 10.5, textTransform: 'capitalize' }}
+                        />
+                        {!account && (
+                          <Chip
+                            size="small"
+                            color="warning"
+                            variant="outlined"
+                            label="no account"
+                            sx={{ height: 20, fontSize: 10.5 }}
+                          />
+                        )}
+                      </Stack>
+                      <Typography fontWeight={700} sx={{ fontSize: 14 }} noWrap>
+                        {item.title || item.body.slice(0, 50) || 'Untitled post'}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 1,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {date ? `${fmtFullDate(date)} · ` : ''}
+                        {client}
+                        {caption ? ` — ${caption}` : ''}
+                      </Typography>
+                    </Box>
+
+                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
+                      <Tooltip title="Delete post">
+                        <IconButton
+                          size="small"
+                          aria-label="delete post"
+                          onClick={() => removeContent(item)}
+                          sx={{ color: 'text.disabled' }}
+                        >
+                          <DeleteOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      {!approved ? (
+                        <Tooltip title="Approve this post before it can be published">
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="success"
+                            startIcon={<CheckCircleOutlineIcon />}
+                            onClick={() => approveItem(item)}
+                          >
+                            Approve
+                          </Button>
+                        </Tooltip>
+                      ) : (
+                        <Stack direction="row" spacing={0.5}>
+                          <Tooltip title={account ? 'Pick a date & time' : 'Connect an account first'}>
+                            <span>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<ScheduleIcon />}
+                                disabled={!account}
+                                onClick={() => openSchedule(item)}
+                              >
+                                Schedule
+                              </Button>
+                            </span>
+                          </Tooltip>
+                          <Tooltip title={account ? 'Publish now' : 'Connect an account first'}>
+                            <span>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                startIcon={
+                                  publishing === item.id ? (
+                                    <CircularProgress size={14} color="inherit" />
+                                  ) : (
+                                    <SendIcon />
+                                  )
+                                }
+                                disabled={!account || publishing !== null}
+                                onClick={() => publishItem(item)}
+                              >
+                                Publish
+                              </Button>
+                            </span>
+                          </Tooltip>
+                        </Stack>
+                      )}
+                    </Stack>
+                  </Stack>
+                );
+              })}
+            </Stack>
           )}
         </CardContent>
       </Card>
 
-      {/* Ready posts grouped by client -> platform */}
-      <Box>
-        <Typography variant="h6" fontWeight={800} sx={{ mb: 1 }}>
-          Ready to publish
-        </Typography>
-        {groups.length === 0 ? (
-          <Alert severity="info">
-            No generated posts yet. Generate content in <strong>Content Studio</strong> to see
-            ready-to-publish posts grouped by client and platform here.
-          </Alert>
-        ) : (
-          <Stack spacing={3}>
-            {groups.map((group) => (
-              <Card key={group.client}>
-                <CardContent sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 2 }}>
-                    {group.client}
-                  </Typography>
-                  <Stack spacing={2.5}>
-                    {Object.entries(group.platforms).map(([platform, items]) => {
-                      const account = accountFor(platform);
-                      return (
-                        <Box key={platform}>
-                          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                            <Chip
-                              size="small"
-                              label={PLATFORM_LABEL[platform] || platform}
-                              color="primary"
-                            />
-                            <Typography variant="caption" color="text.secondary">
-                              {items.length} post{items.length > 1 ? 's' : ''}
-                            </Typography>
-                            {!account && (
-                              <Chip
-                                size="small"
-                                variant="outlined"
-                                color="warning"
-                                label="no connected account"
-                              />
-                            )}
-                          </Stack>
-                          <Grid container spacing={2}>
-                            {items.map((item) => (
-                              <Grid key={item.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                                <Card variant="outlined" sx={{ height: '100%' }}>
-                                  {item.image_url ? (
-                                    <Box
-                                      component="img"
-                                      src={assetUrl(item.image_url)}
-                                      alt={item.title || 'post'}
-                                      sx={{
-                                        width: '100%',
-                                        display: 'block',
-                                        aspectRatio: '1 / 1',
-                                        objectFit: 'cover',
-                                      }}
-                                    />
-                                  ) : (
-                                    <Box
-                                      sx={{
-                                        height: 120,
-                                        display: 'grid',
-                                        placeItems: 'center',
-                                        bgcolor: 'action.hover',
-                                        color: 'text.disabled',
-                                      }}
-                                    >
-                                      <ImageIcon />
-                                    </Box>
-                                  )}
-                                  <CardContent sx={{ p: 1.5 }}>
-                                    <Stack
-                                      direction="row"
-                                      justifyContent="space-between"
-                                      alignItems="center"
-                                      sx={{ mb: 0.5 }}
-                                    >
-                                      <Typography variant="body2" fontWeight={700} noWrap>
-                                        {item.title || item.body.slice(0, 40)}
-                                      </Typography>
-                                      {(() => {
-                                        const d = (item.meta?.scheduled_date as string) || '';
-                                        return d ? (
-                                          <Chip
-                                            size="small"
-                                            label={new Date(d + 'T00:00:00').toLocaleDateString(
-                                              undefined,
-                                              { month: 'short', day: 'numeric' },
-                                            )}
-                                            variant="outlined"
-                                          />
-                                        ) : null;
-                                      })()}
-                                    </Stack>
-                                    {(() => {
-                                      const v = (item.variants ||
-                                        {}) as Record<string, unknown>;
-                                      const caption =
-                                        (v.caption as string) || item.body || '';
-                                      const tags = Array.isArray(v.hashtags)
-                                        ? (v.hashtags as string[])
-                                        : [];
-                                      return (
-                                        <>
-                                          <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                            sx={{
-                                              display: '-webkit-box',
-                                              WebkitLineClamp: 2,
-                                              WebkitBoxOrient: 'vertical',
-                                              overflow: 'hidden',
-                                              mb: 0.5,
-                                              minHeight: 32,
-                                            }}
-                                          >
-                                            {caption}
-                                          </Typography>
-                                          {tags.length > 0 && (
-                                            <Stack
-                                              direction="row"
-                                              sx={{ flexWrap: 'wrap', gap: 0.5, mb: 1 }}
-                                            >
-                                              {tags.slice(0, 4).map((t) => (
-                                                <Chip
-                                                  key={t}
-                                                  size="small"
-                                                  label={t}
-                                                  sx={{ height: 20, fontSize: 11 }}
-                                                />
-                                              ))}
-                                            </Stack>
-                                          )}
-                                        </>
-                                      );
-                                    })()}
-                                    <Stack
-                                      direction="row"
-                                      justifyContent="space-between"
-                                      alignItems="center"
-                                    >
-                                      <Chip size="small" label={item.status} variant="outlined" />
-                                      <Stack direction="row" spacing={0.5} alignItems="center">
-                                        <Tooltip title="Delete post">
-                                          <IconButton
-                                            size="small"
-                                            aria-label="delete post"
-                                            onClick={() => removeContent(item)}
-                                          >
-                                            <DeleteOutlineIcon fontSize="small" />
-                                          </IconButton>
-                                        </Tooltip>
-                                        {(() => {
-                                          const approved = ['approved', 'scheduled', 'published'].includes(
-                                            item.status,
-                                          );
-                                          if (!approved) {
-                                            return (
-                                              <Tooltip title="Approve this post before it can be published">
-                                                <Button
-                                                  size="small"
-                                                  variant="outlined"
-                                                  color="success"
-                                                  startIcon={<CheckCircleOutlineIcon />}
-                                                  onClick={() => approveItem(item)}
-                                                >
-                                                  Approve
-                                                </Button>
-                                              </Tooltip>
-                                            );
-                                          }
-                                          return (
-                                            <Tooltip
-                                              title={
-                                                account ? 'Publish now' : 'Connect an account first'
-                                              }
-                                            >
-                                              <span>
-                                                <Stack direction="row" spacing={0.5}>
-                                                  <Button
-                                                    size="small"
-                                                    variant="outlined"
-                                                    startIcon={<ScheduleIcon />}
-                                                    disabled={!account}
-                                                    onClick={() => openSchedule(item)}
-                                                  >
-                                                    Schedule
-                                                  </Button>
-                                                  <Button
-                                                    size="small"
-                                                    variant="contained"
-                                                    startIcon={
-                                                      publishing === item.id ? (
-                                                        <CircularProgress size={14} color="inherit" />
-                                                      ) : (
-                                                        <SendIcon />
-                                                      )
-                                                    }
-                                                    disabled={!account || publishing !== null}
-                                                    onClick={() => publishItem(item)}
-                                                  >
-                                                    Publish
-                                                  </Button>
-                                                </Stack>
-                                              </span>
-                                            </Tooltip>
-                                          );
-                                        })()}
-                                      </Stack>
-                                    </Stack>
-                                  </CardContent>
-                                </Card>
-                              </Grid>
-                            ))}
-                          </Grid>
-                        </Box>
-                      );
-                    })}
-                  </Stack>
-                </CardContent>
-              </Card>
-            ))}
-          </Stack>
-        )}
-      </Box>
-
-      {/* Recent / scheduled */}
+      {/* Recent / scheduled timeline */}
       <Card>
         <CardContent sx={{ p: 3 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
             <Typography variant="h6" fontWeight={800}>
-              Recent / scheduled posts
+              Scheduled &amp; published timeline
             </Typography>
             <Button
               size="small"
@@ -685,106 +1127,166 @@ export default function PublishingPage() {
             <Typography color="text.secondary">Nothing scheduled or published yet.</Typography>
           ) : (
             <Stack spacing={1}>
-              {schedules.map((s) => {
-                const stat = postStats[s.id];
-                return (
-                  <Box key={s.id} sx={{ py: 0.5 }}>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <Chip
-                        size="small"
-                        label={s.status}
-                        color={
-                          s.status === 'published'
-                            ? 'success'
-                            : s.status === 'failed'
-                              ? 'error'
-                              : 'default'
-                        }
-                      />
-                      <Typography variant="body2" sx={{ flex: 1 }} noWrap>
-                        {s.external_post_id ? `Post ${s.external_post_id}` : s.error || 'Pending'}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {new Date(s.scheduled_at).toLocaleString()}
-                      </Typography>
-                      <Tooltip title="Delete post">
-                        <IconButton
-                          size="small"
-                          onClick={() => removeSchedule(s)}
-                          aria-label="delete post"
-                          sx={{ color: 'text.disabled' }}
+              {[...schedules]
+                .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
+                .map((s) => {
+                  const stat = postStats[s.id];
+                  const acc = accountById.get(s.social_account_id);
+                  const item = contentById.get(s.content_item_id);
+                  const platform = acc?.platform || item?.platform || 'other';
+                  const meta = platformMeta(platform);
+                  const PIcon = meta.Icon;
+                  const when = new Date(s.scheduled_at);
+                  return (
+                    <Box
+                      key={s.id}
+                      sx={{
+                        py: 1,
+                        px: 1.5,
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Avatar
+                          sx={{
+                            width: 30,
+                            height: 30,
+                            bgcolor: alpha(meta.color, 0.12),
+                            color: meta.color,
+                          }}
                         >
-                          <DeleteOutlineIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                    {s.status === 'published' && stat && (
-                      <Stack
-                        direction="row"
-                        spacing={2}
-                        alignItems="center"
-                        sx={{ pl: 0.5, mt: 0.5, color: 'text.secondary' }}
-                      >
-                        <Tooltip title="Impressions">
-                          <Stack direction="row" spacing={0.5} alignItems="center">
-                            <VisibilityIcon sx={{ fontSize: 15 }} />
-                            <Typography variant="caption">
-                              {stat.impressions.toLocaleString()}
-                            </Typography>
-                          </Stack>
+                          <PIcon sx={{ fontSize: 17 }} />
+                        </Avatar>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" fontWeight={700} noWrap>
+                            {item?.title || item?.body?.slice(0, 50) || meta.label + ' post'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {when.toLocaleDateString(undefined, {
+                              weekday: 'short',
+                              month: 'short',
+                              day: 'numeric',
+                            })}{' '}
+                            · {when.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          size="small"
+                          label={s.status}
+                          sx={{
+                            height: 22,
+                            fontWeight: 700,
+                            textTransform: 'capitalize',
+                            bgcolor:
+                              s.status === 'published'
+                                ? alpha(BRAND.tealDeep, 0.12)
+                                : s.status === 'failed'
+                                  ? alpha(BRAND.pink, 0.12)
+                                  : alpha('#0A66C2', 0.1),
+                            color:
+                              s.status === 'published'
+                                ? BRAND.tealDeep
+                                : s.status === 'failed'
+                                  ? BRAND.pink
+                                  : '#0A66C2',
+                          }}
+                        />
+                        <Tooltip title="Delete post">
+                          <IconButton
+                            size="small"
+                            onClick={() => removeSchedule(s)}
+                            aria-label="delete post"
+                            sx={{ color: 'text.disabled' }}
+                          >
+                            <DeleteOutlineIcon fontSize="small" />
+                          </IconButton>
                         </Tooltip>
-                        <Tooltip title="Likes">
-                          <Stack direction="row" spacing={0.5} alignItems="center">
-                            <FavoriteBorderIcon sx={{ fontSize: 15 }} />
-                            <Typography variant="caption">{stat.likes.toLocaleString()}</Typography>
-                          </Stack>
-                        </Tooltip>
-                        <Tooltip title="Comments">
-                          <Stack direction="row" spacing={0.5} alignItems="center">
-                            <ChatBubbleOutlineIcon sx={{ fontSize: 15 }} />
-                            <Typography variant="caption">
-                              {stat.comments.toLocaleString()}
-                            </Typography>
-                          </Stack>
-                        </Tooltip>
-                        <Tooltip title="Shares">
-                          <Stack direction="row" spacing={0.5} alignItems="center">
-                            <ShareIcon sx={{ fontSize: 15 }} />
-                            <Typography variant="caption">{stat.shares.toLocaleString()}</Typography>
-                          </Stack>
-                        </Tooltip>
-                        {stat.simulated && (
-                          <Tooltip title="Estimated until the platform exposes live numbers for this post">
-                            <Chip
-                              size="small"
-                              label="estimated"
-                              variant="outlined"
-                              sx={{ height: 18, fontSize: 10 }}
-                            />
-                          </Tooltip>
-                        )}
                       </Stack>
-                    )}
-                  </Box>
-                );
-              })}
+                      {s.status === 'failed' && s.error && (
+                        <Typography variant="caption" color="error" sx={{ pl: 5.5 }}>
+                          {s.error}
+                        </Typography>
+                      )}
+                      {s.status === 'published' && stat && (
+                        <Stack
+                          direction="row"
+                          spacing={2}
+                          alignItems="center"
+                          sx={{ pl: 5.5, mt: 0.5, color: 'text.secondary' }}
+                        >
+                          <Tooltip title="Impressions">
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              <VisibilityIcon sx={{ fontSize: 15 }} />
+                              <Typography variant="caption">
+                                {stat.impressions.toLocaleString()}
+                              </Typography>
+                            </Stack>
+                          </Tooltip>
+                          <Tooltip title="Likes">
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              <FavoriteBorderIcon sx={{ fontSize: 15 }} />
+                              <Typography variant="caption">{stat.likes.toLocaleString()}</Typography>
+                            </Stack>
+                          </Tooltip>
+                          <Tooltip title="Comments">
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              <ChatBubbleOutlineIcon sx={{ fontSize: 15 }} />
+                              <Typography variant="caption">
+                                {stat.comments.toLocaleString()}
+                              </Typography>
+                            </Stack>
+                          </Tooltip>
+                          <Tooltip title="Shares">
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              <ShareIcon sx={{ fontSize: 15 }} />
+                              <Typography variant="caption">
+                                {stat.shares.toLocaleString()}
+                              </Typography>
+                            </Stack>
+                          </Tooltip>
+                          {stat.simulated && (
+                            <Tooltip title="Estimated until the platform exposes live numbers for this post">
+                              <Chip
+                                size="small"
+                                label="estimated"
+                                variant="outlined"
+                                sx={{ height: 18, fontSize: 10 }}
+                              />
+                            </Tooltip>
+                          )}
+                        </Stack>
+                      )}
+                    </Box>
+                  );
+                })}
             </Stack>
           )}
         </CardContent>
       </Card>
 
-      <Dialog open={manualOpen} onClose={() => setManualOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Connect with access token</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2.5} sx={{ mt: 1 }}>
+      <PremiumDialog open={manualOpen} onClose={() => setManualOpen(false)} maxWidth="sm">
+        <DialogHero
+          icon={<LinkRoundedIcon />}
+          title="Connect with access token"
+          subtitle="Link a network manually using a personal access token."
+          onClose={() => setManualOpen(false)}
+          tint={BRAND.tealDeep}
+          tintSoft={BRAND.tealSoft}
+        />
+        <DialogBody>
+          <SectionLabel>Account</SectionLabel>
+          <FieldGrid>
             <TextField
               select
               label="Platform"
               value={mPlatform}
               onChange={(e) => setMPlatform(e.target.value)}
               fullWidth
+              size="small"
             >
-              {supported.map((p) => (
+              {[...MANUAL_OK].map((p) => (
                 <MenuItem key={p} value={p}>
                   {PLATFORM_LABEL[p] || p}
                 </MenuItem>
@@ -795,67 +1297,131 @@ export default function PublishingPage() {
               value={mName}
               onChange={(e) => setMName(e.target.value)}
               fullWidth
+              size="small"
             />
-            <TextField
-              label="Access token"
-              value={mToken}
-              onChange={(e) => setMToken(e.target.value)}
-              fullWidth
-              multiline
-              minRows={2}
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setManualOpen(false)} color="inherit">
+            <FullSpan>
+              <TextField
+                label="Access token"
+                value={mToken}
+                onChange={(e) => setMToken(e.target.value)}
+                fullWidth
+                size="small"
+                multiline
+                minRows={2}
+              />
+            </FullSpan>
+          </FieldGrid>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setManualOpen(false)} sx={ghostPillSx}>
             Cancel
           </Button>
-          <Button onClick={connectManual} variant="contained" disabled={!mToken.trim()}>
+          <Button onClick={connectManual} disabled={!mToken.trim()} sx={inkPillSx}>
             Connect
           </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogFooter>
+      </PremiumDialog>
 
-      <Dialog
+      <PremiumDialog
         open={scheduleItem !== null}
         onClose={() => setScheduleItem(null)}
-        fullWidth
-        maxWidth="xs"
+        maxWidth="md"
       >
-        <DialogTitle>Schedule post</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {scheduleItem?.title || scheduleItem?.body?.slice(0, 60)}
-            </Typography>
-            <TextField
-              label="Publish at"
-              type="datetime-local"
-              value={scheduleAt}
-              onChange={(e) => setScheduleAt(e.target.value)}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-            />
-            <Alert severity="info">
-              The post will publish automatically at this time to{' '}
-              {PLATFORM_LABEL[scheduleItem?.platform || ''] || scheduleItem?.platform}.
-            </Alert>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setScheduleItem(null)} color="inherit">
+        <DialogHero
+          icon={<ScheduleRoundedIcon />}
+          title="Schedule post"
+          subtitle="Pick a go-live time — we publish automatically."
+          onClose={() => setScheduleItem(null)}
+        />
+        <DialogBody sx={{ p: 0 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, minHeight: { md: 300 } }}>
+            {/* ---------------- Form column ---------------- */}
+            <Box sx={{ px: { xs: 2.5, sm: 3.25 }, py: 3, borderRight: { md: `1px solid ${alpha(BRAND.ink, 0.08)}` } }}>
+              <SectionLabel>When to publish</SectionLabel>
+              <Stack spacing={2}>
+                <TextField
+                  label="Publish at"
+                  type="datetime-local"
+                  value={scheduleAt}
+                  onChange={(e) => setScheduleAt(e.target.value)}
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                />
+                <Alert severity="info">
+                  The post will publish automatically at this time to{' '}
+                  {PLATFORM_LABEL[scheduleItem?.platform || ''] || scheduleItem?.platform}.
+                </Alert>
+              </Stack>
+            </Box>
+
+            {/* ---------------- Live preview column ---------------- */}
+            <Box sx={{ background: 'rgba(14,17,22,0.025)', px: { xs: 2.5, sm: 3 }, py: 2.5, display: 'flex', flexDirection: 'column' }}>
+              <SectionLabel sx={{ mb: 1.5 }}>Live preview</SectionLabel>
+              <Box
+                sx={{
+                  background: '#fff',
+                  borderRadius: '18px',
+                  border: `1px solid ${alpha(BRAND.ink, 0.08)}`,
+                  boxShadow: '0 8px 30px -12px rgba(14,17,22,0.18)',
+                  overflow: 'hidden',
+                }}
+              >
+                <Box sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${alpha(BRAND.ink, 0.08)}` }}>
+                  <Stack direction="row" alignItems="center" gap={1}>
+                    <PlatformPill platform={scheduleItem?.platform || ''} />
+                    {scheduleAt && (
+                      <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+                        {new Date(scheduleAt).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                      </Typography>
+                    )}
+                  </Stack>
+                </Box>
+                {scheduleItem?.image_url ? (
+                  <Box
+                    component="img"
+                    src={assetUrl(scheduleItem.image_url)}
+                    alt={scheduleItem.title || 'post'}
+                    sx={{ width: '100%', maxHeight: 200, objectFit: 'cover', display: 'block' }}
+                  />
+                ) : (
+                  <Box sx={{ height: 120, display: 'grid', placeItems: 'center', bgcolor: 'action.hover', color: 'text.disabled' }}>
+                    <ImageIcon />
+                  </Box>
+                )}
+                <Box sx={{ p: 2 }}>
+                  {scheduleItem?.title && (
+                    <Typography sx={{ fontWeight: 800, fontSize: 14, color: BRAND.ink, mb: 0.5 }}>
+                      {scheduleItem.title}
+                    </Typography>
+                  )}
+                  <Typography sx={{ fontSize: 13, color: BRAND.ink, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {scheduleItem?.body || 'Your post content will appear here.'}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setScheduleItem(null)} sx={ghostPillSx}>
             Cancel
           </Button>
           <Button
             onClick={confirmSchedule}
-            variant="contained"
             disabled={!scheduleAt || scheduling}
-            startIcon={scheduling ? <CircularProgress size={14} color="inherit" /> : <ScheduleIcon />}
+            startIcon={scheduling ? <CircularProgress size={14} color="inherit" /> : <ScheduleRoundedIcon />}
+            sx={inkPillSx}
           >
             Schedule
           </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogFooter>
+      </PremiumDialog>
     </Stack>
   );
 }

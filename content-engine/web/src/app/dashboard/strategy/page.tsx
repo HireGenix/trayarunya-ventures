@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Alert,
   Box,
@@ -11,10 +11,6 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   Grid,
   IconButton,
@@ -33,17 +29,36 @@ import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import TipsAndUpdatesOutlinedIcon from '@mui/icons-material/TipsAndUpdatesOutlined';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
+import RocketLaunchRoundedIcon from '@mui/icons-material/RocketLaunchRounded';
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import LayersOutlinedIcon from '@mui/icons-material/LayersOutlined';
+import FlagOutlinedIcon from '@mui/icons-material/FlagOutlined';
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import AutoGraphRoundedIcon from '@mui/icons-material/AutoGraphRounded';
 import { useAuth } from '@/lib/auth';
 import {
   Strategies,
+  Research,
   Calendar,
   Learning,
   ALL_PLATFORMS,
   AI_MODELS,
   type Strategy,
+  type ResearchJob,
   type ContentCalendar,
 } from '@/lib/api';
+import { useAIModels } from '@/lib/useAIModels';
 import { useConfirm } from '@/components/ConfirmDialog';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
 import { BRAND } from '@/theme/theme';
 
 /* ── shared style tokens ────────────────────────────────── */
@@ -63,6 +78,185 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+const HERO_BG = 'linear-gradient(135deg, #11151B 0%, #1B2330 55%, #0E1A18 100%)';
+
+/* ── StrategyMaker (generate strategy from research) ─────── */
+
+function StrategyMaker({
+  defaultObjective,
+  onCreated,
+}: {
+  defaultObjective?: string;
+  onCreated: (s: Strategy) => void;
+}) {
+  const router = useRouter();
+  const { models: aiModels } = useAIModels();
+  const [jobs, setJobs] = useState<ResearchJob[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [jobId, setJobId] = useState('');
+  const [objective, setObjective] = useState('');
+  const [provider, setProvider] = useState<string>(AI_MODELS[0].id);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    Research.list()
+      .then((items) => {
+        const done = items.filter((j) => j.status === 'succeeded');
+        setJobs(done);
+        if (done[0]) setJobId((cur) => cur || done[0].id);
+      })
+      .catch(() => setJobs([]))
+      .finally(() => setLoadingJobs(false));
+  }, []);
+
+  useEffect(() => {
+    if (defaultObjective) setObjective((o) => o || defaultObjective);
+  }, [defaultObjective]);
+
+  const run = async () => {
+    if (!jobId) return;
+    setBusy(true);
+    setError('');
+    try {
+      const s = await Strategies.create({
+        research_job_id: jobId,
+        objective: objective.trim() || undefined,
+      });
+      onCreated(s);
+      setObjective('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Strategy generation failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const noResearch = !loadingJobs && jobs.length === 0;
+
+  return (
+    <Card sx={{ borderRadius: 4, overflow: 'hidden', boxShadow: '0 16px 40px rgba(14,17,22,0.10)' }}>
+      {/* dark gradient header */}
+      <Box sx={{ position: 'relative', overflow: 'hidden', px: { xs: 2.5, md: 3.5 }, py: 2.75, background: HERO_BG }}>
+        <Box sx={{ position: 'absolute', top: -70, right: -30, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,187,135,0.30), transparent 65%)' }} />
+        <Stack direction="row" spacing={1.75} alignItems="center" sx={{ position: 'relative' }}>
+          <Box sx={{ width: 42, height: 42, borderRadius: 2.5, display: 'grid', placeItems: 'center', background: BRAND.gradient, color: '#062019', flexShrink: 0 }}>
+            <ScienceOutlinedIcon />
+          </Box>
+          <Box>
+            <Typography sx={{ fontSize: { xs: 17, md: 19 }, fontWeight: 900, lineHeight: 1.15, color: '#fff' }}>
+              Build a new strategy
+            </Typography>
+            <Typography sx={{ fontSize: 12.5, color: 'rgba(255,255,255,0.62)' }}>
+              Turn a completed research job into a full positioning, pillars, funnel &amp; calendar plan.
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
+
+      <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
+        {noResearch ? (
+          <Box sx={{ textAlign: 'center', py: 3 }}>
+            <InsightsOutlinedIcon sx={{ fontSize: 38, color: 'text.disabled', mb: 1 }} />
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
+              No completed research yet
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, maxWidth: 380, mx: 'auto' }}>
+              Strategies are grounded in real research. Run a deep-research job first, then come back to
+              generate a data-backed strategy.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => router.push('/dashboard/research')}
+              endIcon={<ArrowForwardRoundedIcon />}
+              sx={{ background: BRAND.gradient, fontWeight: 700, textTransform: 'none', px: 3 }}
+            >
+              Go to Research
+            </Button>
+          </Box>
+        ) : (
+          <>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  select
+                  label="Research foundation"
+                  value={jobId}
+                  onChange={(e) => setJobId(e.target.value)}
+                  fullWidth
+                  disabled={loadingJobs}
+                  helperText={loadingJobs ? 'Loading research…' : 'Strategy is grounded in this research'}
+                >
+                  {jobs.map((j) => (
+                    <MenuItem key={j.id} value={j.id}>
+                      {j.topic}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField
+                  select
+                  label="AI model"
+                  value={provider}
+                  onChange={(e) => setProvider(e.target.value)}
+                  fullWidth
+                >
+                  {aiModels.map((m) => (
+                    <MenuItem key={m.id} value={m.id}>
+                      {m.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <TextField
+                  label="Primary objective (optional)"
+                  value={objective}
+                  onChange={(e) => setObjective(e.target.value)}
+                  placeholder="e.g. Grow to 50k followers and book 30 demos / quarter"
+                  fullWidth
+                />
+              </Grid>
+            </Grid>
+
+            <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2.5 }}>
+              <Button
+                variant="contained"
+                onClick={run}
+                disabled={busy || !jobId}
+                startIcon={busy ? <CircularProgress size={18} sx={{ color: '#fff' }} /> : <RocketLaunchRoundedIcon />}
+                sx={{
+                  background: BRAND.gradient,
+                  fontWeight: 700,
+                  textTransform: 'none',
+                  px: 3.5,
+                  py: 1.1,
+                  fontSize: '0.9rem',
+                  '&:hover': { boxShadow: '0 8px 24px rgba(20,187,135,0.28)' },
+                }}
+              >
+                {busy ? 'Designing strategy…' : 'Generate strategy'}
+              </Button>
+              {busy && (
+                <Typography variant="body2" color="text.secondary">
+                  Synthesising positioning, pillars, funnel &amp; KPIs…
+                </Typography>
+              )}
+            </Stack>
+
+            {error && (
+              <Alert severity="error" sx={{ mt: 2, borderRadius: `${R}px` }}>
+                {error}
+              </Alert>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ── CalendarGenerator ──────────────────────────────────── */
 
 function CalendarGenerator({
@@ -76,6 +270,7 @@ function CalendarGenerator({
 }) {
   const [client, setClient] = useState(defaultClient || '');
   const [goal, setGoal] = useState('');
+  const { models: aiModels } = useAIModels();
   const [provider, setProvider] = useState<string>(AI_MODELS[0].id);
   const [strategyId, setStrategyId] = useState<string>(defaultStrategyId || '');
   const [platforms, setPlatforms] = useState<string[]>([...ALL_PLATFORMS]);
@@ -189,7 +384,7 @@ function CalendarGenerator({
               onChange={(e) => setProvider(e.target.value)}
               fullWidth
             >
-              {AI_MODELS.map((m) => (
+              {aiModels.map((m) => (
                 <MenuItem key={m.id} value={m.id}>
                   {m.label}
                 </MenuItem>
@@ -966,6 +1161,17 @@ function StrategyInner() {
     }
   };
 
+  const onStrategyCreated = (s: Strategy) => {
+    setList((prev) => [s, ...prev.filter((x) => x.id !== s.id)]);
+    setSelected(s);
+  };
+
+  const stats = useMemo(() => {
+    const pillars = list.reduce((n, s) => n + (s.pillars?.length || 0), 0);
+    const grounded = list.filter((s) => s.research_job_id).length;
+    return { count: list.length, pillars, grounded };
+  }, [list]);
+
   const openEdit = (s: Strategy) => {
     setEditStrat(s);
     setEditTitle(s.title);
@@ -988,29 +1194,75 @@ function StrategyInner() {
   };
 
   return (
-    <Stack spacing={4}>
-      {/* ── page header ── */}
-      <Box>
-        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 0.5 }}>
-          <Box
-            sx={{
-              width: 40,
-              height: 40,
-              borderRadius: 3,
-              background: BRAND.gradient,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <AutoAwesomeOutlinedIcon sx={{ color: '#fff', fontSize: 22 }} />
-          </Box>
-          <Typography variant="h3">Strategy</Typography>
+    <Stack spacing={3.5}>
+      {/* ── hero header ── */}
+      <Box
+        sx={{
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: 4,
+          p: { xs: 2.5, md: 3.5 },
+          color: '#fff',
+          background: HERO_BG,
+          boxShadow: '0 16px 40px rgba(14,17,22,0.25)',
+        }}
+      >
+        <Box sx={{ position: 'absolute', top: -80, right: -40, width: 260, height: 260, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,187,135,0.30), transparent 65%)' }} />
+        <Box sx={{ position: 'absolute', bottom: -90, left: '34%', width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,175,6,0.20), transparent 65%)' }} />
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={2.5}
+          alignItems={{ xs: 'flex-start', md: 'center' }}
+          justifyContent="space-between"
+          sx={{ position: 'relative' }}
+        >
+          <Stack direction="row" spacing={1.75} alignItems="center">
+            <Box sx={{ width: 46, height: 46, borderRadius: 2.75, display: 'grid', placeItems: 'center', background: BRAND.gradient, color: '#062019', flexShrink: 0 }}>
+              <AutoGraphRoundedIcon />
+            </Box>
+            <Box>
+              <Typography sx={{ fontSize: { xs: 22, md: 27 }, fontWeight: 900, lineHeight: 1.1, background: BRAND.gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Strategy Engine
+              </Typography>
+              <Typography sx={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', maxWidth: 460 }}>
+                Turn research into a complete content strategy — positioning, pillars, funnel &amp;
+                date-aware calendars across every channel.
+              </Typography>
+            </Box>
+          </Stack>
+
+          {/* stat strip */}
+          <Stack direction="row" spacing={1.25}>
+            {[
+              { icon: <LayersOutlinedIcon sx={{ fontSize: 16 }} />, value: stats.count, label: 'Strategies' },
+              { icon: <FlagOutlinedIcon sx={{ fontSize: 16 }} />, value: stats.pillars, label: 'Pillars' },
+              { icon: <CheckCircleRoundedIcon sx={{ fontSize: 16 }} />, value: stats.grounded, label: 'Grounded' },
+            ].map((s) => (
+              <Box
+                key={s.label}
+                sx={{
+                  px: 1.75,
+                  py: 1,
+                  borderRadius: 2.5,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  minWidth: 78,
+                  textAlign: 'center',
+                }}
+              >
+                <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center" sx={{ color: BRAND.teal }}>
+                  {s.icon}
+                  <Typography sx={{ fontSize: 18, fontWeight: 900, color: '#fff', lineHeight: 1 }}>
+                    {s.value}
+                  </Typography>
+                </Stack>
+                <Typography sx={{ fontSize: 10.5, color: 'rgba(255,255,255,0.55)', mt: 0.5, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  {s.label}
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
         </Stack>
-        <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 560 }}>
-          Build content strategies from research, then generate date-aware calendars across every
-          channel.
-        </Typography>
       </Box>
 
       {/* ── error ── */}
@@ -1019,6 +1271,9 @@ function StrategyInner() {
           {error}
         </Alert>
       )}
+
+      {/* ── strategy maker ── */}
+      <StrategyMaker defaultObjective={undefined} onCreated={onStrategyCreated} />
 
       {/* ── calendar generator ── */}
       <CalendarGenerator
@@ -1182,15 +1437,22 @@ function StrategyInner() {
       </Grid>
 
       {/* ── edit dialog ── */}
-      <Dialog open={!!editStrat} onClose={() => setEditStrat(null)} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ fontWeight: 700 }}>Edit strategy</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2.5} sx={{ mt: 1 }}>
+      <PremiumDialog open={!!editStrat} onClose={() => setEditStrat(null)} maxWidth="sm">
+        <DialogHero
+          icon={<EditOutlinedIcon />}
+          title="Edit strategy"
+          subtitle="Refine the title and objective of your plan"
+          onClose={() => setEditStrat(null)}
+        />
+        <DialogBody>
+          <SectionLabel>Strategy details</SectionLabel>
+          <Stack spacing={2.5}>
             <TextField
               label="Title"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
               fullWidth
+              size="small"
               autoFocus
             />
             <TextField
@@ -1198,25 +1460,21 @@ function StrategyInner() {
               value={editObjective}
               onChange={(e) => setEditObjective(e.target.value)}
               fullWidth
+              size="small"
               multiline
               minRows={2}
             />
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setEditStrat(null)} color="inherit">
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setEditStrat(null)} sx={ghostPillSx}>
             Cancel
           </Button>
-          <Button
-            onClick={saveEdit}
-            variant="contained"
-            disabled={!editTitle.trim()}
-            sx={{ background: BRAND.gradient, fontWeight: 700 }}
-          >
+          <Button onClick={saveEdit} disabled={!editTitle.trim()} sx={inkPillSx}>
             Save
           </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogFooter>
+      </PremiumDialog>
     </Stack>
   );
 }

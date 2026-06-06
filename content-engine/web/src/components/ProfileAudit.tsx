@@ -50,23 +50,11 @@ function erVerdict(er: number | null): { label: string; color: string } {
   return { label: 'Low', color: BRAND.pink };
 }
 
-function StatTile({ label, value }: { label: string; value: string }) {
+function IgStat({ label, value }: { label: string; value: string }) {
   return (
-    <Box
-      sx={{
-        flex: 1,
-        textAlign: 'center',
-        py: 1.2,
-        px: 0.5,
-        borderRadius: 2.5,
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.1)',
-      }}
-    >
-      <Typography sx={{ fontSize: 20, fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{value}</Typography>
-      <Typography sx={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.55)' }}>
-        {label}
-      </Typography>
+    <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
+      <Box component="span" sx={{ fontWeight: 800, fontSize: 16, color: '#0E1116' }}>{value}</Box>{' '}
+      <Box component="span" sx={{ fontSize: 13.5, color: '#6B7280' }}>{label}</Box>
     </Box>
   );
 }
@@ -279,182 +267,279 @@ export default function ProfileAudit({ onBuildStrategy }: { onBuildStrategy?: (p
         </Alert>
       )}
 
-      {/* result */}
+      {/* result — Instagram-style profile */}
       {profile && (
-        <Box
-          sx={{
-            p: 2.5,
-            color: '#fff',
-            position: 'relative',
-            overflow: 'hidden',
-            background: 'linear-gradient(135deg, #11151B 0%, #1B2330 60%, #0E1A18 100%)',
-          }}
-        >
-          <Box sx={{ position: 'absolute', top: -70, right: -40, width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, rgba(221,42,123,0.35), transparent 65%)' }} />
+        <Box sx={{ bgcolor: '#fff' }}>
+          {/* ── IG profile header ── */}
+          <Box sx={{ px: { xs: 2, sm: 3 }, pt: 3, pb: 2.5 }}>
+            <Stack direction="row" spacing={{ xs: 2, sm: 3.5 }} alignItems="flex-start">
+              {/* gradient-ring avatar */}
+              <Box
+                sx={{
+                  flexShrink: 0,
+                  p: '3px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(45deg, #F58529, #FEDA77 25%, #DD2A7B 55%, #8134AF 80%, #515BD4)',
+                }}
+              >
+                <Box sx={{ p: '3px', borderRadius: '50%', bgcolor: '#fff' }}>
+                  <Avatar
+                    src={profile.profile_pic_url || undefined}
+                    alt={profile.username || ''}
+                    sx={{ width: { xs: 76, sm: 96 }, height: { xs: 76, sm: 96 } }}
+                  />
+                </Box>
+              </Box>
 
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ position: 'relative', mb: 2 }}>
-            <Avatar
-              src={profile.profile_pic_url || undefined}
-              alt={profile.username || ''}
-              sx={{ width: 64, height: 64, border: '2px solid rgba(255,255,255,0.25)' }}
-            />
-            <Box sx={{ minWidth: 0 }}>
-              <Stack direction="row" spacing={0.6} alignItems="center">
-                <Typography fontWeight={800} sx={{ fontSize: 17, lineHeight: 1.2 }} noWrap>
-                  {profile.full_name || profile.username}
-                </Typography>
-                {profile.is_verified && <VerifiedIcon sx={{ fontSize: 18, color: '#3897F0' }} />}
-                {profile.private && (
-                  <Tooltip title="Private account">
-                    <LockRoundedIcon sx={{ fontSize: 15, color: 'rgba(255,255,255,0.6)' }} />
-                  </Tooltip>
-                )}
-              </Stack>
-              <Typography sx={{ fontSize: 13, color: 'rgba(255,255,255,0.65)' }} noWrap>
-                @{profile.username}
-                {profile.external_url && (
-                  <Box
-                    component="a"
-                    href={profile.external_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    sx={{ color: BRAND.teal, ml: 1, display: 'inline-flex', alignItems: 'center', gap: 0.3, textDecoration: 'none' }}
-                  >
-                    site <LaunchRoundedIcon sx={{ fontSize: 12 }} />
-                  </Box>
-                )}
-              </Typography>
+              <Box sx={{ flex: 1, minWidth: 0, pt: { sm: 0.5 } }}>
+                {/* username row */}
+                <Stack direction="row" spacing={0.8} alignItems="center" sx={{ mb: 1.25, flexWrap: 'wrap', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: 20, fontWeight: 500, color: '#0E1116', lineHeight: 1.1 }} noWrap>
+                    {profile.username}
+                  </Typography>
+                  {profile.is_verified && <VerifiedIcon sx={{ fontSize: 19, color: '#3897F0' }} />}
+                  {profile.private && (
+                    <Tooltip title="Private account">
+                      <LockRoundedIcon sx={{ fontSize: 15, color: '#9AA4B2' }} />
+                    </Tooltip>
+                  )}
+                  {profile.is_business && (
+                    <Chip size="small" label="Business" sx={{ height: 19, fontSize: 10, fontWeight: 700, bgcolor: '#EEF2FF', color: '#4F46E5' }} />
+                  )}
+                </Stack>
+
+                {/* inline stats — IG style */}
+                <Stack direction="row" spacing={{ xs: 2, sm: 4 }} sx={{ mb: 1.25 }}>
+                  <IgStat value={formatNum(profile.posts)} label="posts" />
+                  <IgStat value={formatNum(profile.followers)} label="followers" />
+                  <IgStat value={formatNum(profile.following)} label="following" />
+                </Stack>
+
+                {/* name + category + link (desktop) */}
+                <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                  {profile.full_name && (
+                    <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#0E1116' }}>
+                      {profile.full_name}
+                    </Typography>
+                  )}
+                  {profile.category && (
+                    <Typography sx={{ fontSize: 13, color: '#6B7280' }}>{profile.category}</Typography>
+                  )}
+                  {profile.biography && (
+                    <Typography sx={{ fontSize: 13.5, color: '#262626', whiteSpace: 'pre-line', mt: 0.25, lineHeight: 1.5 }}>
+                      {profile.biography}
+                    </Typography>
+                  )}
+                  {profile.external_url && (
+                    <Box
+                      component="a"
+                      href={profile.external_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4, mt: 0.5, fontSize: 13.5, fontWeight: 700, color: '#00376B', textDecoration: 'none' }}
+                    >
+                      {(() => { try { return new URL(profile.external_url).hostname.replace('www.', ''); } catch { return profile.external_url; } })()}
+                      <LaunchRoundedIcon sx={{ fontSize: 13 }} />
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            </Stack>
+
+            {/* name + bio (mobile, below) */}
+            <Box sx={{ display: { xs: 'block', sm: 'none' }, mt: 1.5 }}>
+              {profile.full_name && (
+                <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#0E1116' }}>{profile.full_name}</Typography>
+              )}
               {profile.category && (
-                <Chip
-                  size="small"
-                  label={profile.category}
-                  sx={{ mt: 0.5, height: 18, fontSize: 10, bgcolor: 'rgba(255,255,255,0.1)', color: '#fff' }}
-                />
+                <Typography sx={{ fontSize: 13, color: '#6B7280' }}>{profile.category}</Typography>
+              )}
+              {profile.biography && (
+                <Typography sx={{ fontSize: 13.5, color: '#262626', whiteSpace: 'pre-line', mt: 0.25, lineHeight: 1.5 }}>
+                  {profile.biography}
+                </Typography>
+              )}
+              {profile.external_url && (
+                <Box
+                  component="a"
+                  href={profile.external_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4, mt: 0.5, fontSize: 13.5, fontWeight: 700, color: '#00376B', textDecoration: 'none' }}
+                >
+                  {(() => { try { return new URL(profile.external_url).hostname.replace('www.', ''); } catch { return profile.external_url; } })()}
+                  <LaunchRoundedIcon sx={{ fontSize: 13 }} />
+                </Box>
               )}
             </Box>
-          </Stack>
 
-          {/* big numbers + engagement ring */}
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ position: 'relative', mb: profile.biography ? 2 : 0 }}>
-            <Stack direction="row" spacing={1} sx={{ flex: 1 }}>
-              <StatTile label="Followers" value={formatNum(profile.followers)} />
-              <StatTile label="Following" value={formatNum(profile.following)} />
-              <StatTile label="Posts" value={formatNum(profile.posts)} />
-            </Stack>
-            <Box sx={{ textAlign: 'center' }}>
-              <EngagementRing er={profile.engagement_rate} />
-              <Typography sx={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', mt: 0.3 }}>Engagement</Typography>
-            </Box>
-          </Stack>
+            {/* engagement quick-read pill */}
+            {profile.engagement_rate != null && (
+              <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', gap: 1 }}>
+                <Chip
+                  size="small"
+                  icon={<BoltRoundedIcon sx={{ fontSize: 14, color: `${erVerdict(profile.engagement_rate).color} !important` }} />}
+                  label={`${profile.engagement_rate}% engagement · ${erVerdict(profile.engagement_rate).label}`}
+                  sx={{
+                    height: 26, fontSize: 12, fontWeight: 700,
+                    bgcolor: `${erVerdict(profile.engagement_rate).color}14`,
+                    color: erVerdict(profile.engagement_rate).color,
+                    border: `1px solid ${erVerdict(profile.engagement_rate).color}33`,
+                  }}
+                />
+                {profile.content_insights?.posts_per_week != null && (
+                  <Chip
+                    size="small"
+                    label={`${profile.content_insights.posts_per_week} posts/week`}
+                    sx={{ height: 26, fontSize: 12, fontWeight: 600, bgcolor: '#F2F4F7', color: '#374151' }}
+                  />
+                )}
+                {profile.content_insights?.last_post_days != null && (
+                  <Chip
+                    size="small"
+                    label={profile.content_insights.last_post_days <= 0 ? 'Posted today' : `Last post ${profile.content_insights.last_post_days}d ago`}
+                    sx={{ height: 26, fontSize: 12, fontWeight: 600, bgcolor: '#F2F4F7', color: '#374151' }}
+                  />
+                )}
+              </Stack>
+            )}
+          </Box>
 
-          {profile.biography && (
-            <Typography
-              sx={{
-                position: 'relative',
-                fontSize: 12.5,
-                color: 'rgba(255,255,255,0.78)',
-                whiteSpace: 'pre-line',
-                mb: profile.recent_posts.length ? 2 : 0,
-              }}
-            >
-              {profile.biography}
-            </Typography>
-          )}
-
-          {/* recent posts strip */}
+          {/* ── posts grid (IG style) ── */}
           {profile.recent_posts.length > 0 && (
-            <Box sx={{ position: 'relative' }}>
-              <Typography sx={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.5)', mb: 0.8 }}>
-                Recent posts · avg engagement
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto', pb: 0.5 }}>
+            <Box sx={{ borderTop: '1px solid #EFEFEF' }}>
+              <Stack direction="row" justifyContent="center" alignItems="center" spacing={0.8} sx={{ py: 1.25 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '1fr 1fr 1fr', gap: '1.5px', width: 13, height: 13 }}>
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <Box key={i} sx={{ bgcolor: '#262626', borderRadius: '0.5px' }} />
+                  ))}
+                </Box>
+                <Typography sx={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '0.08em', color: '#262626' }}>POSTS</Typography>
+              </Stack>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: { xs: '2px', sm: '4px' },
+                  pb: 0.5,
+                }}
+              >
                 {profile.recent_posts.map((p, i) => {
                   const isTop = profile.content_insights?.top_post_index === i;
                   return (
-                  <Box
-                    key={i}
-                    component={p.permalink ? 'a' : 'div'}
-                    href={p.permalink || undefined}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    sx={{
-                      position: 'relative',
-                      flexShrink: 0,
-                      width: 84,
-                      height: 84,
-                      borderRadius: 2,
-                      overflow: 'hidden',
-                      bgcolor: 'rgba(255,255,255,0.08)',
-                      display: 'block',
-                      textDecoration: 'none',
-                      border: isTop ? `2px solid ${BRAND.teal}` : '2px solid transparent',
-                      boxShadow: isTop ? `0 0 12px ${BRAND.teal}66` : 'none',
-                    }}
-                  >
-                    {isTop && (
-                      <Box sx={{ position: 'absolute', top: 3, left: 3, zIndex: 2, px: 0.5, py: 0.1, borderRadius: 1, bgcolor: BRAND.teal, fontSize: 8, fontWeight: 800, color: '#062019', letterSpacing: '0.04em' }}>
-                        TOP
-                      </Box>
-                    )}
-                    {p.thumbnail && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    )}
-                    {p.is_video && (
-                      <PlayArrowRoundedIcon sx={{ position: 'absolute', top: 4, right: 4, fontSize: 16, color: '#fff', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }} />
-                    )}
                     <Box
+                      key={i}
+                      component={p.permalink ? 'a' : 'div'}
+                      href={p.permalink || undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       sx={{
-                        position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        px: 0.6,
-                        py: 0.4,
-                        display: 'flex',
-                        gap: 0.8,
-                        background: 'linear-gradient(transparent, rgba(0,0,0,0.75))',
+                        position: 'relative',
+                        aspectRatio: '1 / 1',
+                        overflow: 'hidden',
+                        bgcolor: '#F2F4F7',
+                        display: 'block',
+                        textDecoration: 'none',
+                        cursor: p.permalink ? 'pointer' : 'default',
+                        '&:hover .ig-overlay': { opacity: 1 },
+                        '&:hover img': { transform: 'scale(1.04)' },
                       }}
                     >
-                      <Stack direction="row" spacing={0.3} alignItems="center">
-                        <FavoriteRoundedIcon sx={{ fontSize: 11, color: '#fff' }} />
-                        <Typography sx={{ fontSize: 9.5, fontWeight: 700, color: '#fff' }}>{formatNum(p.likes)}</Typography>
-                      </Stack>
-                      <Stack direction="row" spacing={0.3} alignItems="center">
-                        <ChatBubbleRoundedIcon sx={{ fontSize: 10, color: '#fff' }} />
-                        <Typography sx={{ fontSize: 9.5, fontWeight: 700, color: '#fff' }}>{formatNum(p.comments)}</Typography>
-                      </Stack>
+                      {p.thumbnail ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={p.thumbnail}
+                          alt=""
+                          loading="lazy"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform .35s ease' }}
+                        />
+                      ) : (
+                        <Box sx={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: '#C4CAD3' }}>
+                          <InstagramIcon sx={{ fontSize: 26 }} />
+                        </Box>
+                      )}
+
+                      {/* top badge */}
+                      {isTop && (
+                        <Box sx={{ position: 'absolute', top: 6, left: 6, zIndex: 2, px: 0.7, py: 0.2, borderRadius: 1, bgcolor: BRAND.teal, fontSize: 9, fontWeight: 800, color: '#062019', letterSpacing: '0.04em' }}>
+                          TOP
+                        </Box>
+                      )}
+                      {/* reel/video indicator */}
+                      {p.is_video && (
+                        <PlayArrowRoundedIcon sx={{ position: 'absolute', top: 6, right: 6, fontSize: 19, color: '#fff', filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.6))' }} />
+                      )}
+
+                      {/* hover overlay with engagement */}
+                      <Box
+                        className="ig-overlay"
+                        sx={{
+                          position: 'absolute', inset: 0, opacity: 0, transition: 'opacity .2s ease',
+                          background: 'rgba(0,0,0,0.42)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2.5,
+                        }}
+                      >
+                        <Stack direction="row" spacing={0.6} alignItems="center">
+                          <FavoriteRoundedIcon sx={{ fontSize: 17, color: '#fff' }} />
+                          <Typography sx={{ fontSize: 13.5, fontWeight: 800, color: '#fff' }}>{formatNum(p.likes)}</Typography>
+                        </Stack>
+                        <Stack direction="row" spacing={0.6} alignItems="center">
+                          <ChatBubbleRoundedIcon sx={{ fontSize: 15, color: '#fff' }} />
+                          <Typography sx={{ fontSize: 13.5, fontWeight: 800, color: '#fff' }}>{formatNum(p.comments)}</Typography>
+                        </Stack>
+                      </Box>
                     </Box>
-                  </Box>
                   );
                 })}
               </Box>
             </Box>
           )}
 
-          {profile.content_insights && <ContentInsightsPanel ci={profile.content_insights} />}
-
-          {onBuildStrategy && (profile.followers != null || profile.content_insights) && (
-            <Button
-              fullWidth
-              onClick={() => onBuildStrategy(profile)}
-              startIcon={<AutoAwesomeRoundedIcon />}
+          {/* ── performance audit (dark insight band) ── */}
+          {(profile.engagement_rate != null || profile.content_insights) && (
+            <Box
               sx={{
-                position: 'relative',
-                mt: 2,
-                py: 1.1,
-                fontWeight: 800,
-                color: '#062019',
-                background: BRAND.gradient,
-                '&:hover': { background: BRAND.gradient, filter: 'brightness(1.05)' },
+                m: { xs: 1.5, sm: 2 }, p: 2.5, borderRadius: 3, color: '#fff', position: 'relative', overflow: 'hidden',
+                background: 'linear-gradient(135deg, #11151B 0%, #1B2330 60%, #0E1A18 100%)',
               }}
             >
-              Build a strategy from this profile
-            </Button>
+              <Box sx={{ position: 'absolute', top: -70, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(221,42,123,0.32), transparent 65%)' }} />
+              <Stack direction="row" spacing={2} alignItems="center" sx={{ position: 'relative' }}>
+                <EngagementRing er={profile.engagement_rate} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.5)', mb: 0.4 }}>
+                    Performance audit
+                  </Typography>
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, lineHeight: 1.35 }}>
+                    {erVerdict(profile.engagement_rate).label} engagement for an account this size
+                  </Typography>
+                </Box>
+              </Stack>
+              {profile.content_insights && <ContentInsightsPanel ci={profile.content_insights} />}
+            </Box>
+          )}
+
+          {onBuildStrategy && (profile.followers != null || profile.content_insights) && (
+            <Box sx={{ px: { xs: 1.5, sm: 2 }, pb: 2.5 }}>
+              <Button
+                fullWidth
+                onClick={() => onBuildStrategy(profile)}
+                startIcon={<AutoAwesomeRoundedIcon />}
+                sx={{
+                  py: 1.15,
+                  fontWeight: 800,
+                  color: '#062019',
+                  background: BRAND.gradient,
+                  '&:hover': { background: BRAND.gradient, filter: 'brightness(1.05)' },
+                }}
+              >
+                Build a strategy from this profile
+              </Button>
+            </Box>
           )}
 
           {profile.note && (
-            <Typography sx={{ position: 'relative', fontSize: 11, color: 'rgba(255,255,255,0.45)', mt: 1.5, fontStyle: 'italic' }}>
+            <Typography sx={{ px: { xs: 2, sm: 3 }, pb: 2, fontSize: 11.5, color: '#9AA4B2', fontStyle: 'italic' }}>
               {profile.note}
             </Typography>
           )}

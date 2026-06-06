@@ -36,10 +36,11 @@ import {
 import { useAuth } from '@/lib/auth';
 import { BRAND } from '@/theme/theme';
 
-const INK = '#11151B';
+const INK = BRAND.ink;
 const SUBTLE = '#6B7280';
-const BORDER = '#EAECEF';
-const CANVAS = '#FAFBFC';
+const LINE = 'rgba(14,17,22,0.07)';
+const CARD_RADIUS = '22px';
+const CARD_SHADOW = '0 1px 2px rgba(14,17,22,0.04), 0 8px 24px rgba(14,17,22,0.05)';
 
 function titleize(s: string): string {
   return s
@@ -133,12 +134,12 @@ export default function CreativePage() {
     return (
       <Stack spacing={3}>
         <Header />
-        <Card sx={{ borderRadius: 4, border: `1px dashed ${BORDER}`, bgcolor: '#fff' }}>
+        <Card sx={{ borderRadius: CARD_RADIUS, border: `1px dashed ${LINE}`, bgcolor: '#fff' }}>
           <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, py: 7 }}>
-            <Box sx={{ width: 72, height: 72, borderRadius: '50%', display: 'grid', placeItems: 'center', background: `${BRAND.teal}14` }}>
-              <InsightsIcon sx={{ fontSize: 36, color: BRAND.teal }} />
+            <Box sx={{ width: 64, height: 64, borderRadius: '18px', display: 'grid', placeItems: 'center', bgcolor: 'rgba(14,17,22,0.05)', color: INK }}>
+              <InsightsIcon sx={{ fontSize: 30 }} />
             </Box>
-            <Typography fontWeight={900} variant="h6" color={INK}>No workspace selected</Typography>
+            <Typography sx={{ fontWeight: 800, fontSize: 18, color: INK }}>No workspace selected</Typography>
             <Typography variant="body2" sx={{ color: SUBTLE }} textAlign="center" maxWidth={400}>
               Select or create a workspace to unlock creative intelligence on your content.
             </Typography>
@@ -163,7 +164,7 @@ export default function CreativePage() {
     return (
       <Stack spacing={3}>
         <Header />
-        <Card sx={{ borderRadius: 4, border: `1px solid ${BORDER}`, bgcolor: '#fff' }}>
+        <Card sx={{ borderRadius: CARD_RADIUS, border: `1px solid ${LINE}`, bgcolor: '#fff', boxShadow: CARD_SHADOW }}>
           <CardContent sx={{ py: 6, textAlign: 'center' }}>
             <Typography fontWeight={900} color={INK}>Nothing to analyse yet</Typography>
             <Typography variant="body2" sx={{ color: SUBTLE, mt: 0.5 }}>
@@ -188,7 +189,7 @@ export default function CreativePage() {
       <Header />
 
       {summary.low_data && (
-        <Card sx={{ borderRadius: 4, border: `1px solid ${BRAND.amber}`, bgcolor: BRAND.amberSoft, overflow: 'hidden' }}>
+        <Card sx={{ borderRadius: CARD_RADIUS, border: `1px solid ${BRAND.amber}`, bgcolor: BRAND.amberSoft, overflow: 'hidden' }}>
           <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5} alignItems={{ sm: 'center' }}>
               <Box sx={{ width: 56, height: 56, borderRadius: 3, flexShrink: 0, display: 'grid', placeItems: 'center', background: `${BRAND.amberDeep}1A` }}>
@@ -206,10 +207,10 @@ export default function CreativePage() {
                     variant="determinate"
                     value={progress}
                     sx={{
-                      height: 8,
+                      height: 6,
                       borderRadius: 999,
-                      bgcolor: '#fff',
-                      '& .MuiLinearProgress-bar': { borderRadius: 999, background: BRAND.gradient },
+                      bgcolor: 'rgba(14,17,22,0.06)',
+                      '& .MuiLinearProgress-bar': { borderRadius: 999, background: BRAND.amberDeep },
                     }}
                   />
                   <Typography variant="caption" sx={{ color: '#7A5B00', fontWeight: 800, mt: 0.5, display: 'block' }}>
@@ -226,15 +227,20 @@ export default function CreativePage() {
       {overallEntries.length > 0 && (
         <Box>
           <SectionTitle icon={<InsightsIcon sx={{ fontSize: 18 }} />} title="Overall performance" />
-          <Grid container spacing={2}>
+          <Grid container spacing={2.5}>
             {overallEntries.map(([key, value]) => (
               <Grid key={key} size={{ xs: 6, sm: 4, md: 3 }}>
-                <Card sx={{ borderRadius: 4, border: `1px solid ${BORDER}`, bgcolor: '#fff', height: '100%' }}>
-                  <CardContent sx={{ p: 2.2 }}>
-                    <Typography variant="caption" sx={{ color: SUBTLE, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-                      {titleize(key)}
-                    </Typography>
-                    <Typography sx={{ fontSize: 26, fontWeight: 950, color: INK, mt: 0.4, lineHeight: 1.1 }}>
+                <Card sx={{ borderRadius: CARD_RADIUS, border: `1px solid ${LINE}`, bgcolor: '#fff', boxShadow: CARD_SHADOW, height: '100%' }}>
+                  <CardContent sx={{ p: 2.5 }}>
+                    <Stack direction="row" alignItems="center" spacing={1.25}>
+                      <Box sx={{ width: 34, height: 34, borderRadius: '11px', display: 'grid', placeItems: 'center', bgcolor: 'rgba(14,17,22,0.05)', color: INK, flexShrink: 0 }}>
+                        <InsightsIcon sx={{ fontSize: 18 }} />
+                      </Box>
+                      <Typography sx={{ fontWeight: 700, fontSize: 14, color: INK, lineHeight: 1.2 }}>
+                        {titleize(key)}
+                      </Typography>
+                    </Stack>
+                    <Typography sx={{ fontSize: 40, fontWeight: 800, color: INK, mt: 1.5, lineHeight: 1, letterSpacing: '-0.02em' }}>
                       {fmtMetric(key, value)}
                     </Typography>
                   </CardContent>
@@ -254,7 +260,7 @@ export default function CreativePage() {
           <Grid container spacing={2}>
             {winningPatterns.map((p, i) => (
               <Grid key={`${p.attribute}-${p.value}-${i}`} size={{ xs: 12, sm: 6, md: 4 }}>
-                <Card sx={{ borderRadius: 4, border: `1px solid ${BORDER}`, bgcolor: '#fff', height: '100%', position: 'relative', overflow: 'hidden' }}>
+                <Card sx={{ borderRadius: CARD_RADIUS, border: `1px solid ${LINE}`, bgcolor: '#fff', boxShadow: CARD_SHADOW, height: '100%', position: 'relative', overflow: 'hidden', transition: 'transform .18s, box-shadow .18s, border-color .18s', '&:hover': { transform: 'translateY(-2px)', borderColor: `${BRAND.teal}66` } }}>
                   <Box sx={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', background: BRAND.teal }} />
                   <CardContent sx={{ p: 2.4, pl: 2.6 }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
@@ -273,7 +279,7 @@ export default function CreativePage() {
                         sx={{ fontWeight: 900, bgcolor: `${BRAND.teal}14`, color: BRAND.tealDeep, '& .MuiChip-icon': { color: BRAND.tealDeep } }}
                       />
                     </Stack>
-                    <Divider sx={{ my: 1.4, borderColor: BORDER }} />
+                    <Divider sx={{ my: 1.4, borderColor: LINE }} />
                     <Stack direction="row" justifyContent="space-between">
                       <Stat label="Avg engagement" value={fmtRate(p.avg_engagement_rate)} />
                       <Stat label="Sample" value={`${p.sample_size}`} align="right" />
@@ -295,7 +301,7 @@ export default function CreativePage() {
           <Grid container spacing={2}>
             {fatigueSignals.map((f, i) => (
               <Grid key={`${f.attribute}-${f.value}-${i}`} size={{ xs: 12, sm: 6, md: 4 }}>
-                <Card sx={{ borderRadius: 4, border: `1px solid ${BORDER}`, bgcolor: '#fff', height: '100%', position: 'relative', overflow: 'hidden' }}>
+                <Card sx={{ borderRadius: CARD_RADIUS, border: `1px solid ${LINE}`, bgcolor: '#fff', boxShadow: CARD_SHADOW, height: '100%', position: 'relative', overflow: 'hidden', transition: 'transform .18s, box-shadow .18s, border-color .18s', '&:hover': { transform: 'translateY(-2px)', borderColor: `${BRAND.pink}66` } }}>
                   <Box sx={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', background: BRAND.pink }} />
                   <CardContent sx={{ p: 2.4, pl: 2.6 }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
@@ -314,7 +320,7 @@ export default function CreativePage() {
                         sx={{ fontWeight: 900, bgcolor: BRAND.pinkSoft, color: BRAND.pink, '& .MuiChip-icon': { color: BRAND.pink } }}
                       />
                     </Stack>
-                    <Divider sx={{ my: 1.4, borderColor: BORDER }} />
+                    <Divider sx={{ my: 1.4, borderColor: LINE }} />
                     <Stack direction="row" justifyContent="space-between" alignItems="center">
                       <Stat label="Earlier" value={fmtRate(f.earlier_avg_engagement_rate)} />
                       <TrendingDownIcon sx={{ fontSize: 18, color: SUBTLE }} />
@@ -338,15 +344,35 @@ export default function CreativePage() {
           <Stack direction="row" alignItems="center" spacing={1.5}>
             <FormControlLabel
               control={<Switch checked={enrich} onChange={(e) => setEnrich(e.target.checked)} size="small" />}
-              label={<Typography variant="caption" sx={{ color: SUBTLE, fontWeight: 800 }}>AI rationale</Typography>}
-              sx={{ m: 0 }}
+              label={<Typography sx={{ color: 'text.secondary', fontWeight: 700, fontSize: 13 }}>AI rationale</Typography>}
+              sx={{
+                m: 0,
+                pl: 1.5,
+                pr: 1.75,
+                py: 0.5,
+                borderRadius: '999px',
+                border: `1px solid ${LINE}`,
+                bgcolor: '#fff',
+              }}
             />
             <Button
               variant="contained"
               onClick={loadRecommendations}
               disabled={recsLoading}
               startIcon={recsLoading ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeIcon />}
-              sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 900, color: INK, background: BRAND.gradient }}
+              sx={{
+                px: 2.5,
+                py: 1.1,
+                borderRadius: '999px',
+                textTransform: 'none',
+                fontWeight: 700,
+                color: '#fff',
+                background: INK,
+                backgroundImage: 'none',
+                boxShadow: '0 8px 20px rgba(14,17,22,0.25)',
+                '&:hover': { background: '#1B2330' },
+                '&.Mui-disabled': { color: 'rgba(255,255,255,0.6)' },
+              }}
             >
               {recsLoading ? 'Generating…' : recs ? 'Regenerate' : 'Generate recommendations'}
             </Button>
@@ -354,7 +380,7 @@ export default function CreativePage() {
         </Stack>
 
         {recs === null ? (
-          <Card sx={{ borderRadius: 4, border: `1px dashed ${BORDER}`, bgcolor: CANVAS }}>
+          <Card sx={{ borderRadius: CARD_RADIUS, border: `1px dashed ${LINE}`, bgcolor: 'rgba(14,17,22,0.02)' }}>
             <CardContent sx={{ py: 5, textAlign: 'center' }}>
               <Box sx={{ width: 60, height: 60, borderRadius: '50%', mx: 'auto', display: 'grid', placeItems: 'center', background: `${BRAND.amber}24`, mb: 1.5 }}>
                 <AutoAwesomeIcon sx={{ fontSize: 28, color: BRAND.amberDeep }} />
@@ -371,23 +397,26 @@ export default function CreativePage() {
           <Stack spacing={1.5}>
             {recsLowData && (
               <Typography variant="caption" sx={{ color: BRAND.amberDeep, fontWeight: 800 }}>
-                ⚠ Low data — treat these as directional.
+                Low data — treat these as directional.
               </Typography>
             )}
             {recs.map((r, i) => {
               const meta = ACTION_META[r.action];
               return (
-                <Card key={`${r.attribute}-${i}`} sx={{ borderRadius: 4, border: `1px solid ${BORDER}`, bgcolor: '#fff' }}>
-                  <CardContent sx={{ p: 2.4 }}>
+                <Card key={`${r.attribute}-${i}`} sx={{ borderRadius: CARD_RADIUS, border: `1px solid ${LINE}`, bgcolor: '#fff', boxShadow: CARD_SHADOW, transition: 'transform .18s, box-shadow .18s, border-color .18s', '&:hover': { transform: 'translateY(-2px)', borderColor: `${meta.color}55` } }}>
+                  <CardContent sx={{ p: 2.5 }}>
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'flex-start' }}>
-                      <Chip
-                        icon={meta.icon}
-                        label={meta.label}
-                        sx={{ fontWeight: 900, bgcolor: meta.soft, color: meta.color, '& .MuiChip-icon': { color: meta.color }, flexShrink: 0 }}
-                      />
+                      <Box sx={{ width: 34, height: 34, borderRadius: '11px', display: 'grid', placeItems: 'center', bgcolor: meta.soft, color: meta.color, flexShrink: 0 }}>
+                        {meta.icon}
+                      </Box>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                          <Typography fontWeight={900} color={INK}>
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" rowGap={0.75}>
+                          <Chip
+                            label={meta.label}
+                            size="small"
+                            sx={{ fontWeight: 700, fontSize: 12, height: 22, bgcolor: meta.soft, color: meta.color }}
+                          />
+                          <Typography fontWeight={700} color={INK}>
                             {titleize(r.attribute)}: {valueToText(r.value)}
                           </Typography>
                           <Chip
@@ -420,9 +449,9 @@ export default function CreativePage() {
       {summary.top_posts.length > 0 && (
         <Box>
           <SectionTitle icon={<WhatshotIcon sx={{ fontSize: 18, color: BRAND.amberDeep }} />} title="Top posts" subtitle="Your highest performers in the window." />
-          <Card sx={{ borderRadius: 4, border: `1px solid ${BORDER}`, bgcolor: '#fff' }}>
+          <Card sx={{ borderRadius: CARD_RADIUS, border: `1px solid ${LINE}`, bgcolor: '#fff', boxShadow: CARD_SHADOW }}>
             <CardContent sx={{ p: 0 }}>
-              <Stack divider={<Divider sx={{ borderColor: BORDER }} />}>
+              <Stack divider={<Divider sx={{ borderColor: LINE }} />}>
                 {summary.top_posts.map((post, i) => (
                   <TopPostRow key={i} index={i} post={post} />
                 ))}
@@ -439,21 +468,42 @@ export default function CreativePage() {
 
 function Header() {
   return (
-    <Box>
-      <Stack direction="row" spacing={1.5} alignItems="center">
-        <Box sx={{ width: 44, height: 44, borderRadius: 3, display: 'grid', placeItems: 'center', background: BRAND.gradient, boxShadow: '0 8px 22px rgba(20,187,135,0.30)' }}>
-          <AutoAwesomeIcon sx={{ color: '#fff', fontSize: 22 }} />
-        </Box>
-        <Box>
-          <Typography variant="h4" fontWeight={950} color={INK} sx={{ letterSpacing: -0.5 }}>
-            Creative Intelligence
-          </Typography>
-          <Typography variant="body2" sx={{ color: SUBTLE, mt: 0.2 }}>
-            What&apos;s actually working in your content — winning patterns, creative fatigue, and what to double down on.
-          </Typography>
-        </Box>
-      </Stack>
-    </Box>
+    <Stack
+      direction={{ xs: 'column', md: 'row' }}
+      justifyContent="space-between"
+      alignItems={{ md: 'center' }}
+      spacing={2}
+      sx={{ mb: 0.5, px: 0.5 }}
+    >
+      <Box>
+        <Typography
+          variant="h3"
+          sx={{
+            fontWeight: 800,
+            letterSpacing: '-0.025em',
+            lineHeight: 1.12,
+            fontSize: { xs: 28, md: 38 },
+            color: INK,
+          }}
+        >
+          Creative{' '}
+          <Box
+            component="span"
+            sx={{
+              background: BRAND.gradientText,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            Intelligence
+          </Box>
+        </Typography>
+        <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+          What&apos;s actually working in your content — winning patterns, creative fatigue, and what to double down on.
+        </Typography>
+      </Box>
+    </Stack>
   );
 }
 
@@ -470,12 +520,25 @@ function SectionTitle({
 }) {
   return (
     <Box sx={{ mb: noMargin ? 0 : 1.8 }}>
-      <Stack direction="row" spacing={1} alignItems="center">
-        {icon}
-        <Typography variant="h6" fontWeight={950} color={INK}>{title}</Typography>
+      <Stack direction="row" spacing={1.25} alignItems="center">
+        <Box
+          sx={{
+            width: 34,
+            height: 34,
+            borderRadius: '11px',
+            display: 'grid',
+            placeItems: 'center',
+            bgcolor: 'rgba(14,17,22,0.05)',
+            color: INK,
+            flexShrink: 0,
+          }}
+        >
+          {icon}
+        </Box>
+        <Typography variant="h6" sx={{ fontWeight: 800, color: INK, letterSpacing: '-0.01em' }}>{title}</Typography>
       </Stack>
       {subtitle && (
-        <Typography variant="body2" sx={{ color: SUBTLE, mt: 0.3 }}>{subtitle}</Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.6, ml: 5.75 }}>{subtitle}</Typography>
       )}
     </Box>
   );
@@ -494,7 +557,7 @@ function Stat({ label, value, align }: { label: string; value: string; align?: '
 
 function EmptyHint({ text }: { text: string }) {
   return (
-    <Card sx={{ borderRadius: 4, border: `1px dashed ${BORDER}`, bgcolor: CANVAS }}>
+    <Card sx={{ borderRadius: CARD_RADIUS, border: `1px dashed ${LINE}`, bgcolor: 'rgba(14,17,22,0.02)' }}>
       <CardContent sx={{ py: 3.5, textAlign: 'center' }}>
         <Typography variant="body2" sx={{ color: SUBTLE }}>{text}</Typography>
       </CardContent>
@@ -514,9 +577,9 @@ function TopPostRow({ index, post }: { index: number; post: Record<string, unkno
   const reach = pickNumber(post, ['reach', 'impressions', 'views']);
 
   return (
-    <Stack direction="row" spacing={2} alignItems="center" sx={{ px: 2.4, py: 1.8 }}>
-      <Box sx={{ width: 30, height: 30, borderRadius: 2, flexShrink: 0, display: 'grid', placeItems: 'center', bgcolor: CANVAS, border: `1px solid ${BORDER}` }}>
-        <Typography fontWeight={950} sx={{ fontSize: 13, color: SUBTLE }}>{index + 1}</Typography>
+    <Stack direction="row" spacing={2} alignItems="center" sx={{ px: 2.5, py: 1.8, transition: 'background .15s', '&:hover': { bgcolor: 'rgba(14,17,22,0.02)' } }}>
+      <Box sx={{ width: 34, height: 34, borderRadius: '11px', flexShrink: 0, display: 'grid', placeItems: 'center', bgcolor: 'rgba(14,17,22,0.05)', color: INK }}>
+        <Typography sx={{ fontSize: 14, fontWeight: 800, color: INK }}>{index + 1}</Typography>
       </Box>
       <Typography sx={{ flex: 1, minWidth: 0, color: INK, fontWeight: 700 }} noWrap title={title}>
         {title}
@@ -525,7 +588,7 @@ function TopPostRow({ index, post }: { index: number; post: Record<string, unkno
         <Stat label="Reach" value={fmtMetric('reach', reach)} align="right" />
       )}
       {typeof engagementRaw === 'number' && (
-        <Chip label={fmtRate(engagementRaw)} size="small" sx={{ fontWeight: 900, bgcolor: `${BRAND.teal}14`, color: BRAND.tealDeep, flexShrink: 0 }} />
+        <Chip label={fmtRate(engagementRaw)} size="small" sx={{ fontWeight: 700, fontSize: 12, bgcolor: BRAND.tealSoft, color: BRAND.tealDeep, flexShrink: 0 }} />
       )}
     </Stack>
   );

@@ -10,10 +10,6 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   FormControlLabel,
   Grid,
@@ -30,6 +26,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNewOutlined';
 import RadarIcon from '@mui/icons-material/RadarOutlined';
+import RadarRoundedIcon from '@mui/icons-material/RadarRounded';
 import RefreshIcon from '@mui/icons-material/RefreshOutlined';
 import BoltIcon from '@mui/icons-material/BoltOutlined';
 import LanguageIcon from '@mui/icons-material/LanguageOutlined';
@@ -44,6 +41,17 @@ import {
   type WatchImportance,
 } from '@/lib/api';
 import { useConfirm } from '@/components/ConfirmDialog';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  FieldGrid,
+  FullSpan,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
 import { BRAND } from '@/theme/theme';
 
 const INK = '#11151B';
@@ -490,49 +498,47 @@ export default function WatchtowerPage() {
       )}
 
       {/* ── Add competitor dialog ── */}
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 4, overflow: 'hidden' } }}>
-        <Box sx={{ p: 3, background: 'linear-gradient(135deg, #11151B 0%, #1B2330 100%)', color: '#fff', position: 'relative', overflow: 'hidden' }}>
-          <Box sx={{ position: 'absolute', top: -50, right: -50, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(217,44,74,0.28), transparent 65%)' }} />
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ position: 'relative' }}>
-            <Box sx={{ width: 38, height: 38, borderRadius: 2, display: 'grid', placeItems: 'center', background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})` }}>
-              <RadarIcon sx={{ color: '#fff', fontSize: 20 }} />
-            </Box>
-            <Box>
-              <Typography fontWeight={950} variant="h6">Add a competitor</Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.65)' }}>We&apos;ll watch their moves so you can stay ahead.</Typography>
-            </Box>
-          </Stack>
-        </Box>
-        <DialogTitle sx={{ display: 'none' }} />
-        <DialogContent sx={{ pt: 3 }}>
-          <Stack spacing={2.5}>
-            <TextField label="Competitor name" placeholder="e.g. Acme Inc." value={name} onChange={(e) => setName(e.target.value)} fullWidth autoFocus required />
-            <TextField label="Website (optional)" placeholder="https://acme.com" value={website} onChange={(e) => setWebsite(e.target.value)} fullWidth />
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField label="LinkedIn (optional)" placeholder="company/acme" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} fullWidth />
-              <TextField label="Twitter / X (optional)" placeholder="@acme" value={twitter} onChange={(e) => setTwitter(e.target.value)} fullWidth />
-            </Stack>
-            <FormControlLabel
-              control={<Checkbox checked={seed} onChange={(e) => setSeed(e.target.checked)} color="success" />}
-              label={
-                <Box>
-                  <Typography fontWeight={800} sx={{ color: INK, fontSize: 14 }}>Generate initial snapshot</Typography>
-                  <Typography variant="caption" sx={{ color: SUBTLE }}>Run a first scan immediately to baseline their current state.</Typography>
-                </Box>
-              }
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setOpen(false)} color="inherit" disabled={creating}>Cancel</Button>
-          <Button onClick={handleCreate} variant="contained" disabled={creating || !name.trim()}
+      <PremiumDialog open={open} onClose={() => setOpen(false)} maxWidth="sm">
+        <DialogHero
+          icon={<RadarRoundedIcon />}
+          title="Add a competitor"
+          subtitle="We'll watch their moves so you can stay ahead."
+          onClose={() => setOpen(false)}
+          tint={BRAND.pink}
+          tintSoft={BRAND.pinkSoft}
+        />
+        <DialogBody>
+          <SectionLabel>Competitor profile</SectionLabel>
+          <FieldGrid columns={2}>
+            <FullSpan>
+              <TextField label="Competitor name" placeholder="e.g. Acme Inc." value={name} onChange={(e) => setName(e.target.value)} fullWidth size="small" autoFocus required />
+            </FullSpan>
+            <FullSpan>
+              <TextField label="Website (optional)" placeholder="https://acme.com" value={website} onChange={(e) => setWebsite(e.target.value)} fullWidth size="small" />
+            </FullSpan>
+            <TextField label="LinkedIn (optional)" placeholder="company/acme" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} fullWidth size="small" />
+            <TextField label="Twitter / X (optional)" placeholder="@acme" value={twitter} onChange={(e) => setTwitter(e.target.value)} fullWidth size="small" />
+          </FieldGrid>
+          <FormControlLabel
+            sx={{ mt: 2, alignItems: 'flex-start' }}
+            control={<Checkbox checked={seed} onChange={(e) => setSeed(e.target.checked)} color="success" />}
+            label={
+              <Box>
+                <Typography fontWeight={800} sx={{ color: INK, fontSize: 14 }}>Generate initial snapshot</Typography>
+                <Typography variant="caption" sx={{ color: SUBTLE }}>Run a first scan immediately to baseline their current state.</Typography>
+              </Box>
+            }
+          />
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setOpen(false)} disabled={creating} sx={ghostPillSx}>Cancel</Button>
+          <Button onClick={handleCreate} disabled={creating || !name.trim()}
             startIcon={creating ? <CircularProgress size={14} color="inherit" /> : undefined}
-            sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 900, background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})`, color: '#11151B' }}>
+            sx={inkPillSx}>
             {creating ? 'Adding…' : 'Add competitor'}
           </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogFooter>
+      </PremiumDialog>
 
       <Snackbar open={!!toast} autoHideDuration={3000} onClose={() => setToast(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity="success" onClose={() => setToast(null)} sx={{ width: '100%' }}>{toast}</Alert>

@@ -9,9 +9,6 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
   Divider,
   Drawer,
   Grid,
@@ -33,7 +30,19 @@ import BoltIcon from '@mui/icons-material/BoltOutlined';
 import GroupsIcon from '@mui/icons-material/GroupsOutlined';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import BusinessIcon from '@mui/icons-material/BusinessOutlined';
+import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import SaveIcon from '@mui/icons-material/SaveOutlined';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  SectionLabel,
+  FieldGrid,
+  FullSpan,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
 import { useAuth } from '@/lib/auth';
 import {
   Abm,
@@ -434,78 +443,96 @@ export default function AbmPage() {
       )}
 
       {/* ── Add dialog ── */}
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm"
-        PaperProps={{ sx: { borderRadius: 4, overflow: 'hidden' } }}>
-        <Box sx={{ p: 3, background: 'linear-gradient(135deg, #11151B 0%, #1B2330 100%)', color: '#fff', position: 'relative', overflow: 'hidden' }}>
-          <Box sx={{ position: 'absolute', top: -50, right: -50, width: 160, height: 160, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,187,135,0.30), transparent 65%)' }} />
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ position: 'relative' }}>
-            <Box sx={{ width: 38, height: 38, borderRadius: 2, display: 'grid', placeItems: 'center', background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})` }}>
-              <BusinessIcon sx={{ color: '#fff', fontSize: 20 }} />
-            </Box>
-            <Box>
-              <Typography fontWeight={950} variant="h6">Add target account</Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.65)' }}>Build your named-account list to run tailored plays.</Typography>
-            </Box>
-          </Stack>
-        </Box>
-        <DialogContent sx={{ pt: 3 }}>
+      <PremiumDialog open={open} onClose={() => setOpen(false)} maxWidth="sm">
+        <DialogHero
+          icon={<BusinessRoundedIcon />}
+          title="Add target account"
+          subtitle="Build your named-account list to run tailored plays."
+          onClose={() => setOpen(false)}
+          tint={BRAND.tealDeep}
+          tintSoft={BRAND.tealSoft}
+        />
+        <DialogBody>
           <ToggleButtonGroup
             exclusive
             size="small"
             value={mode}
             onChange={(_, v) => v && setMode(v)}
-            sx={{ mb: 2.5 }}
+            sx={{
+              mb: 2.5,
+              '& .MuiToggleButton-root': {
+                textTransform: 'none',
+                fontWeight: 800,
+                px: 2,
+                py: 0.5,
+                borderRadius: '999px !important',
+                border: '1px solid rgba(14,17,22,0.08)',
+                mx: 0.25,
+                color: SUBTLE,
+                '&.Mui-selected': { background: INK, color: '#fff', '&:hover': { background: '#000' } },
+              },
+            }}
           >
-            <ToggleButton value="single" sx={{ textTransform: 'none', fontWeight: 800, px: 2 }}>Single</ToggleButton>
-            <ToggleButton value="bulk" sx={{ textTransform: 'none', fontWeight: 800, px: 2 }}>Bulk add</ToggleButton>
+            <ToggleButton value="single">Single</ToggleButton>
+            <ToggleButton value="bulk">Bulk add</ToggleButton>
           </ToggleButtonGroup>
 
           {mode === 'single' ? (
-            <Stack spacing={2.5}>
-              <TextField label="Company" placeholder="e.g. Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} fullWidth autoFocus required />
-              <TextField label="Website (optional)" placeholder="https://acme.com" value={website} onChange={(e) => setWebsite(e.target.value)} fullWidth />
-              <TextField label="Industry (optional)" placeholder="e.g. SaaS" value={industry} onChange={(e) => setIndustry(e.target.value)} fullWidth />
-              <TextField select label="Tier" value={tier} onChange={(e) => setTier(e.target.value as AbmTier)} fullWidth>
-                {TIERS.map((t) => (
-                  <MenuItem key={t.key} value={t.key}>{t.label}</MenuItem>
-                ))}
-              </TextField>
-              <TextField label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} fullWidth multiline minRows={2} />
-            </Stack>
+            <>
+              <SectionLabel>Account details</SectionLabel>
+              <FieldGrid columns={2}>
+                <FullSpan>
+                  <TextField label="Company" placeholder="e.g. Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} fullWidth size="small" autoFocus required />
+                </FullSpan>
+                <TextField label="Website (optional)" placeholder="https://acme.com" value={website} onChange={(e) => setWebsite(e.target.value)} fullWidth size="small" />
+                <TextField label="Industry (optional)" placeholder="e.g. SaaS" value={industry} onChange={(e) => setIndustry(e.target.value)} fullWidth size="small" />
+                <TextField select label="Tier" value={tier} onChange={(e) => setTier(e.target.value as AbmTier)} fullWidth size="small">
+                  {TIERS.map((t) => (
+                    <MenuItem key={t.key} value={t.key}>{t.label}</MenuItem>
+                  ))}
+                </TextField>
+                <FullSpan>
+                  <TextField label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} fullWidth size="small" multiline minRows={2} />
+                </FullSpan>
+              </FieldGrid>
+            </>
           ) : (
-            <Stack spacing={2.5}>
-              <TextField
-                label="Company names"
-                placeholder={'One company per line\nAcme Corp\nGlobex\nInitech'}
-                value={bulkText}
-                onChange={(e) => setBulkText(e.target.value)}
-                fullWidth
-                multiline
-                minRows={6}
-                autoFocus
-                helperText="Each line becomes a new account at the selected tier."
-              />
-              <TextField select label="Tier for all" value={tier} onChange={(e) => setTier(e.target.value as AbmTier)} fullWidth>
-                {TIERS.map((t) => (
-                  <MenuItem key={t.key} value={t.key}>{t.label}</MenuItem>
-                ))}
-              </TextField>
-            </Stack>
+            <>
+              <SectionLabel>Bulk add accounts</SectionLabel>
+              <Stack spacing={2.25}>
+                <TextField
+                  label="Company names"
+                  placeholder={'One company per line\nAcme Corp\nGlobex\nInitech'}
+                  value={bulkText}
+                  onChange={(e) => setBulkText(e.target.value)}
+                  fullWidth
+                  size="small"
+                  multiline
+                  minRows={6}
+                  autoFocus
+                  helperText="Each line becomes a new account at the selected tier."
+                />
+                <TextField select label="Tier for all" value={tier} onChange={(e) => setTier(e.target.value as AbmTier)} fullWidth size="small">
+                  {TIERS.map((t) => (
+                    <MenuItem key={t.key} value={t.key}>{t.label}</MenuItem>
+                  ))}
+                </TextField>
+              </Stack>
+            </>
           )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setOpen(false)} color="inherit" disabled={creating}>Cancel</Button>
+        </DialogBody>
+        <DialogFooter>
+          <Button onClick={() => setOpen(false)} disabled={creating} sx={ghostPillSx}>Cancel</Button>
           <Button
             onClick={handleCreate}
-            variant="contained"
             disabled={creating || (mode === 'single' ? !company.trim() : !bulkText.trim())}
             startIcon={creating ? <CircularProgress size={14} color="inherit" /> : undefined}
-            sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 900, background: `linear-gradient(135deg, ${BRAND.amber}, ${BRAND.teal})`, color: INK }}
+            sx={inkPillSx}
           >
             {creating ? 'Adding…' : mode === 'single' ? 'Add account' : 'Add accounts'}
           </Button>
-        </DialogActions>
-      </Dialog>
+        </DialogFooter>
+      </PremiumDialog>
 
       {/* ── Detail drawer ── */}
       <Drawer anchor="right" open={!!selectedId} onClose={() => setSelectedId(null)}

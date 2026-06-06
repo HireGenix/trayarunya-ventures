@@ -5,14 +5,8 @@ import {
   Alert,
   Box,
   Button,
-  Card,
-  CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Snackbar,
   Stack,
   TextField,
@@ -21,14 +15,44 @@ import {
 import CheckCircleIcon from '@mui/icons-material/CheckCircleOutline';
 import EditNoteIcon from '@mui/icons-material/EditNoteOutlined';
 import FactCheckIcon from '@mui/icons-material/FactCheckOutlined';
+import EditNoteRoundedIcon from '@mui/icons-material/EditNoteRounded';
 import PortalShell from '@/components/PortalShell';
 import { usePortalAuth } from '@/lib/portalAuth';
 import { Portal, type PortalApprovalItem } from '@/lib/api';
+import {
+  PremiumDialog,
+  DialogHero,
+  DialogBody,
+  DialogFooter,
+  inkPillSx,
+  ghostPillSx,
+} from '@/components/PremiumDialog';
 import { BRAND } from '@/theme/theme';
 
-const INK = '#11151B';
+const INK = BRAND.ink;
 const SUBTLE = '#6B7280';
-const BORDER = '#EAECEF';
+const LINE = 'rgba(14,17,22,0.07)';
+const CARD_RADIUS = '22px';
+const CARD_SHADOW = '0 1px 2px rgba(14,17,22,0.04), 0 8px 24px rgba(14,17,22,0.05)';
+
+const cardSx = {
+  bgcolor: '#fff',
+  border: `1px solid ${LINE}`,
+  borderRadius: CARD_RADIUS,
+  boxShadow: CARD_SHADOW,
+  p: 2.5,
+} as const;
+
+const inkPill = {
+  background: INK,
+  backgroundImage: 'none',
+  borderRadius: '999px',
+  fontWeight: 700,
+  textTransform: 'none',
+  color: '#fff',
+  boxShadow: 'none',
+  '&:hover': { background: '#1B2330' },
+} as const;
 
 function fmtDate(s: string | null): string {
   if (!s) return '';
@@ -102,57 +126,97 @@ function ApprovalsBody() {
   }
 
   return (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="h5" fontWeight={800} color={INK}>Content Approvals</Typography>
-        <Typography variant="body2" color={SUBTLE}>
-          {isApprover
-            ? 'Review content waiting for your sign-off before it goes live.'
-            : 'Content currently in review. Approver access is required to take action.'}
-        </Typography>
-      </Box>
+    <Box>
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ md: 'center' }}
+        spacing={2}
+        sx={{ mb: 2.5, px: 0.5 }}
+      >
+        <Box>
+          <Typography
+            variant="h3"
+            sx={{ fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.12, fontSize: { xs: 26, md: 34 }, color: INK }}
+          >
+            Content{' '}
+            <Box
+              component="span"
+              sx={{ background: BRAND.gradientText, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
+            >
+              Approvals
+            </Box>
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+            {isApprover
+              ? 'Review content waiting for your sign-off before it goes live.'
+              : 'Content currently in review. Approver access is required to take action.'}
+          </Typography>
+        </Box>
+      </Stack>
 
-      {error && <Alert severity="error" sx={{ borderRadius: 2 }}>{error}</Alert>}
+      <Stack spacing={2.5}>
+        {error && <Alert severity="error" sx={{ borderRadius: 3 }}>{error}</Alert>}
 
-      {!isApprover && (
-        <Alert severity="info" sx={{ borderRadius: 2 }}>
-          You have viewer access. Ask your agency contact for approver rights to approve content.
-        </Alert>
-      )}
+        {!isApprover && (
+          <Alert severity="info" sx={{ borderRadius: 3 }}>
+            You have viewer access. Ask your agency contact for approver rights to approve content.
+          </Alert>
+        )}
 
-      {items.length === 0 ? (
-        <Card variant="outlined" sx={{ borderColor: BORDER, borderRadius: 3 }}>
-          <CardContent>
-            <Stack spacing={1} alignItems="center" sx={{ py: 4 }}>
-              <FactCheckIcon sx={{ color: BRAND.teal, fontSize: 40 }} />
-              <Typography variant="body2" color={SUBTLE}>
+        {items.length === 0 ? (
+          <Box sx={cardSx}>
+            <Stack spacing={1.25} alignItems="center" sx={{ py: 4 }}>
+              <Box
+                sx={{
+                  width: 48, height: 48, borderRadius: '14px',
+                  display: 'grid', placeItems: 'center',
+                  bgcolor: BRAND.tealSoft, color: BRAND.tealDeep,
+                }}
+              >
+                <FactCheckIcon />
+              </Box>
+              <Typography variant="body2" color="text.secondary">
                 Nothing waiting for review. You&apos;re all caught up.
               </Typography>
             </Stack>
-          </CardContent>
-        </Card>
-      ) : (
-        <Stack spacing={2}>
-          {items.map((item) => (
-            <Card key={item.id} variant="outlined" sx={{ borderColor: BORDER, borderRadius: 3 }}>
-              <CardContent>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between">
+          </Box>
+        ) : (
+          <Stack spacing={2}>
+            {items.map((item) => (
+              <Box
+                key={item.id}
+                sx={{
+                  ...cardSx,
+                  transition: 'transform .16s ease, box-shadow .16s ease, border-color .16s ease',
+                  '&:hover': { transform: 'translateY(-2px)', borderColor: 'rgba(14,17,22,0.12)' },
+                }}
+              >
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5} justifyContent="space-between">
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5, flexWrap: 'wrap' }}>
-                      <Chip size="small" label={item.content_type} sx={{ fontWeight: 600, textTransform: 'capitalize' }} />
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1, flexWrap: 'wrap' }}>
+                      <Chip
+                        size="small"
+                        label={item.content_type}
+                        sx={{ fontWeight: 700, fontSize: 12, textTransform: 'capitalize', bgcolor: 'rgba(14,17,22,0.05)', color: SUBTLE }}
+                      />
                       {item.platform && (
-                        <Chip size="small" variant="outlined" label={item.platform} sx={{ fontWeight: 600, textTransform: 'capitalize' }} />
+                        <Chip
+                          size="small"
+                          label={item.platform}
+                          sx={{ fontWeight: 700, fontSize: 12, textTransform: 'capitalize', bgcolor: BRAND.tealSoft, color: BRAND.tealDeep }}
+                        />
                       )}
                       {item.updated_at && (
-                        <Typography variant="caption" color={SUBTLE}>Updated {fmtDate(item.updated_at)}</Typography>
+                        <Typography variant="caption" color="text.secondary">Updated {fmtDate(item.updated_at)}</Typography>
                       )}
                     </Stack>
                     {item.title && (
-                      <Typography variant="subtitle1" fontWeight={800} color={INK}>{item.title}</Typography>
+                      <Typography sx={{ fontWeight: 800, fontSize: 17, color: INK }}>{item.title}</Typography>
                     )}
                     <Typography
                       variant="body2"
-                      color={SUBTLE}
+                      color="text.secondary"
                       sx={{
                         mt: 0.5,
                         whiteSpace: 'pre-wrap',
@@ -165,84 +229,87 @@ function ApprovalsBody() {
                       {item.body}
                     </Typography>
                     {item.latest_note && (
-                      <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 2 }}>
+                      <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 3 }}>
                         Last note: {item.latest_note}
                       </Alert>
                     )}
                   </Box>
 
                   {isApprover && (
-                    <Stack spacing={1} sx={{ minWidth: 160 }} justifyContent="center">
+                    <Stack spacing={1.25} sx={{ minWidth: 168 }} justifyContent="center">
                       <Button
                         variant="contained"
-                        color="success"
                         startIcon={busyId === item.id ? <CircularProgress size={16} color="inherit" /> : <CheckCircleIcon />}
                         disabled={busyId === item.id}
                         onClick={() => approve(item)}
-                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                        sx={inkPill}
                       >
                         Approve
                       </Button>
                       <Button
                         variant="outlined"
-                        color="warning"
                         startIcon={<EditNoteIcon />}
                         disabled={busyId === item.id}
                         onClick={() => { setChangesFor(item); setNote(''); }}
-                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                        sx={{
+                          textTransform: 'none',
+                          fontWeight: 700,
+                          borderRadius: '999px',
+                          color: INK,
+                          borderColor: LINE,
+                          '&:hover': { borderColor: INK, bgcolor: 'rgba(14,17,22,0.04)' },
+                        }}
                       >
                         Request changes
                       </Button>
                     </Stack>
                   )}
                 </Stack>
-              </CardContent>
-            </Card>
-          ))}
-        </Stack>
-      )}
+              </Box>
+            ))}
+          </Stack>
+        )}
 
-      <Dialog open={!!changesFor} onClose={() => setChangesFor(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>Request changes</DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2" color={SUBTLE} sx={{ mb: 2 }}>
-            Tell the team what to adjust. This sends the content back to draft.
-          </Typography>
-          <TextField
-            label="Notes (optional)"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            fullWidth
-            multiline
-            minRows={3}
-            autoFocus
-            placeholder="e.g. Soften the CTA and add a customer proof point."
+        <PremiumDialog open={!!changesFor} onClose={() => setChangesFor(null)} maxWidth="sm">
+          <DialogHero
+            icon={<EditNoteRoundedIcon />}
+            title="Request changes"
+            subtitle="Tell the team what to adjust. This sends the content back to draft."
+            onClose={() => setChangesFor(null)}
+            tint={BRAND.amberDeep}
+            tintSoft={BRAND.amberSoft}
           />
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setChangesFor(null)} sx={{ textTransform: 'none', fontWeight: 700 }}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="warning"
-            onClick={submitChanges}
-            disabled={!!busyId}
-            sx={{ textTransform: 'none', fontWeight: 700 }}
-          >
-            Send request
-          </Button>
-        </DialogActions>
-      </Dialog>
+          <DialogBody>
+            <TextField
+              label="Notes (optional)"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              fullWidth
+              multiline
+              minRows={3}
+              autoFocus
+              placeholder="e.g. Soften the CTA and add a customer proof point."
+            />
+          </DialogBody>
+          <DialogFooter>
+            <Button onClick={() => setChangesFor(null)} sx={ghostPillSx}>
+              Cancel
+            </Button>
+            <Button onClick={submitChanges} disabled={!!busyId} sx={inkPillSx}>
+              Send request
+            </Button>
+          </DialogFooter>
+        </PremiumDialog>
 
-      <Snackbar
-        open={!!toast}
-        autoHideDuration={2600}
-        onClose={() => setToast(null)}
-        message={toast}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      />
-    </Stack>
+        <Snackbar
+          open={!!toast}
+          autoHideDuration={2600}
+          onClose={() => setToast(null)}
+          message={toast}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        />
+      </Stack>
+    </Box>
   );
 }
 
