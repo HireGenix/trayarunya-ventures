@@ -1,5 +1,5 @@
 /**
- * Aggregations over the first-party analytics event log.
+ * Aggregations over the first-party analytics event log (async; Prisma-backed).
  * Produces the exact shapes the admin Analytics page expects.
  */
 import {
@@ -10,11 +10,12 @@ import {
   type Timeframe,
 } from './analyticsStore';
 
-function eventsFor(tf: Timeframe): AnalyticsEvent[] {
+async function eventsFor(tf: Timeframe): Promise<AnalyticsEvent[]> {
   if (tf === 'yesterday') {
     const day = 24 * 60 * 60 * 1000;
     const now = Date.now();
-    return analyticsStore.all().filter((e) => e.ts >= now - 2 * day && e.ts < now - day);
+    const all = await analyticsStore.all();
+    return all.filter((e) => e.ts >= now - 2 * day && e.ts < now - day);
   }
   return analyticsStore.since(timeframeMs(tf));
 }
@@ -23,18 +24,16 @@ function pct(part: number, total: number): number {
   return total > 0 ? Math.round((part / total) * 1000) / 10 : 0;
 }
 
-export function overview(tf: Timeframe) {
-  const events = eventsFor(tf).filter((e) => e.type === 'pageview');
+export async function overview(tf: Timeframe) {
+  const events = (await eventsFor(tf)).filter((e) => e.type === 'pageview');
   const pageViews = events.length;
   const sessions = new Set(events.map((e) => e.sessionId));
   const visitors = new Set(events.map((e) => e.visitorId));
 
-  // Bounce = sessions with exactly one pageview.
   const perSession = new Map<string, number>();
   for (const e of events) perSession.set(e.sessionId, (perSession.get(e.sessionId) || 0) + 1);
   const bounced = [...perSession.values()].filter((c) => c === 1).length;
 
-  // Avg session duration from spread of timestamps within a session.
   const sessionTimes = new Map<string, { min: number; max: number }>();
   for (const e of events) {
     const cur = sessionTimes.get(e.sessionId);
@@ -48,7 +47,6 @@ export function overview(tf: Timeframe) {
   const avgSessionDuration =
     durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
 
-  // Conversion = sessions that hit /contact or a custom "lead" event.
   const converted = new Set(
     events.filter((e) => /\/contact/.test(e.path)).map((e) => e.sessionId)
   );
@@ -64,8 +62,8 @@ export function overview(tf: Timeframe) {
   };
 }
 
-export function trafficSources(tf: Timeframe) {
-  const events = eventsFor(tf).filter((e) => e.type === 'pageview');
+export async function trafficSources(tf: Timeframe) {
+  const events = (await eventsFor(tf)).filter((e) => e.type === 'pageview');
   const bySource = new Map<string, Set<string>>();
   for (const e of events) {
     if (!bySource.has(e.source)) bySource.set(e.source, new Set());
@@ -82,8 +80,8 @@ export function trafficSources(tf: Timeframe) {
     .sort((a, b) => b.visitors - a.visitors);
 }
 
-export function pagePerformance(tf: Timeframe) {
-  const events = eventsFor(tf).filter((e) => e.type === 'pageview');
+export async function pagePerformance(tf: Timeframe) {
+  const events = (await eventsFor(tf)).filter((e) => e.type === 'pageview');
   const byPath = new Map<
     string,
     { views: number; visitors: Set<string>; title: string; durations: number[]; bounces: number }
@@ -130,16 +128,16 @@ function breakdown<T extends string>(events: AnalyticsEvent[], key: (e: Analytic
     .sort((a, b) => b.sessions - a.sessions);
 }
 
-export function devices(tf: Timeframe) {
-  return breakdown(eventsFor(tf), (e) => e.device).map((d) => ({
+export async function devices(tf: Timeframe) {
+  return breakdown(await eventsFor(tf), (e) => e.device).map((d) => ({
     device: d.key as 'desktop' | 'mobile' | 'tablet',
     sessions: d.sessions,
     percentage: d.percentage,
   }));
 }
 
-export function browsers(tf: Timeframe) {
-  return breakdown(eventsFor(tf), (e) => e.browser).map((d) => ({
+export async function browsers(tf: Timeframe) {
+  return breakdown(await eventsFor(tf), (e) => e.browser).map((d) => ({
     browser: d.key,
     sessions: d.sessions,
     percentage: d.percentage,
@@ -156,8 +154,8 @@ const COUNTRY_CODES: Record<string, string> = {
   Unknown: 'XX',
 };
 
-export function countries(tf: Timeframe) {
-  return breakdown(eventsFor(tf), (e) => e.country).map((d) => ({
+export async function countries(tf: Timeframe) {
+  return breakdown(await eventsFor(tf), (e) => e.country).map((d) => ({
     country: d.key,
     code: COUNTRY_CODES[d.key] || 'XX',
     sessions: d.sessions,
@@ -165,9 +163,9 @@ export function countries(tf: Timeframe) {
   }));
 }
 
-export function timeSeries(tf: Timeframe) {
+export async function timeSeries(tf: Timeframe) {
   const days = timeframeDays(tf);
-  const events = eventsFor(tf).filter((e) => e.type === 'pageview');
+  const events = (await eventsFor(tf)).filter((e) => e.type === 'pageview');
   const byDay = new Map<string, { visitors: Set<string>; views: number }>();
   const now = new Date();
   for (let i = days - 1; i >= 0; i--) {
@@ -190,8 +188,8 @@ export function timeSeries(tf: Timeframe) {
   }));
 }
 
-export function events(tf: Timeframe) {
-  const evs = eventsFor(tf).filter((e) => e.type === 'event');
+export async function events(tf: Timeframe) {
+  const evs = (await eventsFor(tf)).filter((e) => e.type === 'event');
   const byName = new Map<string, { count: number; users: Set<string>; category: string }>();
   for (const e of evs) {
     const name = e.name || 'event';
@@ -208,8 +206,8 @@ export function events(tf: Timeframe) {
   }));
 }
 
-export function conversions(tf: Timeframe) {
-  const events = eventsFor(tf).filter((e) => e.type === 'pageview');
+export async function conversions(tf: Timeframe) {
+  const events = (await eventsFor(tf)).filter((e) => e.type === 'pageview');
   const totalSessions = new Set(events.map((e) => e.sessionId)).size;
   const contact = new Set(events.filter((e) => /\/contact/.test(e.path)).map((e) => e.sessionId)).size;
   return [

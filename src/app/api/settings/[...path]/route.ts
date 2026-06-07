@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@/lib/authToken';
 import { settingsStore } from '@/lib/settingsStore';
-import { userStore, type Role } from '@/lib/userStore';
+import { userStore, type Role, type PublicUser } from '@/lib/userStore';
 
 export const runtime = 'nodejs';
 
@@ -10,7 +10,7 @@ function unauthorized() {
 }
 
 // Map a real stored user to the settings-page User shape.
-function toSettingsUser(u: ReturnType<typeof userStore.list>[number]) {
+function toSettingsUser(u: PublicUser) {
   return {
     id: u.id,
     name: u.name,
@@ -43,19 +43,19 @@ export async function GET(
 
   switch (section) {
     case 'general':
-      return NextResponse.json(settingsStore.getGeneral());
+      return NextResponse.json(await settingsStore.getGeneral());
     case 'notifications':
-      return NextResponse.json(settingsStore.getNotifications());
+      return NextResponse.json(await settingsStore.getNotifications());
     case 'integrations':
-      return NextResponse.json(settingsStore.getIntegrations());
+      return NextResponse.json(await settingsStore.getIntegrations());
     case 'backup':
-      return NextResponse.json(settingsStore.getBackup());
+      return NextResponse.json(await settingsStore.getBackup());
     case 'security':
-      return NextResponse.json(settingsStore.getSecurity());
+      return NextResponse.json(await settingsStore.getSecurity());
     case 'roles':
-      return NextResponse.json(settingsStore.getRoles());
+      return NextResponse.json(await settingsStore.getRoles());
     case 'users':
-      return NextResponse.json(userStore.list().map(toSettingsUser));
+      return NextResponse.json((await userStore.list()).map(toSettingsUser));
     default:
       return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
@@ -72,31 +72,33 @@ export async function PUT(
 
   switch (section) {
     case 'general':
-      return NextResponse.json(settingsStore.updateGeneral(body));
+      return NextResponse.json(await settingsStore.updateGeneral(body));
     case 'notifications':
-      return NextResponse.json(settingsStore.updateNotifications(body));
+      return NextResponse.json(await settingsStore.updateNotifications(body));
     case 'backup':
-      return NextResponse.json(settingsStore.updateBackup(body));
+      return NextResponse.json(await settingsStore.updateBackup(body));
     case 'security':
-      return NextResponse.json(settingsStore.updateSecurity(body));
+      return NextResponse.json(await settingsStore.updateSecurity(body));
     case 'integrations': {
       if (!id) return NextResponse.json({ error: 'id_required' }, { status: 400 });
-      const updated = settingsStore.updateIntegration(id, body);
+      const updated = await settingsStore.updateIntegration(id, body);
       return updated
         ? NextResponse.json(updated)
         : NextResponse.json({ error: 'not_found' }, { status: 404 });
     }
     case 'users': {
       if (!id) return NextResponse.json({ error: 'id_required' }, { status: 400 });
-      const updated = userStore.update(id, {
-        name: body.name as string | undefined,
-        role: body.role ? roleFromLabel(body.role as string) : undefined,
-        active: body.status ? body.status === 'active' : undefined,
-        password: body.password as string | undefined,
-      });
-      return updated
-        ? NextResponse.json(toSettingsUser(updated as ReturnType<typeof userStore.list>[number]))
-        : NextResponse.json({ error: 'not_found' }, { status: 404 });
+      try {
+        const updated = await userStore.update(id, {
+          name: body.name as string | undefined,
+          role: body.role ? roleFromLabel(body.role as string) : undefined,
+          active: body.status ? body.status === 'active' : undefined,
+          password: body.password as string | undefined,
+        });
+        return NextResponse.json(toSettingsUser(updated));
+      } catch {
+        return NextResponse.json({ error: 'not_found' }, { status: 404 });
+      }
     }
     default:
       return NextResponse.json({ error: 'not_found' }, { status: 404 });
@@ -115,21 +117,18 @@ export async function POST(
   switch (section) {
     case 'integrations':
       return NextResponse.json(
-        settingsStore.createIntegration(body as never),
+        await settingsStore.createIntegration(body as never),
         { status: 201 }
       );
     case 'users': {
       try {
-        const created = userStore.create({
+        const created = await userStore.create({
           email: String(body.email || ''),
           name: String(body.name || ''),
           password: String(body.password || Math.random().toString(36).slice(2)),
           role: roleFromLabel(body.role as string),
         });
-        return NextResponse.json(
-          toSettingsUser(created as ReturnType<typeof userStore.list>[number]),
-          { status: 201 }
-        );
+        return NextResponse.json(toSettingsUser(created), { status: 201 });
       } catch (err) {
         return NextResponse.json(
           { error: 'create_failed', message: (err as Error).message },
@@ -153,11 +152,11 @@ export async function DELETE(
 
   switch (section) {
     case 'integrations':
-      return settingsStore.deleteIntegration(id)
+      return (await settingsStore.deleteIntegration(id))
         ? NextResponse.json({ ok: true })
         : NextResponse.json({ error: 'not_found' }, { status: 404 });
     case 'users':
-      userStore.delete(id);
+      await userStore.delete(id);
       return NextResponse.json({ ok: true });
     default:
       return NextResponse.json({ error: 'not_found' }, { status: 404 });

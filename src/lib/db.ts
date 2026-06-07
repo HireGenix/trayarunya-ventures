@@ -1,155 +1,107 @@
+/**
+ * Leads data access — backed by Azure Postgres via Prisma.
+ * Preserves the original Prisma-like API the routes already depend on.
+ */
 import { Lead, LeadStatus } from '@/app/admin/leads/types';
-import { readJson, writeJson } from '@/lib/blobStore';
+import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 
-const KEY = 'leads.json';
-
-// Helper function to read leads (Vercel Blob in prod, local file in dev).
-function readLeads(): Promise<Lead[]> {
-  return readJson<Lead[]>(KEY, []);
+function toLead(row: unknown): Lead {
+  return row as Lead;
 }
 
-// Helper function to persist leads.
-function writeLeads(leads: Lead[]): Promise<void> {
-  return writeJson(KEY, leads);
-}
-
-// Database interface
 export const db = {
   leads: {
-    // Create a new lead
     create: async (data: Omit<Lead, 'id'>): Promise<Lead> => {
-      const leads = await readLeads();
-      const newLead: Lead = {
-        id: `lead_${Date.now()}`,
-        ...data
-      };
-      leads.push(newLead);
-      await writeLeads(leads);
-      return newLead;
+      const created = await prisma.lead.create({
+        data: {
+          id: `lead_${Date.now()}`,
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          company: data.company,
+          position: data.position,
+          message: data.message,
+          source: data.source,
+          status: data.status,
+          date: data.date,
+          lastContactedDate: data.lastContactedDate,
+          notes: data.notes ?? [],
+          tags: data.tags ?? [],
+          assignedTo: data.assignedTo,
+          priority: data.priority,
+          formType: data.formType,
+          formData: (data.formData ?? undefined) as Prisma.InputJsonValue | undefined,
+          pageUrl: data.pageUrl,
+        },
+      });
+      return toLead(created);
     },
 
-    // Find many leads with filtering, pagination, and sorting
-    findMany: async (options: {
-      take?: number;
-      skip?: number;
-      where?: {
-        status?: LeadStatus;
-        search?: string;
-      };
-      orderBy?: {
-        [key: string]: 'asc' | 'desc';
-      };
-    } = {}): Promise<Lead[]> => {
-      let leads = await readLeads();
-
-      // Apply filtering
-      if (options.where) {
-        if (options.where.status) {
-          leads = leads.filter(lead => lead.status === options.where?.status);
-        }
-        if (options.where.search) {
-          const search = options.where.search.toLowerCase();
-          leads = leads.filter(lead => 
-            lead.name.toLowerCase().includes(search) ||
-            lead.email.toLowerCase().includes(search) ||
-            (lead.company && lead.company.toLowerCase().includes(search)) ||
-            (lead.message && lead.message.toLowerCase().includes(search))
-          );
-        }
+    findMany: async (
+      options: {
+        take?: number;
+        skip?: number;
+        where?: { status?: LeadStatus; search?: string };
+        orderBy?: { [key: string]: 'asc' | 'desc' };
+      } = {}
+    ): Promise<Lead[]> => {
+      const where: Prisma.LeadWhereInput = {};
+      if (options.where?.status) where.status = options.where.status;
+      if (options.where?.search) {
+        const q = options.where.search;
+        where.OR = [
+          { name: { contains: q, mode: 'insensitive' } },
+          { email: { contains: q, mode: 'insensitive' } },
+          { company: { contains: q, mode: 'insensitive' } },
+          { message: { contains: q, mode: 'insensitive' } },
+        ];
       }
 
-      // Apply sorting
-      if (options.orderBy) {
-        const [field, order] = Object.entries(options.orderBy)[0];
-        leads.sort((a, b) => {
-          const aValue = a[field as keyof Lead];
-          const bValue = b[field as keyof Lead];
-          
-          if (aValue === undefined || bValue === undefined) {
-            return 0;
-          }
-          
-          if (typeof aValue === 'string' && typeof bValue === 'string') {
-            return order === 'asc' 
-              ? aValue.localeCompare(bValue) 
-              : bValue.localeCompare(aValue);
-          }
-          
-          if (aValue < bValue) return order === 'asc' ? -1 : 1;
-          if (aValue > bValue) return order === 'asc' ? 1 : -1;
-          return 0;
-        });
-      } else {
-        // Default sort by date descending
-        leads.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      }
+      const orderBy = (options.orderBy
+        ? options.orderBy
+        : { date: 'desc' }) as Prisma.LeadOrderByWithRelationInput;
 
-      // Apply pagination
-      if (options.skip !== undefined) {
-        leads = leads.slice(options.skip);
-      }
-      if (options.take !== undefined) {
-        leads = leads.slice(0, options.take);
-      }
-
-      return leads;
+      const rows = await prisma.lead.findMany({
+        where,
+        orderBy,
+        take: options.take,
+        skip: options.skip,
+      });
+      return rows.map(toLead);
     },
 
-    // Find a lead by ID
     findUnique: async (options: { where: { id: string } }): Promise<Lead | null> => {
-      const leads = await readLeads();
-      const lead = leads.find(lead => lead.id === options.where.id);
-      return lead || null;
+      const row = await prisma.lead.findUnique({ where: { id: options.where.id } });
+      return row ? toLead(row) : null;
     },
 
-    // Update a lead
-    update: async (options: { where: { id: string }, data: Partial<Lead> }): Promise<Lead> => {
-      const leads = await readLeads();
-      const index = leads.findIndex(lead => lead.id === options.where.id);
-      
-      if (index === -1) {
-        throw new Error(`Lead with ID ${options.where.id} not found`);
-      }
-      
-      const updatedLead = { ...leads[index], ...options.data };
-      leads[index] = updatedLead;
-      await writeLeads(leads);
-      
-      return updatedLead;
+    update: async (options: { where: { id: string }; data: Partial<Lead> }): Promise<Lead> => {
+      const { id, ...rest } = options.data as Partial<Lead> & { id?: string };
+      void id;
+      const row = await prisma.lead.update({
+        where: { id: options.where.id },
+        data: {
+          ...rest,
+          notes: rest.notes ?? undefined,
+          tags: rest.tags ?? undefined,
+          formData: (rest.formData ?? undefined) as Prisma.InputJsonValue | undefined,
+        },
+      });
+      return toLead(row);
     },
 
-    // Delete a lead
     delete: async (options: { where: { id: string } }): Promise<Lead> => {
-      const leads = await readLeads();
-      const index = leads.findIndex(lead => lead.id === options.where.id);
-      
-      if (index === -1) {
-        throw new Error(`Lead with ID ${options.where.id} not found`);
-      }
-      
-      const deletedLead = leads[index];
-      leads.splice(index, 1);
-      await writeLeads(leads);
-      
-      return deletedLead;
+      const row = await prisma.lead.delete({ where: { id: options.where.id } });
+      return toLead(row);
     },
 
-    // Count leads
-    count: async (options: {
-      where?: {
-        status?: LeadStatus;
-      };
-    } = {}): Promise<number> => {
-      let leads = await readLeads();
-      
-      if (options.where?.status) {
-        leads = leads.filter(lead => lead.status === options.where?.status);
-      }
-      
-      return leads.length;
+    count: async (options: { where?: { status?: LeadStatus } } = {}): Promise<number> => {
+      return prisma.lead.count({
+        where: options.where?.status ? { status: options.where.status } : undefined,
+      });
     },
 
-    // Get lead statistics
     getStats: async (): Promise<{
       total: number;
       newLeads: number;
@@ -160,70 +112,37 @@ export const db = {
       leadsByStatus: { status: string; count: number }[];
       leadTrend: { date: string; count: number }[];
     }> => {
-      const leads = await readLeads();
-      
-      // Count leads by status
-      const newLeadsCount = leads.filter(lead => lead.status === 'New').length;
-      const qualifiedLeadsCount = leads.filter(lead => lead.status === 'Qualified').length;
-      const convertedLeadsCount = leads.filter(lead => lead.status === 'Won').length;
-      
-      // Calculate conversion rate
-      const conversionRate = leads.length > 0 
-        ? Math.round((convertedLeadsCount / leads.length) * 100) 
-        : 0;
-      
-      // Calculate average response time (placeholder)
-      const averageResponseTime = 4.5; // In hours
-      
-      // Count leads by source
+      const leads = (await prisma.lead.findMany()).map(toLead);
+
+      const newLeadsCount = leads.filter((l) => l.status === 'New').length;
+      const qualifiedLeadsCount = leads.filter((l) => l.status === 'Qualified').length;
+      const convertedLeadsCount = leads.filter((l) => l.status === 'Won').length;
+
+      const conversionRate =
+        leads.length > 0 ? Math.round((convertedLeadsCount / leads.length) * 100) : 0;
+      const averageResponseTime = 4.5;
+
       const sourceMap = new Map<string, number>();
-      leads.forEach(lead => {
-        const source = lead.source;
-        sourceMap.set(source, (sourceMap.get(source) || 0) + 1);
-      });
-      
-      const leadsBySource = Array.from(sourceMap.entries()).map(([source, count]) => ({
-        source,
-        count
-      }));
-      
-      // Count leads by status
+      leads.forEach((l) => sourceMap.set(l.source, (sourceMap.get(l.source) || 0) + 1));
+      const leadsBySource = Array.from(sourceMap.entries()).map(([source, count]) => ({ source, count }));
+
       const statusMap = new Map<string, number>();
-      leads.forEach(lead => {
-        const status = lead.status;
-        statusMap.set(status, (statusMap.get(status) || 0) + 1);
-      });
-      
-      const leadsByStatus = Array.from(statusMap.entries()).map(([status, count]) => ({
-        status,
-        count
-      }));
-      
-      // Calculate lead trend (last 7 days)
+      leads.forEach((l) => statusMap.set(l.status, (statusMap.get(l.status) || 0) + 1));
+      const leadsByStatus = Array.from(statusMap.entries()).map(([status, count]) => ({ status, count }));
+
       const dateMap = new Map<string, number>();
       const now = new Date();
-      
-      // Initialize the last 7 days with 0 counts
       for (let i = 6; i >= 0; i--) {
         const date = new Date(now);
         date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        dateMap.set(dateStr, 0);
+        dateMap.set(date.toISOString().split('T')[0], 0);
       }
-      
-      // Count leads by date
-      leads.forEach(lead => {
-        const leadDate = new Date(lead.date).toISOString().split('T')[0];
-        if (dateMap.has(leadDate)) {
-          dateMap.set(leadDate, (dateMap.get(leadDate) || 0) + 1);
-        }
+      leads.forEach((l) => {
+        const d = new Date(l.date).toISOString().split('T')[0];
+        if (dateMap.has(d)) dateMap.set(d, (dateMap.get(d) || 0) + 1);
       });
-      
-      const leadTrend = Array.from(dateMap.entries()).map(([date, count]) => ({
-        date,
-        count
-      }));
-      
+      const leadTrend = Array.from(dateMap.entries()).map(([date, count]) => ({ date, count }));
+
       return {
         total: leads.length,
         newLeads: newLeadsCount,
@@ -232,8 +151,8 @@ export const db = {
         averageResponseTime,
         leadsBySource,
         leadsByStatus,
-        leadTrend
+        leadTrend,
       };
-    }
-  }
+    },
+  },
 };

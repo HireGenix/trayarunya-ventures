@@ -32,7 +32,7 @@ function requireSuperadmin(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const guard = requireSuperadmin(req);
   if (guard.error) return NextResponse.json({ error: guard.error }, { status: guard.status });
-  return NextResponse.json({ users: userStore.list() });
+  return NextResponse.json({ users: await userStore.list() });
 }
 
 export async function POST(req: NextRequest) {
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     );
   }
   try {
-    const user = userStore.create(parsed.data);
+    const user = await userStore.create(parsed.data);
     return NextResponse.json({ user }, { status: 201 });
   } catch (err) {
     return NextResponse.json(
@@ -72,7 +72,7 @@ export async function PATCH(req: NextRequest) {
   }
   const { id, ...patch } = parsed.data;
   try {
-    const user = userStore.update(id, patch);
+    const user = await userStore.update(id, patch);
     return NextResponse.json({ user });
   } catch (err) {
     return NextResponse.json(
@@ -94,7 +94,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 });
   }
   try {
-    userStore.delete(id);
+    await userStore.delete(id);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json(

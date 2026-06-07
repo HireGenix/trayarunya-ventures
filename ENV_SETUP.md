@@ -1,12 +1,36 @@
 # Environment Setup — Trayarunya Ventures
 
-All secrets live in **`.env.local`** (gitignored — never committed). Copy the keys
+All secrets live in **`.env`** (gitignored — never committed). Copy the keys
 below, fill in the blank values, then restart the dev server.
 
-> ⚠️ The Azure key that used to be hardcoded in `src/services/azureOpenAI.ts` has
-> been moved here. Treat it as compromised and rotate it in the Azure portal.
+> ⚠️ The Azure key that used to be hardcoded in `src/services/azureOpenAI.ts` and
+> `vercel.json` has been removed. Treat it as compromised and **rotate it in the
+> Azure portal**.
 
 ---
+
+## Database (Azure PostgreSQL + Prisma) — REQUIRED
+
+All application data — users, leads, proposals, blog posts, analytics, conversations,
+settings, SEO snapshots — now lives in **Azure Database for PostgreSQL** accessed via
+**Prisma**. The old `data/*.json` and Vercel Blob stores are no longer the source of truth.
+
+| Variable | What it is | Where to get it |
+|---|---|---|
+| `DATABASE_URL` | Postgres connection string with `sslmode=require`. Format: `postgresql://USER:PASSWORD@HOST:5432/trayarunya?sslmode=require` | Azure Portal → `psql-trayarunya-prod` → Connection strings, or Key Vault secret `DATABASE-URL` |
+
+**Local / first-time setup:**
+
+```bash
+npm install                 # runs `prisma generate` via postinstall
+npm run db:push             # creates tables on the Azure DB (already done for prod)
+npm run db:import           # one-time import of legacy data/*.json (idempotent)
+```
+
+> On **Vercel**, `prisma generate` runs automatically (postinstall + the `build` script),
+> so the Prisma client is always in sync with the schema at deploy time. Set `DATABASE_URL`
+> in the Vercel project env (Production + Preview).
+
 
 ## AI Sales Chat (Azure OpenAI GPT-5.5 — Responses API)
 
@@ -102,41 +126,38 @@ Responses API, reuses `AZURE_GPT5_*`) and **Claude Opus** (above) per conversati
 
 | Variable | Notes |
 |---|---|
-| `JWT_SECRET` | Secret used to sign admin JWTs. **Set a strong value in production.** Falls back to a built-in default if unset |
+| `JWT_SECRET` | Secret used to sign admin JWTs. **Required in production** — signing/verifying throws if unset. A dev-only fallback is used when `NODE_ENV !== 'production'`. Source of truth: Key Vault secret `JWT-SECRET`. |
 | `ADMIN_EMAIL` | Optional. Overrides the default admin email (`admin@trayarunyaventures.com`) |
 | `ADMIN_PASSWORD` | Optional. Overrides the default admin password (`admin123`). **Set this in production / on Vercel for a secure login.** |
 | `SUPERADMIN_EMAIL` | Optional. Overrides the default super-admin email |
 | `SUPERADMIN_PASSWORD` | Optional. Overrides the default super-admin password (`superadmin123`). **Set this in production.** |
 
-> 🔐 **Live login on Vercel:** the user store now falls back to an in-memory seed when the
-> filesystem is read-only (as on Vercel), so the default admin accounts always work. Set
-> `ADMIN_PASSWORD` / `SUPERADMIN_PASSWORD` (and `JWT_SECRET`) in the Vercel project env to
-> secure the live login. Users created at `/admin/users` won't persist across redeploys until
-> a real database is added.
+> 🔐 **Live login on Vercel:** the user store seeds the two default admin accounts into
+> Postgres on first run if the `users` table is empty. Set `ADMIN_PASSWORD` /
+> `SUPERADMIN_PASSWORD` (and `JWT_SECRET`) in the Vercel project env to secure the live
+> login. Users created at `/admin/users` now **persist in Postgres** across redeploys.
 
-### Durable storage (Vercel Blob)
+### Storage (Azure PostgreSQL via Prisma)
+
+All durable data is stored in Postgres — see the **Database** section at the top.
+
+| Data | Prisma model / table |
+|---|---|
+| Admin users (scrypt-hashed passwords) | `User` / `users` |
+| Contact leads + ICP data | `Lead` / `leads` |
+| AI-generated proposals/decks | `Proposal` / `proposals` |
+| Blog posts | `BlogPost` / `blog_posts` |
+| Visitor analytics events | `AnalyticsEvent` / `analytics_events` |
+| Admin assistant conversations | `Conversation` / `conversations` |
+| Site settings | `Setting` / `settings` |
+| SEO snapshot | `SeoSnapshot` / `seo_snapshots` |
+
+> ✅ Because everything is in a shared database, leads and proposals are consistent across
+> all serverless instances and survive redeploys — no more vanishing data from the old
+> ephemeral `data/*.json` files.
+
+### (Optional) Vercel Blob
 
 | Variable | Notes |
 |---|---|
-| `BLOB_READ_WRITE_TOKEN` | Enables persistent, **shared** storage for leads and AI-generated proposals/decks across all serverless instances. |
-
-> 💾 **Why this is needed:** Vercel's serverless filesystem is read-only and every request can
-> hit a different, isolated instance — so anything written to a local JSON file vanishes before
-> another request can read it. That's why AI-generated proposals weren't appearing on the
-> Proposals page in production.
->
-> **Setup (one time):** In the Vercel dashboard → **Storage** → **Create Database** → **Blob**.
-> Vercel automatically adds `BLOB_READ_WRITE_TOKEN` to your project's env. Redeploy and leads +
-> proposals will persist and be shared across everyone. Locally (no token) the app transparently
-> falls back to `data/*.json` files, so nothing changes for dev.
-
-### Server storage (file-based)
-
-- Users live in `data/users.json` (passwords hashed with Node `crypto.scrypt`). Seeded on
-  first run with `admin@trayarunyaventures.com` / `admin123` and
-  `superadmin@trayarunyaventures.com` / `superadmin123` — **change these**.
-- Conversations live in `data/conversations/<userId>.json`.
-- Super admins manage unlimited users at `/admin/users`.
-
-> ⚠️ **Vercel note:** the serverless filesystem is **ephemeral** — `data/*.json` resets on
-> every redeploy. For durable storage, move these stores to a database or blob/volume.
+| `BLOB_READ_WRITE_TOKEN` | Optional. Only needed if you store large binary artifacts (e.g. exported PDF/PPTX files) in Vercel Blob. Core app data no longer depends on it. |

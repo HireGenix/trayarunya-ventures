@@ -26,28 +26,28 @@ export async function GET(
 
   switch (endpoint) {
     case 'overview':
-      return NextResponse.json(agg.overview(timeframe));
+      return NextResponse.json(await agg.overview(timeframe));
     case 'traffic-sources':
-      return NextResponse.json(agg.trafficSources(timeframe));
+      return NextResponse.json(await agg.trafficSources(timeframe));
     case 'pages':
-      return NextResponse.json(agg.pagePerformance(timeframe));
+      return NextResponse.json(await agg.pagePerformance(timeframe));
     case 'devices':
-      return NextResponse.json(agg.devices(timeframe));
+      return NextResponse.json(await agg.devices(timeframe));
     case 'browsers':
-      return NextResponse.json(agg.browsers(timeframe));
+      return NextResponse.json(await agg.browsers(timeframe));
     case 'countries':
-      return NextResponse.json(agg.countries(timeframe));
+      return NextResponse.json(await agg.countries(timeframe));
     case 'time-series':
-      return NextResponse.json(agg.timeSeries(timeframe));
+      return NextResponse.json(await agg.timeSeries(timeframe));
     case 'conversions':
-      return NextResponse.json(agg.conversions(timeframe));
+      return NextResponse.json(await agg.conversions(timeframe));
     case 'user-journeys':
       return NextResponse.json([]);
     case 'events':
-      return NextResponse.json(agg.events(timeframe));
+      return NextResponse.json(await agg.events(timeframe));
     case 'export': {
       const type = req.nextUrl.searchParams.get('type') || 'overview';
-      const rows = buildExport(type, timeframe);
+      const rows = await buildExport(type, timeframe);
       return new NextResponse(rows, {
         headers: {
           'Content-Type': 'text/csv',
@@ -60,15 +60,15 @@ export async function GET(
   }
 }
 
-function buildExport(type: string, timeframe: Timeframe): string {
+async function buildExport(type: string, timeframe: Timeframe): Promise<string> {
   if (type === 'pages') {
-    const rows = agg.pagePerformance(timeframe);
+    const rows = await agg.pagePerformance(timeframe);
     const header = 'path,title,views,uniqueViews,avgTimeOnPage,bounceRate';
     const body = rows
       .map((r) => `${r.path},"${r.title}",${r.views},${r.uniqueViews},${r.avgTimeOnPage},${r.bounceRate}`)
       .join('\n');
     return `${header}\n${body}`;
   }
-  const o = agg.overview(timeframe);
+  const o = await agg.overview(timeframe);
   return `metric,value\ntotalVisitors,${o.totalVisitors}\nuniqueVisitors,${o.uniqueVisitors}\npageViews,${o.pageViews}\nbounceRate,${o.bounceRate}\nconversionRate,${o.conversionRate}`;
 }

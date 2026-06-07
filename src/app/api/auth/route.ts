@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     const { email, password } = validationResult.data;
 
     // Find user by email in the server-side user store
-    const user = userStore.findByEmail(email);
+    const user = await userStore.findByEmail(email);
 
     // Check if user exists, is active, and password matches
     if (!user || !user.active || !verifyPassword(password, user.passwordHash)) {

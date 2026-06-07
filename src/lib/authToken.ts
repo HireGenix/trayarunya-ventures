@@ -5,7 +5,15 @@
 import { sign, verify } from 'jsonwebtoken';
 
 export const JWT_SECRET =
-  process.env.JWT_SECRET?.trim() || 'trayarunya-ventures-jwt-secret-key';
+  process.env.JWT_SECRET?.trim() ||
+  (process.env.NODE_ENV !== 'production' ? 'dev-only-insecure-secret' : '');
+
+function requireSecret(): string {
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET is not set. Configure it in the environment (Key Vault / Vercel env).');
+  }
+  return JWT_SECRET;
+}
 
 export interface TokenPayload {
   id: string;
@@ -15,13 +23,13 @@ export interface TokenPayload {
 }
 
 export function signToken(payload: TokenPayload): string {
-  return sign(payload, JWT_SECRET, { expiresIn: '24h' });
+  return sign(payload, requireSecret(), { expiresIn: '24h' });
 }
 
 /** Verify a raw token string. Returns the payload or null. */
 export function verifyToken(token: string): TokenPayload | null {
   try {
-    const decoded = verify(token, JWT_SECRET) as Record<string, unknown>;
+    const decoded = verify(token, requireSecret()) as Record<string, unknown>;
     if (!decoded || typeof decoded !== 'object') return null;
     return {
       id: String(decoded.id),

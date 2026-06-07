@@ -1,13 +1,10 @@
 /**
- * Settings store — persists site/admin settings to data/settings.json.
- * Users are NOT stored here (they come from the real userStore); this holds
- * general site config, notifications, integrations, backup, security, roles.
+ * Settings store — single-row settings document in Azure Postgres (Prisma).
+ * Holds general site config, notifications, integrations, backup, security, roles.
+ * Users are NOT stored here (they come from the real userStore).
  */
-import fs from 'fs';
-import path from 'path';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 
 export interface GeneralSettings {
   siteName: string;
@@ -87,6 +84,8 @@ interface SettingsData {
   roles: UserRole[];
 }
 
+const SETTINGS_ID = 'main';
+
 const DEFAULTS: SettingsData = {
   general: {
     siteName: 'Trayarunya Ventures',
@@ -142,103 +141,98 @@ const DEFAULTS: SettingsData = {
   ],
 };
 
-// In-memory fallback for read-only filesystems (e.g. Vercel serverless).
-let memData: SettingsData | null = null;
-
-function ensure() {
+async function read(): Promise<SettingsData> {
   try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    if (!fs.existsSync(SETTINGS_FILE)) fs.writeFileSync(SETTINGS_FILE, JSON.stringify(DEFAULTS, null, 2));
+    const row = await prisma.setting.findUnique({ where: { id: SETTINGS_ID } });
+    if (!row) return { ...DEFAULTS };
+    return { ...DEFAULTS, ...(row.data as Partial<SettingsData>) };
   } catch {
-    /* read-only fs — fall back to memory */
+    return { ...DEFAULTS };
   }
 }
 
-function read(): SettingsData {
-  const cached = memData;
-  if (cached) return { ...DEFAULTS, ...cached };
-  ensure();
-  try {
-    const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-    return { ...DEFAULTS, ...data };
-  } catch {
-    const fallback = memData;
-    return fallback ? { ...DEFAULTS, ...fallback } : { ...DEFAULTS };
-  }
-}
-
-function write(data: SettingsData) {
-  memData = data;
-  try {
-    ensure();
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2));
-    memData = null;
-  } catch {
-    /* serverless read-only fs — keep in memory */
-  }
+async function write(data: SettingsData): Promise<void> {
+  const payload = data as unknown as Prisma.InputJsonValue;
+  await prisma.setting.upsert({
+    where: { id: SETTINGS_ID },
+    create: { id: SETTINGS_ID, data: payload },
+    update: { data: payload },
+  });
 }
 
 export const settingsStore = {
-  getGeneral: () => read().general,
-  updateGeneral(patch: Partial<GeneralSettings>): GeneralSettings {
-    const d = read();
+  async getGeneral() {
+    return (await read()).general;
+  },
+  async updateGeneral(patch: Partial<GeneralSettings>): Promise<GeneralSettings> {
+    const d = await read();
     d.general = { ...d.general, ...patch };
-    write(d);
+    await write(d);
     return d.general;
   },
 
-  getNotifications: () => read().notifications,
-  updateNotifications(patch: Partial<NotificationSettings>): NotificationSettings {
-    const d = read();
+  async getNotifications() {
+    return (await read()).notifications;
+  },
+  async updateNotifications(patch: Partial<NotificationSettings>): Promise<NotificationSettings> {
+    const d = await read();
     d.notifications = { ...d.notifications, ...patch };
-    write(d);
+    await write(d);
     return d.notifications;
   },
 
-  getIntegrations: () => read().integrations,
-  createIntegration(input: Omit<ApiIntegration, 'id' | 'createdAt'>): ApiIntegration {
-    const d = read();
+  async getIntegrations() {
+    return (await read()).integrations;
+  },
+  async createIntegration(input: Omit<ApiIntegration, 'id' | 'createdAt'>): Promise<ApiIntegration> {
+    const d = await read();
     const item: ApiIntegration = {
       ...input,
       id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
       createdAt: new Date().toISOString(),
     };
     d.integrations.push(item);
-    write(d);
+    await write(d);
     return item;
   },
-  updateIntegration(id: string, patch: Partial<ApiIntegration>): ApiIntegration | null {
-    const d = read();
+  async updateIntegration(id: string, patch: Partial<ApiIntegration>): Promise<ApiIntegration | null> {
+    const d = await read();
     const idx = d.integrations.findIndex((i) => i.id === id);
     if (idx === -1) return null;
     d.integrations[idx] = { ...d.integrations[idx], ...patch, id };
-    write(d);
+    await write(d);
     return d.integrations[idx];
   },
-  deleteIntegration(id: string): boolean {
-    const d = read();
+  async deleteIntegration(id: string): Promise<boolean> {
+    const d = await read();
     const next = d.integrations.filter((i) => i.id !== id);
     if (next.length === d.integrations.length) return false;
     d.integrations = next;
-    write(d);
+    await write(d);
     return true;
   },
 
-  getBackup: () => read().backup,
-  updateBackup(patch: Partial<BackupSettings>): BackupSettings {
-    const d = read();
+  async getBackup() {
+    return (await read()).backup;
+  },
+  async updateBackup(patch: Partial<BackupSettings>): Promise<BackupSettings> {
+    const d = await read();
     d.backup = { ...d.backup, ...patch };
-    write(d);
+    await write(d);
     return d.backup;
   },
 
-  getSecurity: () => read().security,
-  updateSecurity(patch: Partial<SecuritySettings>): SecuritySettings {
-    const d = read();
+  async getSecurity() {
+    return (await read()).security;
+  },
+  async updateSecurity(patch: Partial<SecuritySettings>): Promise<SecuritySettings> {
+    const d = await read();
     d.security = { ...d.security, ...patch };
-    write(d);
+    await write(d);
     return d.security;
   },
 
-  getRoles: () => read().roles,
+  async getRoles() {
+    return (await read()).roles;
+  },
 };

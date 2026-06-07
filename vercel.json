@@ -5,13 +5,6 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "regions": ["bom1"],
-  "env": {
-    "NODE_ENV": "production",
-    "NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT": "https://sumit-m4r367sz-swedencentral.openai.azure.com",
-    "NEXT_PUBLIC_AZURE_OPENAI_API_KEY": "6fJhkx1nJ7keGmM8z6aB5IQ4Fn5eCvYRTIGK1u3KRmG27Ny93sGIJQQJ99ALACfhMk5XJ3w3AAAAACOG9m73",
-    "NEXT_PUBLIC_AZURE_OPENAI_API_VERSION": "2025-01-01-preview",
-    "NEXT_PUBLIC_AZURE_OPENAI_DEPLOYMENT_NAME": "gpt-4.1"
-  },
   "github": {
     "silent": true
   }

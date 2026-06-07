@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const post = blogStore.get(id);
+  const post = await blogStore.get(id);
   if (!post) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   return NextResponse.json(post);
 }
@@ -26,7 +26,7 @@ export async function PUT(
   } catch {
     return NextResponse.json({ error: 'bad_request' }, { status: 400 });
   }
-  const updated = blogStore.update(id, body);
+  const updated = await blogStore.update(id, body);
   if (!updated) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   return NextResponse.json(updated);
 }
@@ -37,7 +37,7 @@ export async function DELETE(
 ) {
   if (!getAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { id } = await params;
-  const ok = blogStore.remove(id);
+  const ok = await blogStore.remove(id);
   if (!ok) return NextResponse.json({ error: 'not_found' }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

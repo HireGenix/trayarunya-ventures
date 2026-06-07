@@ -1,0 +1,135 @@
+// Prisma schema for the Trayarunya Ventures admin backend.
+// Backed by Azure Database for PostgreSQL Flexible Server.
+// IDs are application-generated strings (preserved from the legacy JSON stores).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String  @id
+  email        String  @unique
+  name         String
+  role         String
+  passwordHash String
+  active       Boolean @default(true)
+  createdAt    String
+  updatedAt    String
+
+  @@map("users")
+}
+
+model Lead {
+  id                 String   @id
+  name               String
+  email              String
+  phone              String?
+  company            String?
+  position           String?
+  message            String?
+  source             String
+  status             String
+  date               String
+  lastContactedDate  String?
+  notes              String[] @default([])
+  tags               String[] @default([])
+  assignedTo         String?
+  priority           String
+  formType           String?
+  formData           Json?
+  pageUrl            String?
+
+  @@index([status])
+  @@map("leads")
+}
+
+model Proposal {
+  id        String @id
+  type      String
+  title     String
+  client    String
+  spec      Json
+  createdAt String
+  createdBy String
+  leadId    String?
+
+  @@map("proposals")
+}
+
+model BlogPost {
+  id         String   @id
+  title      String
+  slug       String   @unique
+  excerpt    String   @default("")
+  content    String   @default("")
+  author     String   @default("Admin")
+  category   String   @default("General")
+  tags       String[] @default([])
+  coverImage String?
+  status     String   @default("Draft")
+  views      Int      @default(0)
+  date       String
+  updatedAt  String
+
+  @@map("blog_posts")
+}
+
+model AnalyticsEvent {
+  id          String  @id
+  type        String
+  path        String
+  title       String?
+  referrer    String?
+  source      String
+  device      String
+  browser     String
+  os          String
+  country     String
+  countryCode String
+  sessionId   String
+  visitorId   String
+  name        String?
+  category    String?
+  durationMs  Int?
+  ts          BigInt
+
+  @@index([ts])
+  @@map("analytics_events")
+}
+
+model Conversation {
+  id        String @id
+  userId    String
+  title     String
+  provider  String
+  messages  Json   @default("[]")
+  createdAt String
+  updatedAt String
+
+  @@index([userId])
+  @@map("conversations")
+}
+
+// Single-row table holding the full settings document.
+model Setting {
+  id   String @id
+  data Json
+
+  @@map("settings")
+}
+
+// Single-row table holding the latest SEO audit snapshot.
+model SeoSnapshot {
+  id          String @id
+  generatedAt String
+  pages       Json
+  issues      Json
+  keywords    Json
+
+  @@map("seo_snapshots")
+}

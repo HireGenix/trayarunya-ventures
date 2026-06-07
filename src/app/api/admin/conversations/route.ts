@@ -26,11 +26,11 @@ export async function GET(req: NextRequest) {
 
   const id = new URL(req.url).searchParams.get('id');
   if (id) {
-    const conv = conversationStore.get(auth.id, id);
+    const conv = await conversationStore.get(auth.id, id);
     if (!conv) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json({ conversation: conv });
   }
-  return NextResponse.json({ conversations: conversationStore.list(auth.id) });
+  return NextResponse.json({ conversations: await conversationStore.list(auth.id) });
 }
 
 export async function POST(req: NextRequest) {
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     content: m.content,
     ts: m.ts ?? Date.now(),
   }));
-  const conv = conversationStore.save(auth.id, {
+  const conv = await conversationStore.save(auth.id, {
     id: parsed.data.id,
     title: parsed.data.title,
     provider: parsed.data.provider,
@@ -65,6 +65,6 @@ export async function DELETE(req: NextRequest) {
 
   const id = new URL(req.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
-  conversationStore.delete(auth.id, id);
+  await conversationStore.delete(auth.id, id);
   return NextResponse.json({ ok: true });
 }

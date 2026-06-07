@@ -1,17 +1,9 @@
 /**
- * First-party analytics store.
- * Append-only event log persisted to data/analytics-events.json.
- * No third-party services — every pageview on the live site is recorded via
- * POST /api/track and aggregated on demand for the admin Analytics page.
+ * First-party analytics store — append-only event log in Azure Postgres (Prisma).
+ * Every pageview on the live site is recorded via POST /api/track and aggregated
+ * on demand for the admin Analytics page.
  */
-import fs from 'fs';
-import path from 'path';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const EVENTS_FILE = path.join(DATA_DIR, 'analytics-events.json');
-
-// Keep the log bounded so the JSON file never grows without limit.
-const MAX_EVENTS = 50000;
+import { prisma } from '@/lib/prisma';
 
 export interface AnalyticsEvent {
   id: string;
@@ -35,32 +27,46 @@ export interface AnalyticsEvent {
 
 export type Timeframe = 'today' | 'yesterday' | 'week' | 'month' | 'year';
 
-function ensure() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    if (!fs.existsSync(EVENTS_FILE)) fs.writeFileSync(EVENTS_FILE, '[]');
-  } catch (err) {
-    console.error('[analyticsStore] ensure error', err);
-  }
+interface Row {
+  id: string;
+  type: string;
+  path: string;
+  title: string | null;
+  referrer: string | null;
+  source: string;
+  device: string;
+  browser: string;
+  os: string;
+  country: string;
+  countryCode: string;
+  sessionId: string;
+  visitorId: string;
+  name: string | null;
+  category: string | null;
+  durationMs: number | null;
+  ts: bigint;
 }
 
-function readAll(): AnalyticsEvent[] {
-  ensure();
-  try {
-    return JSON.parse(fs.readFileSync(EVENTS_FILE, 'utf8')) as AnalyticsEvent[];
-  } catch {
-    return [];
-  }
-}
-
-function writeAll(events: AnalyticsEvent[]) {
-  ensure();
-  try {
-    const trimmed = events.length > MAX_EVENTS ? events.slice(events.length - MAX_EVENTS) : events;
-    fs.writeFileSync(EVENTS_FILE, JSON.stringify(trimmed));
-  } catch (err) {
-    console.error('[analyticsStore] write error', err);
-  }
+function toEvent(row: Row): AnalyticsEvent {
+  return {
+    id: row.id,
+    type: row.type === 'event' ? 'event' : 'pageview',
+    path: row.path,
+    title: row.title ?? undefined,
+    referrer: row.referrer ?? undefined,
+    source: row.source,
+    device: (row.device as AnalyticsEvent['device']) || 'desktop',
+    browser: row.browser,
+    os: row.os,
+    country: row.country,
+    countryCode: row.countryCode,
+    sessionId: row.sessionId,
+    visitorId: row.visitorId,
+    name: row.name ?? undefined,
+    category: row.category ?? undefined,
+    durationMs: row.durationMs ?? undefined,
+    ts: Number(row.ts),
+  };
 }
 
 export function parseDevice(ua: string): 'desktop' | 'mobile' | 'tablet' {
@@ -131,8 +137,7 @@ export interface RecordInput {
 }
 
 export const analyticsStore = {
-  record(input: RecordInput): AnalyticsEvent {
-    const events = readAll();
+  async record(input: RecordInput): Promise<AnalyticsEvent> {
     const ev: AnalyticsEvent = {
       id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
       type: input.type || 'pageview',
@@ -152,18 +157,42 @@ export const analyticsStore = {
       durationMs: typeof input.durationMs === 'number' ? input.durationMs : undefined,
       ts: Date.now(),
     };
-    events.push(ev);
-    writeAll(events);
+    await prisma.analyticsEvent.create({
+      data: {
+        id: ev.id,
+        type: ev.type,
+        path: ev.path,
+        title: ev.title,
+        referrer: ev.referrer,
+        source: ev.source,
+        device: ev.device,
+        browser: ev.browser,
+        os: ev.os,
+        country: ev.country,
+        countryCode: ev.countryCode,
+        sessionId: ev.sessionId,
+        visitorId: ev.visitorId,
+        name: ev.name,
+        category: ev.category,
+        durationMs: ev.durationMs,
+        ts: BigInt(ev.ts),
+      },
+    });
     return ev;
   },
 
-  all(): AnalyticsEvent[] {
-    return readAll();
+  async all(): Promise<AnalyticsEvent[]> {
+    const rows = await prisma.analyticsEvent.findMany({ orderBy: { ts: 'asc' } });
+    return rows.map(toEvent);
   },
 
-  since(ms: number): AnalyticsEvent[] {
-    const cutoff = Date.now() - ms;
-    return readAll().filter((e) => e.ts >= cutoff);
+  async since(ms: number): Promise<AnalyticsEvent[]> {
+    const cutoff = BigInt(Date.now() - ms);
+    const rows = await prisma.analyticsEvent.findMany({
+      where: { ts: { gte: cutoff } },
+      orderBy: { ts: 'asc' },
+    });
+    return rows.map(toEvent);
   },
 };
 

@@ -1,11 +1,7 @@
 /**
- * Blog post store — file-backed CRUD persisted to data/blog.json.
+ * Blog post store — backed by Azure Postgres (Prisma).
  */
-import fs from 'fs';
-import path from 'path';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const BLOG_FILE = path.join(DATA_DIR, 'blog.json');
+import { prisma } from '@/lib/prisma';
 
 export interface BlogPost {
   id: string;
@@ -23,37 +19,26 @@ export interface BlogPost {
   updatedAt: string;
 }
 
-// In-memory fallback for read-only filesystems (e.g. Vercel serverless).
-let memPosts: BlogPost[] | null = null;
-
-function ensure() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    if (!fs.existsSync(BLOG_FILE)) fs.writeFileSync(BLOG_FILE, '[]');
-  } catch {
-    /* read-only fs — fall back to memory */
-  }
-}
-
-function readAll(): BlogPost[] {
-  if (memPosts) return memPosts;
-  ensure();
-  try {
-    return JSON.parse(fs.readFileSync(BLOG_FILE, 'utf8')) as BlogPost[];
-  } catch {
-    return memPosts ?? [];
-  }
-}
-
-function writeAll(posts: BlogPost[]) {
-  memPosts = posts;
-  try {
-    ensure();
-    fs.writeFileSync(BLOG_FILE, JSON.stringify(posts, null, 2));
-    memPosts = null;
-  } catch {
-    /* serverless read-only fs — keep in memory */
-  }
+function toPost(row: {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  author: string;
+  category: string;
+  tags: string[];
+  coverImage: string | null;
+  status: string;
+  views: number;
+  date: string;
+  updatedAt: string;
+}): BlogPost {
+  return {
+    ...row,
+    coverImage: row.coverImage ?? undefined,
+    status: row.status === 'Published' ? 'Published' : 'Draft',
+  };
 }
 
 function slugify(s: string): string {
@@ -67,16 +52,19 @@ function slugify(s: string): string {
 }
 
 export const blogStore = {
-  list(): BlogPost[] {
-    return readAll().sort((a, b) => (a.date < b.date ? 1 : -1));
+  async list(): Promise<BlogPost[]> {
+    const rows = await prisma.blogPost.findMany({ orderBy: { date: 'desc' } });
+    return rows.map(toPost);
   },
 
-  get(id: string): BlogPost | null {
-    return readAll().find((p) => p.id === id || p.slug === id) || null;
+  async get(id: string): Promise<BlogPost | null> {
+    const row =
+      (await prisma.blogPost.findUnique({ where: { id } })) ||
+      (await prisma.blogPost.findUnique({ where: { slug: id } }));
+    return row ? toPost(row) : null;
   },
 
-  create(input: Partial<BlogPost>): BlogPost {
-    const posts = readAll();
+  async create(input: Partial<BlogPost>): Promise<BlogPost> {
     const now = new Date().toISOString();
     const title = (input.title || 'Untitled').toString().slice(0, 200);
     let slug = input.slug ? slugify(input.slug) : slugify(title);
@@ -84,61 +72,66 @@ export const blogStore = {
     // Ensure unique slug.
     let unique = slug;
     let n = 1;
-    while (posts.some((p) => p.slug === unique)) unique = `${slug}-${++n}`;
+    while (await prisma.blogPost.findUnique({ where: { slug: unique } })) unique = `${slug}-${++n}`;
 
-    const post: BlogPost = {
-      id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
-      title,
-      slug: unique,
-      excerpt: (input.excerpt || '').toString().slice(0, 400),
-      content: (input.content || '').toString(),
-      author: (input.author || 'Admin').toString().slice(0, 80),
-      category: (input.category || 'General').toString().slice(0, 60),
-      tags: Array.isArray(input.tags) ? input.tags.map((t) => String(t).slice(0, 40)).slice(0, 20) : [],
-      coverImage: input.coverImage ? String(input.coverImage).slice(0, 500) : undefined,
-      status: input.status === 'Published' ? 'Published' : 'Draft',
-      views: 0,
-      date: (input.date as string) || now.split('T')[0],
-      updatedAt: now,
-    };
-    posts.push(post);
-    writeAll(posts);
-    return post;
+    const row = await prisma.blogPost.create({
+      data: {
+        id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
+        title,
+        slug: unique,
+        excerpt: (input.excerpt || '').toString().slice(0, 400),
+        content: (input.content || '').toString(),
+        author: (input.author || 'Admin').toString().slice(0, 80),
+        category: (input.category || 'General').toString().slice(0, 60),
+        tags: Array.isArray(input.tags) ? input.tags.map((t) => String(t).slice(0, 40)).slice(0, 20) : [],
+        coverImage: input.coverImage ? String(input.coverImage).slice(0, 500) : null,
+        status: input.status === 'Published' ? 'Published' : 'Draft',
+        views: 0,
+        date: (input.date as string) || now.split('T')[0],
+        updatedAt: now,
+      },
+    });
+    return toPost(row);
   },
 
-  update(id: string, patch: Partial<BlogPost>): BlogPost | null {
-    const posts = readAll();
-    const idx = posts.findIndex((p) => p.id === id);
-    if (idx === -1) return null;
-    const cur = posts[idx];
-    const updated: BlogPost = {
-      ...cur,
-      ...patch,
-      id: cur.id,
-      slug: patch.slug ? slugify(patch.slug) : cur.slug,
-      tags: patch.tags ? patch.tags.map((t) => String(t).slice(0, 40)).slice(0, 20) : cur.tags,
-      status: patch.status === 'Published' ? 'Published' : patch.status === 'Draft' ? 'Draft' : cur.status,
-      updatedAt: new Date().toISOString(),
-    };
-    posts[idx] = updated;
-    writeAll(posts);
-    return updated;
+  async update(id: string, patch: Partial<BlogPost>): Promise<BlogPost | null> {
+    const cur = await prisma.blogPost.findUnique({ where: { id } });
+    if (!cur) return null;
+    const row = await prisma.blogPost.update({
+      where: { id },
+      data: {
+        title: patch.title ?? undefined,
+        slug: patch.slug ? slugify(patch.slug) : undefined,
+        excerpt: patch.excerpt ?? undefined,
+        content: patch.content ?? undefined,
+        author: patch.author ?? undefined,
+        category: patch.category ?? undefined,
+        coverImage: patch.coverImage !== undefined ? patch.coverImage || null : undefined,
+        tags: patch.tags ? patch.tags.map((t) => String(t).slice(0, 40)).slice(0, 20) : undefined,
+        status:
+          patch.status === 'Published' ? 'Published' : patch.status === 'Draft' ? 'Draft' : undefined,
+        date: patch.date ?? undefined,
+        updatedAt: new Date().toISOString(),
+      },
+    });
+    return toPost(row);
   },
 
-  remove(id: string): boolean {
-    const posts = readAll();
-    const next = posts.filter((p) => p.id !== id);
-    if (next.length === posts.length) return false;
-    writeAll(next);
-    return true;
+  async remove(id: string): Promise<boolean> {
+    try {
+      await prisma.blogPost.delete({ where: { id } });
+      return true;
+    } catch {
+      return false;
+    }
   },
 
-  incrementViews(id: string): void {
-    const posts = readAll();
-    const idx = posts.findIndex((p) => p.id === id || p.slug === id);
-    if (idx !== -1) {
-      posts[idx].views += 1;
-      writeAll(posts);
+  async incrementViews(id: string): Promise<void> {
+    const post =
+      (await prisma.blogPost.findUnique({ where: { id } })) ||
+      (await prisma.blogPost.findUnique({ where: { slug: id } }));
+    if (post) {
+      await prisma.blogPost.update({ where: { id: post.id }, data: { views: { increment: 1 } } });
     }
   },
 };

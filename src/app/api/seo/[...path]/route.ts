@@ -19,7 +19,7 @@ async function baseUrl(): Promise<string> {
 }
 
 async function ensureSnapshot(): Promise<SEOSnapshot> {
-  const existing = readSnapshot();
+  const existing = await readSnapshot();
   if (existing) return existing;
   return runAudit(await baseUrl());
 }

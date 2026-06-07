@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
         percentage: total > 0 ? Math.round((r.count / total) * 100) : 0,
       }));
 
-    const users = userStore.list();
-    const conversations = conversationStore.countAll();
+    const users = await userStore.list();
+    const conversations = await conversationStore.countAll();
 
     return NextResponse.json(
       {

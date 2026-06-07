@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const countryCode = hdrs.get('x-vercel-ip-country') || 'XX';
 
   try {
-    analyticsStore.record({
+    await analyticsStore.record({
       type: body.type,
       path: body.path,
       title: body.title,

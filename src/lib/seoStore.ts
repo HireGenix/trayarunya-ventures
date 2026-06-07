@@ -1,12 +1,11 @@
 /**
  * Real SEO analysis — crawls the site's own pages, computes on-page metrics
- * and issues, and persists the latest snapshot to data/seo.json.
+ * and issues, and persists the latest snapshot to Azure Postgres (Prisma).
  */
-import fs from 'fs';
-import path from 'path';
+import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const SEO_FILE = path.join(DATA_DIR, 'seo.json');
+const SNAPSHOT_ID = 'latest';
 
 // Public routes to audit (static routes only).
 export const SEO_ROUTES = [
@@ -57,37 +56,41 @@ export interface SEOSnapshot {
   keywords: KeywordRanking[];
 }
 
-// In-memory fallback for read-only filesystems (e.g. Vercel serverless).
-let memSnapshot: SEOSnapshot | null = null;
-
-function ensure() {
+export async function readSnapshot(): Promise<SEOSnapshot | null> {
   try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    const row = await prisma.seoSnapshot.findUnique({ where: { id: SNAPSHOT_ID } });
+    if (!row) return null;
+    return {
+      generatedAt: row.generatedAt,
+      pages: row.pages as unknown as PageMetric[],
+      issues: row.issues as unknown as SEOIssue[],
+      keywords: row.keywords as unknown as KeywordRanking[],
+    };
   } catch {
-    /* read-only fs — fall back to memory */
+    return null;
   }
 }
 
-export function readSnapshot(): SEOSnapshot | null {
-  if (memSnapshot) return memSnapshot;
-  ensure();
+async function writeSnapshot(snap: SEOSnapshot): Promise<void> {
   try {
-    if (!fs.existsSync(SEO_FILE)) return null;
-    return JSON.parse(fs.readFileSync(SEO_FILE, 'utf8')) as SEOSnapshot;
-  } catch {
-    return memSnapshot;
-  }
-}
-
-function writeSnapshot(snap: SEOSnapshot) {
-  // Always keep an in-memory copy so reads work even when the FS is read-only.
-  memSnapshot = snap;
-  try {
-    ensure();
-    fs.writeFileSync(SEO_FILE, JSON.stringify(snap, null, 2));
+    await prisma.seoSnapshot.upsert({
+      where: { id: SNAPSHOT_ID },
+      create: {
+        id: SNAPSHOT_ID,
+        generatedAt: snap.generatedAt,
+        pages: snap.pages as unknown as Prisma.InputJsonValue,
+        issues: snap.issues as unknown as Prisma.InputJsonValue,
+        keywords: snap.keywords as unknown as Prisma.InputJsonValue,
+      },
+      update: {
+        generatedAt: snap.generatedAt,
+        pages: snap.pages as unknown as Prisma.InputJsonValue,
+        issues: snap.issues as unknown as Prisma.InputJsonValue,
+        keywords: snap.keywords as unknown as Prisma.InputJsonValue,
+      },
+    });
   } catch (err) {
-    // Serverless read-only filesystem — in-memory snapshot is the source of truth.
-    console.warn('[seoStore] could not persist snapshot, using in-memory copy:', (err as Error)?.message);
+    console.warn('[seoStore] could not persist snapshot:', (err as Error)?.message);
   }
 }
 
@@ -147,7 +150,6 @@ function auditHtml(url: string, html: string, id: number): PageAudit {
   if (!hasOg) issues.push({ page: url, issue: 'Missing Open Graph tags', severity: 'Low', status: 'Open' });
   if (!hasViewport) issues.push({ page: url, issue: 'Missing viewport meta (mobile)', severity: 'Medium', status: 'Open' });
 
-  // Score: start at 100, subtract per issue by severity.
   let score = 100;
   for (const i of issues) score -= i.severity === 'High' ? 20 : i.severity === 'Medium' ? 10 : 4;
   score = Math.max(0, Math.min(100, score));
@@ -200,7 +202,6 @@ export async function runAudit(baseUrl: string): Promise<SEOSnapshot> {
     })
   );
 
-  // Derive keyword candidates from titles for a lightweight ranking table.
   const keywordSet = new Set<string>();
 
   for (const r of results) {
@@ -226,7 +227,7 @@ export async function runAudit(baseUrl: string): Promise<SEOSnapshot> {
     issues,
     keywords,
   };
-  writeSnapshot(snap);
+  await writeSnapshot(snap);
   return snap;
 }
 
