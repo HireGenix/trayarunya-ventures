@@ -43,3 +43,7 @@ next-env.d.ts
 # Keep data directory structure but ignore contents
 /data/*
 !/data/.gitkeep
+
+# content-engine is a separate project (repo: HireGenix/Trayarunya-Content)
+# Always ignore it here so it is never tracked/pushed to this repo
+/content-engine/
