@@ -47,3 +47,5 @@ next-env.d.ts
 # content-engine is a separate project (repo: HireGenix/Trayarunya-Content)
 # Always ignore it here so it is never tracked/pushed to this repo
 /content-engine/
+# Chrome extension packaged artifacts
+/chrome-extension/*.zip

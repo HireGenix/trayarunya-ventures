@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="header">
+    <img src="icons/icon48.png" alt="" class="logo" />
+    <div>
+      <div class="title">Trayarunya<span class="ai">AI</span></div>
+      <div class="subtitle">Fundraising &amp; launch copilot</div>
+    </div>
+    <span id="statusDot" class="dot"></span>
+  </div>
+
+  <!-- Connected view -->
+  <div id="connectedView" class="section hidden">
+    <div class="account-card">
+      <div id="avatar" class="avatar">T</div>
+      <div class="account-meta">
+        <div id="accountName" class="account-name">—</div>
+        <div id="accountEmail" class="account-email">—</div>
+      </div>
+    </div>
+
+    <label class="field-label">Workspace</label>
+    <select id="workspaceSelect" class="input"></select>
+
+    <div class="actions-grid">
+      <button class="action" data-url="https://apply.ycombinator.com/">
+        <span class="action-ico">🟠</span>YC Application
+      </button>
+      <button class="action" data-url="https://foundershub.startups.microsoft.com/">
+        <span class="action-ico">🎁</span>Founders Hub
+      </button>
+      <button class="action" data-url="https://partner.microsoft.com/dashboard/home">
+        <span class="action-ico">🚀</span>Partner Center
+      </button>
+      <button class="action cta" id="openDashboard">
+        <span class="action-ico">💼</span>Dashboard
+      </button>
+    </div>
+
+    <div id="pipelineStats" class="stats hidden">
+      <div class="stat"><div id="statLeads" class="stat-num">0</div><div class="stat-label">Leads</div></div>
+      <div class="stat"><div id="statTasks" class="stat-num">0</div><div class="stat-label">Tasks today</div></div>
+    </div>
+
+    <div class="hint">Open any VC form, YC, Gmail or a program page and press <b>Alt+T</b> — the copilot panel appears on-page.</div>
+
+    <button id="logoutBtn" class="btn danger-link">Disconnect</button>
+  </div>
+
+  <!-- Login view -->
+  <div id="loginView" class="section hidden">
+    <button id="syncBtn" class="btn primary">⚡ Sync from open web app tab</button>
+    <div class="divider"><span>or sign in</span></div>
+    <input id="email" class="input" type="email" placeholder="Email" autocomplete="username" />
+    <input id="password" class="input" type="password" placeholder="Password" autocomplete="current-password" />
+    <button id="loginBtn" class="btn primary">Sign in</button>
+  </div>
+
+  <div id="msg" class="msg hidden"></div>
+
+  <details class="settings" open>
+    <summary>Startup profile <span class="sum-hint">— AI researches your sites &amp; grounds every answer</span></summary>
+    <label class="field-label">Product website</label>
+    <input id="pfProductUrl" class="input" type="url" placeholder="https://app.acme.ai" />
+    <label class="field-label">Company website</label>
+    <input id="pfCompanyUrl" class="input" type="url" placeholder="https://acme.ai" />
+    <button id="researchProfile" class="btn primary">🔎 Research &amp; build profile</button>
+    <div id="researchStatus" class="hint hidden"></div>
+    <div id="profilePreviewWrap" class="hidden">
+      <label class="field-label">Researched profile (editable)</label>
+      <textarea id="pfResearched" class="input" rows="8" placeholder="The AI-researched founder profile appears here…"></textarea>
+      <button id="saveProfile" class="btn ghost">Save profile</button>
+    </div>
+  </details>
+
+  <details class="settings">
+    <summary>Settings</summary>
+    <label class="field-label">API URL</label>
+    <input id="apiUrl" class="input" type="url" placeholder="https://api.mymarketiq.online" />
+    <label class="field-label">Web App URL</label>
+    <input id="webAppUrl" class="input" type="url" placeholder="https://mymarketiq.online" />
+    <button id="saveSettings" class="btn ghost">Save settings</button>
+  </details>
+
+  <div class="footer"><a href="https://mymarketiq.online" target="_blank" rel="noopener">mymarketiq.online</a></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
