@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Trayarunya Copilot",
-  "version": "1.0.0",
-  "description": "Agentic AI copilot for founders — VC & YC applications, investor outreach, startup credits (Microsoft & more), app-store publishing. Sees pages live, researches, drafts & autofills. Synced to MarketiQ.",
+  "name": "MarketIQ Universal AI Growth Assistant",
+  "version": "2.0.0",
+  "description": "Universal AI growth copilot: auto-detects LinkedIn, GA4, GTM, Google/Meta/LinkedIn Ads, Search Console, Shopify, HubSpot & any website — and activates the right agent (tracking audit, event generator, GTM/GA4 copilot, growth audit, LinkedIn growth, fundraising) without manual mode switching.",
   "homepage_url": "https://mymarketiq.online",
   "icons": {
     "16": "icons/icon16.png",
@@ -12,7 +12,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Trayarunya Copilot",
+    "default_title": "MarketIQ Universal AI Growth Assistant",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -34,19 +34,25 @@
       "suggested_key": {
         "default": "Alt+T"
       },
-      "description": "Toggle the Trayarunya Copilot panel"
+      "description": "Toggle the MarketIQ copilot panel"
     },
     "agent-mode": {
       "suggested_key": {
         "default": "Alt+Shift+A"
       },
-      "description": "Open Agent missions"
+      "description": "Open agent missions for this page"
     },
     "coach-page": {
       "suggested_key": {
         "default": "Alt+Shift+C"
       },
       "description": "Coach the current page"
+    },
+    "command-bar": {
+      "suggested_key": {
+        "default": "Alt+Shift+K"
+      },
+      "description": "Open the Universal Command Bar"
     }
   },
   "host_permissions": [
@@ -68,7 +74,13 @@
         "http://localhost:3000/*",
         "http://localhost:3100/*"
       ],
-      "js": ["content/copilot.js"],
+      "js": [
+        "lib/context.js",
+        "lib/tracking.js",
+        "lib/events.js",
+        "lib/agents.js",
+        "content/copilot.js"
+      ],
       "css": ["content/overlay.css"],
       "run_at": "document_idle",
       "all_frames": false

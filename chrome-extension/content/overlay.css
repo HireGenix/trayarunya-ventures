@@ -277,3 +277,72 @@ textarea.tvc-input { resize: vertical; min-height: 56px; }
   outline-offset: 1px;
   border-radius: 4px;
 }
+
+/* ────────────────────────────────────────────────────────────────────
+   Universal AI Growth Assistant — context badge, command bar, agent
+   surfaces. Added in v2.0.0 alongside lib/context.js + lib/agents.js.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* Header context badge — sits next to the logo */
+.tvc-head-ctx {
+  display: inline-flex; align-items: center;
+  height: 22px; padding: 0 9px;
+  margin: 0 6px 0 4px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(15,168,116,0.10), rgba(20,187,135,0.06));
+  border: 1px solid rgba(15,168,116,0.28);
+  color: #0F7B5A;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.02em;
+  cursor: default;
+}
+
+/* Context ribbon inside the Agent tab body */
+.tvc-ctx {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 12px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  background: #FAFCFB;
+  border: 1px solid #E5EAE8;
+}
+.tvc-ctx-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(15,168,116,0.14);
+  animation: tvc-ctx-pulse 1.8s ease-in-out infinite;
+}
+@keyframes tvc-ctx-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(15,168,116,0.55); }
+  50%      { box-shadow: 0 0 0 5px rgba(15,168,116,0); }
+}
+.tvc-ctx-text { font-size: 12px; color: #0E1116; }
+.tvc-ctx-text b { font-weight: 800; }
+
+/* Universal Command Bar — text input + Run button */
+.tvc-cmd {
+  display: flex; gap: 6px; align-items: stretch;
+  margin-bottom: 10px;
+}
+.tvc-cmd-input {
+  flex: 1; min-width: 0;
+  height: 36px; padding: 0 12px;
+  border: 1px solid #E5EAE8; border-radius: 999px;
+  background: #fff; color: #0E1116;
+  font: inherit; font-size: 13px;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  outline: none;
+}
+.tvc-cmd-input::placeholder { color: #9CA3AF; }
+.tvc-cmd-input:focus {
+  border-color: #14BB87;
+  box-shadow: 0 0 0 3px rgba(20,187,135,0.16);
+}
+.tvc-cmd-go {
+  flex-shrink: 0;
+  height: 36px; padding: 0 14px;
+  border: 0; border-radius: 999px;
+  background: #0E1116; color: #fff;
+  font-weight: 700; font-size: 12.5px; cursor: pointer;
+  transition: background 0.12s ease;
+}
+.tvc-cmd-go:hover { background: #1B2330; }

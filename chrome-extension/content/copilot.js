@@ -931,6 +931,32 @@
     },
   };
 
+  // -------------------------------------------------------------------- //
+  // Universal AI Growth Assistant — graft every agent prompt from
+  // lib/agents.js onto MODES so the existing buildSystem() pipeline can
+  // address them by key.  These run alongside (not instead of) the
+  // fundraising modes above — context detection chooses which surface.
+  // -------------------------------------------------------------------- //
+  try {
+    const SYSP = window.TVC?.Agents?.SYSTEM_PROMPTS || {};
+    const ICONS = {
+      "tracking-audit": "🩺", "event-generator": "⚡", "gtm-copilot": "🏷️",
+      "ga4-copilot": "📊", "ads-google": "🟦", "ads-meta": "🟪",
+      "ads-linkedin": "🟦", "linkedin-growth": "💼", "seo-copilot": "🔍",
+      "crm-copilot": "🗂️", "ecom-copilot": "🛍️", "cms-copilot": "🧱",
+      "outreach-copilot": "✉️", "growth-audit": "🚀",
+    };
+    for (const [key, prompt] of Object.entries(SYSP)) {
+      if (MODES[key]) continue;          // never overwrite existing fundraising mode
+      const niceLabel = key.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      MODES[key] = {
+        label: `${ICONS[key] || "✨"} ${niceLabel}`,
+        // Append the existing RULES so cite-the-page / no-fake-numbers stays enforced.
+        system: prompt + " " + RULES,
+      };
+    }
+  } catch (_) { /* lib/agents not loaded — extension still works in fundraising-only mode */ }
+
   async function buildSystem(modeId, { page, scan, extra } = {}) {
     const mode = MODES[modeId] || MODES.coach;
     const parts = [mode.system];
@@ -968,10 +994,10 @@
 
   function buildPanel() {
     const fab = el("button", "tvc-fab");
-    fab.title = "Trayarunya Copilot (Alt+T)";
+    fab.title = "MarketIQ Copilot (Alt+T)";
     const fabImg = document.createElement("img");
     fabImg.src = chrome.runtime.getURL("icons/icon48.png");
-    fabImg.alt = "Trayarunya Copilot";
+    fabImg.alt = "MarketIQ Copilot";
     fab.appendChild(fabImg);
     fab.addEventListener("click", () => {
       state.open = !state.open;
@@ -988,8 +1014,19 @@
     logo.className = "tvc-logo";
     head.appendChild(logo);
     const title = el("div", "tvc-title");
-    title.innerHTML = 'Trayarunya <span class="tvc-grad">Copilot</span>';
+    title.innerHTML = 'MarketIQ <span class="tvc-grad">Copilot</span>';
     head.appendChild(title);
+
+    // Context badge in the header — shows which mode the assistant is in.
+    try {
+      const ctx = window.TVC?.Context?.detect?.();
+      if (ctx) {
+        const badge = el("span", "tvc-head-ctx", ctx.badge);
+        badge.title = `Auto-detected: ${ctx.app} (${ctx.kind}.${ctx.page})`;
+        head.appendChild(badge);
+      }
+    } catch (_) { /* lib not loaded */ }
+
     const status = el("span", "tvc-status", "●");
     head.appendChild(status);
     const close = el("button", "tvc-close", "✕");
@@ -1024,7 +1061,7 @@
       state.connected = !!(res.data && res.data.connected);
       if (res.data && res.data.webAppUrl) state.webAppUrl = res.data.webAppUrl;
       status.classList.toggle("tvc-status-on", state.connected);
-      status.title = state.connected ? "Connected to MarketiQ" : "Not connected — open the extension popup";
+      status.title = state.connected ? "Connected to MarketIQ" : "Not connected — open the extension popup";
     });
 
     return panel;
@@ -1398,6 +1435,129 @@
     },
   ];
 
+  // -------------------------------------------------------------------- //
+  // Universal AI Growth Assistant — turn each declarative mission from
+  // lib/agents.js into a runnable mission card. The runner attaches any
+  // requested tools (tracking audit, event detector) as extra context to
+  // the AI call, then streams the answer into the panel using the same
+  // aiStreamInto pipeline the fundraising missions use.
+  // -------------------------------------------------------------------- //
+  function detectContext() {
+    try {
+      return window.TVC?.Context?.detect?.() || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function describeTrackingAudit(rep) {
+    if (!rep) return "";
+    const inst = rep.installed.map((t) => `  ✓ ${t.name}${t.instanceId ? ` (${t.instanceId})` : ""}`).join("\n");
+    const miss = rep.missing.map((t) => `  ✗ ${t.name}`).join("\n");
+    const dup = (rep.duplicates || []).map((d) => `  ⚠ ${d.src} (×${d.count})`).join("\n");
+    const iss = (rep.issues || []).map((i) => `  • [${i.severity}] ${i.title} — ${i.detail}`).join("\n");
+    return `=== TRACKING AUDIT (${rep.hostname}) ===
+Score: ${rep.score}/100 (grade ${rep.grade})
+INSTALLED:
+${inst || "  (none detected)"}
+MISSING:
+${miss || "  (none)"}
+DUPLICATES:
+${dup || "  (none)"}
+ISSUES:
+${iss || "  (none flagged)"}`;
+  }
+
+  function describeEventDetector(rep) {
+    if (!rep) return "";
+    const lines = rep.suggestions.slice(0, 30).map((s, i) =>
+      `  ${i + 1}. ${s.event_name} (${s.kind}) — ${s.label}\n     conv=${s.conversion} goal=${s.goal} conf=${Math.round(s.confidence * 100)}%\n     selector: ${s.selector}\n     params: ${JSON.stringify(s.params)}`
+    ).join("\n");
+    return `=== SUGGESTED EVENTS (DOM scan, ${rep.total} total, ${rep.conversionEvents} conversions) ===
+${lines || "  (no suggestions)"}`;
+  }
+
+  function describeContextBlock(ctx) {
+    if (!ctx) return "";
+    const s = ctx.signals || {};
+    return `=== DETECTED CONTEXT ===
+Platform: ${ctx.app} (${ctx.kind}.${ctx.page})
+URL: ${ctx.url}
+Signals: ${s.forms || 0} forms, ${s.inputs || 0} inputs, ${s.buttons || 0} buttons` +
+      (s.calendly ? ", Calendly widget" : "") +
+      (s.whatsapp ? ", WhatsApp link" : "") +
+      (s.phone ? ", phone link" : "") +
+      (s.video ? ", video player" : "");
+  }
+
+  async function missionUniversal(spec, out) {
+    const tl = el("div", "tvc-timeline");
+    out.appendChild(tl);
+
+    let st = timelineStep(tl, "Reading page…");
+    const page = extractPage();
+    st.ok(`Read "${(page.title || page.url).slice(0, 60)}"`);
+    assertNotAborted();
+
+    const ctx = detectContext();
+    const extras = [];
+    if (ctx) extras.push(describeContextBlock(ctx));
+
+    const tools = Array.isArray(spec.tools) ? spec.tools : [];
+    if (tools.includes("tracking-audit") && window.TVC?.TrackingAudit) {
+      st = timelineStep(tl, "Auditing installed tags…");
+      const audit = window.TVC.TrackingAudit.audit();
+      extras.push(describeTrackingAudit(audit));
+      st.ok(`${audit.installed.length} tags installed · ${audit.missing.length} missing · ${audit.score}/100`);
+      assertNotAborted();
+    }
+    if (tools.includes("event-detector") && window.TVC?.EventDetector) {
+      st = timelineStep(tl, "Scanning DOM for trackable events…");
+      const ev = window.TVC.EventDetector.scan();
+      extras.push(describeEventDetector(ev));
+      st.ok(`${ev.total} event candidate${ev.total === 1 ? "" : "s"} · ${ev.conversionEvents} conversion${ev.conversionEvents === 1 ? "" : "s"}`);
+      assertNotAborted();
+    }
+
+    st = timelineStep(tl, `AI running ${spec.agent_label || "agent"}…`);
+    const system = await buildSystem(spec.system || "coach", {
+      page,
+      extra: [
+        extras.join("\n\n"),
+        state.objective ? `OPERATOR'S OBJECTIVE: ${state.objective}` : "",
+      ].filter(Boolean).join("\n\n"),
+    });
+    const md = el("div", "tvc-out");
+    out.appendChild(md);
+    let userPrompt = spec.prompt;
+    if (spec._intentText) {
+      userPrompt = `User intent: "${spec._intentText}"\n\n${spec.prompt}`;
+    }
+    await aiStreamInto(md, {
+      system,
+      webSearch: !!spec.web_search,
+      title: `Copilot — ${spec.title}`,
+      prompt: userPrompt,
+    });
+    st.ok(`${spec.agent_label || "Agent"} brief ready`);
+    toast(`✦ ${spec.title} complete`);
+  }
+
+  function buildUniversalMissions(ctx) {
+    if (!ctx || !window.TVC?.Agents?.allMissions) return [];
+    const declarative = window.TVC.Agents.allMissions(ctx);
+    return declarative.map((spec) => ({
+      id: spec.id,
+      icon: spec.icon || spec.agent_icon || "✨",
+      title: spec.title,
+      desc: spec.desc,
+      agent_label: spec.agent_label,
+      agent_color: spec.agent_color,
+      when: () => true,
+      run: (out) => missionUniversal(spec, out),
+    }));
+  }
+
   async function launchMission(m) {
     if (state.agentRunning) return;
     state.agentRunning = true;
@@ -1438,8 +1598,78 @@
       b.appendChild(el("div", "tvc-muted", "Mission in progress…"));
       return;
     }
+
+    // ── Context badge: tells the user which agent set is active right now ──
+    const ctx = detectContext();
+    if (ctx) {
+      const badge = el("div", "tvc-ctx");
+      const dot = el("span", "tvc-ctx-dot");
+      dot.style.background = ctx.kind === "linkedin" ? "#0A66C2"
+        : ctx.kind === "ga4" ? "#E89200"
+        : ctx.kind === "gtm" ? "#2563EB"
+        : ctx.kind === "google-ads" ? "#1A73E8"
+        : ctx.kind === "meta-ads" ? "#1877F2"
+        : ctx.kind === "shopify" ? "#95BF47"
+        : ctx.kind === "yc" ? "#FB651E"
+        : "#0FA874";
+      badge.appendChild(dot);
+      const label = el("span", "tvc-ctx-text");
+      label.innerHTML = `<b>${ctx.badge}</b> · agents auto-loaded for this page`;
+      badge.appendChild(label);
+      b.appendChild(badge);
+    }
+
+    // ── Universal Command Bar: free-text intent → routed mission ──
+    const bar = el("div", "tvc-cmd");
+    const input = el("input", "tvc-cmd-input");
+    input.type = "text";
+    input.placeholder = "Ask anything — e.g. \"audit this website\", \"find missing conversion events\", \"why did conversions drop?\"";
+    bar.appendChild(input);
+    const cmdGo = el("button", "tvc-cmd-go", "Run ▸");
+    bar.appendChild(cmdGo);
+    const launchFromBar = () => {
+      const q = input.value.trim();
+      if (!q) { input.focus(); return; }
+      const spec = window.TVC?.Agents?.routeIntent?.(q, ctx);
+      if (!spec || (!spec.id && !spec.agent_id)) {
+        toast("Could not route that — try rephrasing", false);
+        return;
+      }
+      // If routeIntent returned a full mission spec, launch it directly. Otherwise
+      // fall back to the agent's first available mission (already injected below).
+      let mission = null;
+      if (spec.id) {
+        mission = {
+          id: spec.id,
+          icon: spec.icon || spec.agent_icon || "✨",
+          title: spec.title,
+          desc: spec.desc,
+          agent_label: spec.agent_label,
+          when: () => true,
+          run: (out) => missionUniversal(spec, out),
+        };
+      } else {
+        const all = buildUniversalMissions(ctx);
+        mission = all.find((m) => m.id?.startsWith?.(spec.agent_id) ) || all[0];
+      }
+      if (mission) launchMission(mission);
+      else toast("No matching agent for this context", false);
+    };
+    cmdGo.addEventListener("click", launchFromBar);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); launchFromBar(); }
+    });
+    b.appendChild(bar);
+
+    // ── Mission cards: context-specific first, then fundraising defaults ──
     b.appendChild(el("div", "tvc-hint", "Pick a mission. The agent plans & executes step-by-step — you stay in control, nothing is auto-submitted."));
-    for (const m of MISSIONS) {
+
+    const universal = buildUniversalMissions(ctx);
+    const seen = new Set();
+
+    const renderCard = (m) => {
+      if (seen.has(m.id)) return;
+      seen.add(m.id);
       const available = m.when();
       const card = el("div", "tvc-card tvc-mission" + (available ? "" : " tvc-mission-off"));
       const row = el("div", "tvc-card-titlerow");
@@ -1448,9 +1678,21 @@
       go.disabled = !available;
       row.appendChild(go);
       card.appendChild(row);
-      card.appendChild(el("div", "tvc-card-sub", available ? m.desc : `${m.desc} — open a page with a form to enable`));
+      const subParts = [available ? m.desc : `${m.desc} — open a page with a form to enable`];
+      if (m.agent_label) subParts.push(`— ${m.agent_label}`);
+      card.appendChild(el("div", "tvc-card-sub", subParts.join(" ")));
       go.addEventListener("click", () => launchMission(m));
       b.appendChild(card);
+    };
+
+    universal.forEach(renderCard);
+
+    // Only show the fundraising defaults on contexts where they're useful —
+    // YC, Microsoft Startups, app stores, or any "website" fallback (so they
+    // remain available on a VC fund's site even without a specific agent).
+    if (!ctx || ctx.kind === "yc" || ctx.kind === "ms-startup" ||
+        ctx.kind === "appstore" || ctx.kind === "website") {
+      MISSIONS.forEach(renderCard);
     }
   }
 
@@ -1774,6 +2016,10 @@
       } else if (msg.command === "coach-page") {
         openPanel("coach");
         setTimeout(() => body()?.querySelector(".tvc-btn-primary")?.click(), 150);
+      } else if (msg.command === "command-bar") {
+        // Universal Command Bar — open Agent tab and focus the input.
+        openPanel("agent");
+        setTimeout(() => document.querySelector(".tvc-cmd-input")?.focus(), 150);
       }
       sendResponse({ ok: true });
     }
