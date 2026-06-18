@@ -7,10 +7,12 @@ CUDA warm-up, JPEG output.
 import base64
 import io
 import os
+import random
 import sys
 import time
 import threading
 
+import numpy as np
 import runpod
 import torch
 
@@ -77,8 +79,17 @@ print("[init] Starting background model load...")
 threading.Thread(target=_load_pipeline, daemon=True).start()
 
 
+MAX_RETRIES = 3
+
+
+def _is_safety_blocked(image):
+    """Detect model's built-in safety placeholder (uniform gray image)."""
+    arr = np.array(image)
+    return arr.std() < 15 and 100 < arr.mean() < 160
+
+
 def handler(job):
-    """Generate an image from a text prompt."""
+    """Generate an image from a text prompt, auto-retry if safety-blocked."""
     inp = job.get("input", {})
     prompt = inp.get("prompt", "")
     if not prompt:
@@ -86,7 +97,7 @@ def handler(job):
 
     width = int(inp.get("width", 1024))
     height = int(inp.get("height", 1024))
-    num_steps = int(inp.get("num_steps", 20))
+    num_steps = int(inp.get("num_steps", 50))
     guidance_scale = float(inp.get("guidance_scale", 5.0))
     seed = int(inp.get("seed", 0))
 
@@ -102,18 +113,28 @@ def handler(job):
     print(f"[handler] Generating: '{prompt[:80]}' ({width}x{height}, steps={num_steps})")
     t0 = time.time()
 
-    images = _pipeline(
-        prompts=prompt,
-        height=height,
-        width=width,
-        num_steps=num_steps,
-        guidance_scale=guidance_scale,
-        seed=seed,
-        raise_on_caption_issues=False,
-    )
+    for attempt in range(MAX_RETRIES):
+        current_seed = seed if attempt == 0 else random.randint(1, 2**31)
+        images = _pipeline(
+            prompts=prompt,
+            height=height,
+            width=width,
+            num_steps=num_steps,
+            guidance_scale=guidance_scale,
+            seed=current_seed,
+            raise_on_caption_issues=False,
+        )
+
+        if not _is_safety_blocked(images[0]):
+            break
+        print(f"[handler] Safety-blocked with seed={current_seed}, retrying ({attempt+1}/{MAX_RETRIES})...")
 
     elapsed = time.time() - t0
-    print(f"[handler] Done in {elapsed:.1f}s")
+    blocked = _is_safety_blocked(images[0])
+    print(f"[handler] Done in {elapsed:.1f}s (blocked={blocked}, seed={current_seed})")
+
+    if blocked:
+        return {"error": "Model safety filter blocked this prompt after retries"}
 
     buf = io.BytesIO()
     images[0].save(buf, format="JPEG", quality=90)
@@ -124,6 +145,7 @@ def handler(job):
         "format": "jpeg",
         "width": width,
         "height": height,
+        "seed": current_seed,
         "elapsed_seconds": round(elapsed, 1),
     }
 
