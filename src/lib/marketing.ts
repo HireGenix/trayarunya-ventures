@@ -23,14 +23,14 @@ export const hero = {
   titleGradient: 'researching, strategising & shipping',
   titleTail: 'on autopilot.',
   subtitle:
-    'MarketiQ AI is an Autonomous Go-To-Market Operating System powered by 41 AI agents and 24 autonomous optimization loops that continuously research, strategize, create, publish, optimize, and learn across your entire go-to-market — built for both Enterprise (B2B) and Consumer (B2C/D2C) motions.',
+    'MarketiQ AI is an Autonomous Go-To-Market Operating System powered by 41 AI agents and 25 autonomous optimization loops that continuously research, strategize, create, publish, optimize, and learn across your entire go-to-market — built for both Enterprise (B2B) and Consumer (B2C/D2C) motions.',
   primaryCta: 'Start free',
   secondaryCta: 'See how it works',
   microProof: 'No credit card · Point it at your website · Watch a real GTM strategy appear',
   audiences: ['Enterprise GTM (B2B)', 'Consumer GTM (B2C/D2C)'],
 };
 
-export const trustLine = 'One closed GTM loop · 41 AI agents under an AI CMO · 24 autonomous loops · learns from every result · built for Enterprise (B2B) and Consumer (B2C/D2C) go-to-market';
+export const trustLine = 'One closed GTM loop · 41 AI agents under an AI CMO · 25 autonomous loops · learns from every result · built for Enterprise (B2B) and Consumer (B2C/D2C) go-to-market';
 
 export const loop = {
   eyebrow: 'ONE CLOSED GTM LOOP',
@@ -485,7 +485,7 @@ export const pricing = {
         '50 images / month',
         '10,000 emails / month',
         '3 team members · 1 workspace',
-        'All 41 AI agents & 24 autonomous loops',
+        'All 41 AI agents & 25 autonomous loops',
         'Publishing, team chat & project management',
         'LinkedIn outreach Chrome extension',
       ],
