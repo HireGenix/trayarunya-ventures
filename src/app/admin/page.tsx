@@ -60,6 +60,41 @@ import {
 } from 'recharts';
 import { checkAuth, User } from '@/services/auth';
 import { deleteLead } from '@/app/admin/leads/api';
+import { DASH, SOFT, type PastelKey } from '@/components/dashboard/tokens';
+import { GlassCard, FeatureCard } from '@/components/dashboard/primitives';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import GroupWorkIcon from '@mui/icons-material/GroupWork';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+
+const MARKETING_OS: {
+  title: string;
+  body: string;
+  tone: PastelKey;
+  icon: React.ReactNode;
+  path: string;
+}[] = [
+  {
+    title: 'Capabilities',
+    body: 'Lifecycle, paid and experimentation — every MarketiQ module in one switchable cockpit.',
+    tone: 'lavender',
+    icon: <AutoAwesomeIcon />,
+    path: '/admin/capabilities',
+  },
+  {
+    title: 'Audiences',
+    body: 'Build precise segments with visual property filters and see live member counts.',
+    tone: 'mint',
+    icon: <GroupWorkIcon />,
+    path: '/admin/audiences',
+  },
+  {
+    title: 'Journeys',
+    body: 'Orchestrate real-time, omni-channel journeys with splits, holdouts and sends.',
+    tone: 'peach',
+    icon: <AccountTreeIcon />,
+    path: '/admin/journeys',
+  },
+];
 
 interface RecentLead {
   id: string;
@@ -142,10 +177,10 @@ function StatCard({
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
           <Box
             sx={{
-              width: 44,
-              height: 44,
-              borderRadius: 2.5,
-              bgcolor: alpha(color, 0.12),
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              bgcolor: alpha(color, 0.14),
               color,
               display: 'flex',
               alignItems: 'center',
@@ -280,12 +315,13 @@ export default function AdminDashboard() {
       <Box
         sx={{
           mb: 3,
-          p: { xs: 3, md: 3.5 },
-          borderRadius: 4,
+          p: { xs: 3, md: 4 },
+          borderRadius: 5,
           position: 'relative',
           overflow: 'hidden',
-          background: 'linear-gradient(120deg, #0e1726 0%, #1a2942 100%)',
-          color: '#fff',
+          background: SOFT.hero,
+          border: `1px solid ${DASH.line}`,
+          color: DASH.ink,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: { xs: 'flex-start', sm: 'center' },
@@ -296,37 +332,45 @@ export default function AdminDashboard() {
         <Box
           sx={{
             position: 'absolute',
-            top: '-40%',
+            top: '-45%',
             right: '-5%',
-            width: 320,
-            height: 320,
+            width: 340,
+            height: 340,
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,175,6,0.30) 0%, rgba(0,0,0,0) 70%)',
-            filter: 'blur(40px)',
+            background: 'radial-gradient(circle, rgba(52,208,127,0.22) 0%, rgba(0,0,0,0) 70%)',
+            filter: 'blur(30px)',
             pointerEvents: 'none',
           }}
         />
         <Box sx={{ position: 'relative', zIndex: 1 }}>
-          <Typography variant="h4" component="h1" fontWeight={800} sx={{ mb: 0.5, fontSize: { xs: 24, md: 30 } }}>
+          <Typography
+            sx={{ fontSize: 12.5, fontWeight: 800, letterSpacing: 1.6, textTransform: 'uppercase', color: DASH.neon, mb: 1 }}
+          >
+            Marketing OS
+          </Typography>
+          <Typography variant="h4" component="h1" fontWeight={800} sx={{ mb: 0.5, fontSize: { xs: 24, md: 32 }, letterSpacing: '-0.02em' }}>
             Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''} 👋
           </Typography>
-          <Typography sx={{ color: 'rgba(255,255,255,0.7)' }}>
+          <Typography sx={{ color: DASH.muted }}>
             Live overview of your leads, pipeline, and team — straight from your data.
           </Typography>
         </Box>
         <Button
           variant="contained"
-          startIcon={loading ? <CircularProgress size={16} sx={{ color: '#0e1726' }} /> : <RefreshIcon />}
+          startIcon={loading ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : <RefreshIcon />}
           onClick={load}
           disabled={loading}
           sx={{
             position: 'relative',
             zIndex: 1,
-            bgcolor: '#ffaf06',
-            color: '#0e1726',
+            bgcolor: DASH.pillActive,
+            color: '#fff',
             fontWeight: 700,
-            borderRadius: 2,
-            '&:hover': { bgcolor: '#e69e00' },
+            borderRadius: 999,
+            px: 2.5,
+            border: `2px solid ${DASH.neon}`,
+            boxShadow: `0 0 0 4px ${DASH.neonGlow}`,
+            '&:hover': { bgcolor: '#000' },
           }}
         >
           Refresh
@@ -338,6 +382,38 @@ export default function AdminDashboard() {
           {error}
         </Alert>
       )}
+
+      {/* Marketing OS */}
+      <Box
+        component={motion.div}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        sx={{ mb: 4 }}
+      >
+        <Typography variant="h6" fontWeight={700} sx={{ mb: 2, color: DASH.ink }}>
+          Marketing OS
+        </Typography>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+            gap: 3,
+          }}
+        >
+          {MARKETING_OS.map((m) => (
+            <GlassCard key={m.title} hover sx={{ p: { xs: 2.5, md: 3 } }}>
+              <FeatureCard
+                tone={m.tone}
+                icon={m.icon}
+                title={m.title}
+                body={m.body}
+                onLearnMore={() => router.push(m.path)}
+              />
+            </GlassCard>
+          ))}
+        </Box>
+      </Box>
 
       {/* Quick Actions */}
       <Box

@@ -133,3 +133,42 @@ model SeoSnapshot {
 
   @@map("seo_snapshots")
 }
+
+// Saved audience segments built in the Marketing OS audience builder.
+// `definition` holds the SegmentDefinition (joiner + condition rows).
+model Audience {
+  id          String  @id
+  name        String
+  description String  @default("")
+  definition  Json
+  // Cached evaluation snapshot (member count + breakdowns) for fast listing.
+  snapshot    Json?
+  // AI-generated persona / insight payload, if any.
+  insights    Json?
+  syncTargets String[] @default([])
+  status      String  @default("active")
+  createdBy   String
+  createdAt   String
+  updatedAt   String
+
+  @@index([status])
+  @@map("audiences")
+}
+
+// Saved omni-channel journeys built in the Marketing OS journey canvas.
+// `definition` holds nodes + edges; `metrics` holds the latest run stats.
+model Journey {
+  id          String  @id
+  name        String
+  goal        String  @default("")
+  status      String  @default("draft")
+  audienceId  String?
+  definition  Json
+  metrics     Json?
+  createdBy   String
+  createdAt   String
+  updatedAt   String
+
+  @@index([status])
+  @@map("journeys")
+}

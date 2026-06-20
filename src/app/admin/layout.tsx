@@ -40,6 +40,9 @@ import {
   ChevronLeft as ChevronLeftIcon,
   KeyboardArrowDown as ArrowDownIcon,
   Slideshow as SlideshowIcon,
+  AutoAwesome as AutoAwesomeIcon,
+  GroupWork as GroupWorkIcon,
+  AccountTree as AccountTreeIcon,
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -77,6 +80,14 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { text: 'AI Assistant', icon: <SmartToyIcon />, path: '/admin/assistant' },
       { text: 'SEO', icon: <SearchIcon />, path: '/admin/seo' },
+    ],
+  },
+  {
+    label: 'Marketing OS',
+    items: [
+      { text: 'Capabilities', icon: <AutoAwesomeIcon />, path: '/admin/capabilities' },
+      { text: 'Audiences', icon: <GroupWorkIcon />, path: '/admin/audiences' },
+      { text: 'Journeys', icon: <AccountTreeIcon />, path: '/admin/journeys' },
     ],
   },
   {
