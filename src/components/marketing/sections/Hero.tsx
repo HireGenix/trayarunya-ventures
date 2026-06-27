@@ -9,7 +9,7 @@ import { hero, modules } from '@/lib/marketing';
 import { DISPLAY } from '../fonts';
 import { ProductHuntBadge } from '../ProductHunt';
 import { Glow, GridBg, Marquee, MotionBox, DAY, shineBtnSx, ghostBtnSx } from '../primitives';
-import HeroMock from './HeroMock';
+import MacBookHero from '../MacBookHero';
 
 const MARQUEE_ITEMS = modules.groups.flatMap((g) => g.items.map(([name]) => ({ name, color: g.color })));
 
@@ -48,13 +48,13 @@ export default function Hero() {
       <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2 }}>
         <Box
           sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1.05fr 0.95fr' },
-            gap: { xs: 5, md: 6 },
-            alignItems: 'center',
+            // Single, centred copy column — MacBook lives below for impact
+            maxWidth: 820,
+            mx: 'auto',
+            textAlign: 'center',
           }}
         >
-          {/* ---- Left: copy + CTA ---- */}
+          {/* ---- Copy + CTA (centred) ---- */}
           <Box>
             <MotionBox initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
               <Box
@@ -83,7 +83,7 @@ export default function Hero() {
                 sx={{
                   fontFamily: DISPLAY,
                   fontWeight: 700,
-                  fontSize: { xs: '2.6rem', sm: '3.2rem', md: '3.7rem' },
+                  fontSize: { xs: '2.6rem', sm: '3.4rem', md: '4.2rem' },
                   lineHeight: 1.05,
                   letterSpacing: '-0.035em',
                   color: DAY.text,
@@ -106,7 +106,7 @@ export default function Hero() {
             </MotionBox>
 
             <MotionBox initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.15 }}>
-              <Typography sx={{ mt: 2.5, fontSize: { xs: '1rem', md: '1.12rem' }, lineHeight: 1.65, color: DAY.sub, maxWidth: 560 }}>
+              <Typography sx={{ mt: 2.5, fontSize: { xs: '1rem', md: '1.18rem' }, lineHeight: 1.65, color: DAY.sub, maxWidth: 640, mx: 'auto' }}>
                 {hero.subtitle}
               </Typography>
             </MotionBox>
@@ -120,9 +120,10 @@ export default function Hero() {
                 }}
                 sx={{
                   mt: 4,
+                  mx: 'auto',
                   display: 'flex',
                   alignItems: 'center',
-                  maxWidth: 520,
+                  maxWidth: 540,
                   bgcolor: '#fff',
                   border: `1px solid ${DAY.line}`,
                   borderRadius: 999,
@@ -147,7 +148,7 @@ export default function Hero() {
             </MotionBox>
 
             <MotionBox initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.35 }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} sx={{ mt: 2.5 }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="center" sx={{ mt: 2.5 }}>
                 <Button component={Link} href="https://mymarketiq.online" sx={shineBtnSx()} endIcon={<ArrowForwardRoundedIcon />}>
                   {hero.primaryCta}
                 </Button>
@@ -156,7 +157,7 @@ export default function Hero() {
                 </Button>
               </Stack>
 
-              <Stack direction="row" flexWrap="wrap" sx={{ mt: 2.5, gap: { xs: 1.25, sm: 2.5 } }}>
+              <Stack direction="row" flexWrap="wrap" justifyContent="center" sx={{ mt: 2.5, gap: { xs: 1.25, sm: 2.5 } }}>
                 {TRUST.map((t) => (
                   <Stack key={t} direction="row" alignItems="center" spacing={0.5}>
                     <CheckRoundedIcon sx={{ fontSize: 16, color: DAY.teal }} />
@@ -165,14 +166,16 @@ export default function Hero() {
                 ))}
               </Stack>
 
-              <Box sx={{ mt: 3 }}>
+              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
                 <ProductHuntBadge />
               </Box>
             </MotionBox>
           </Box>
+        </Box>
 
-          {/* ---- Right: product mockup ---- */}
-          <HeroMock />
+        {/* ---- MacBook Pro mockup — opens on scroll, real product screenshot inside ---- */}
+        <Box sx={{ mt: { xs: 8, md: 12 } }}>
+          <MacBookHero />
         </Box>
 
         {/* proof stat strip */}

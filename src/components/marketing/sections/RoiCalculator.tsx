@@ -38,7 +38,7 @@ const TOOL_CATALOG: ToolOpt[] = [
   { id: 'gamma', label: 'Gamma (decks)', monthly_usd: 20 },
   { id: 'freelancer', label: 'Freelance marketer (retainer)', monthly_usd: 2000 },
 ];
-const PLAN_PRICE: Record<string, number> = { free: 0, starter: 299, growth: 999, agency: 2499 };
+const PLAN_PRICE: Record<string, number> = { free: 0, starter: 299, growth: 999, agency: 2999 };
 const HOURLY_USD = 65;
 const AUTOMATABLE = 0.6;
 

@@ -23,14 +23,14 @@ export const hero = {
   titleGradient: 'researching, strategising & shipping',
   titleTail: 'on autopilot.',
   subtitle:
-    'MarketiQ AI is an Autonomous Go-To-Market Operating System powered by 41 AI agents and 25 autonomous optimization loops that continuously research, strategize, create, publish, optimize, and learn across your entire go-to-market — built for both Enterprise (B2B) and Consumer (B2C/D2C) motions.',
+    'MarketiQ AI is an Autonomous Go-To-Market Operating System powered by 45 AI agents and 26 autonomous optimization loops that continuously research, strategize, create, publish, optimize, and learn across your entire go-to-market — built for both Enterprise (B2B) and Consumer (B2C/D2C) motions.',
   primaryCta: 'Start free',
   secondaryCta: 'See how it works',
   microProof: 'No credit card · Point it at your website · Watch a real GTM strategy appear',
   audiences: ['Enterprise GTM (B2B)', 'Consumer GTM (B2C/D2C)'],
 };
 
-export const trustLine = 'One closed GTM loop · 41 AI agents under an AI CMO · 25 autonomous loops · learns from every result · built for Enterprise (B2B) and Consumer (B2C/D2C) go-to-market';
+export const trustLine = 'One closed GTM loop · 45 AI agents under an AI CMO · 26 autonomous loops · learns from every result · built for Enterprise (B2B) and Consumer (B2C/D2C) go-to-market';
 
 export const loop = {
   eyebrow: 'ONE CLOSED GTM LOOP',
@@ -355,7 +355,7 @@ export const why = {
     label: 'MarketiQ — one autonomous engine',
     points: [
       'One Revenue Graph — every stage reads & writes the same truth',
-      '41 agents run the work end-to-end under an AI CMO',
+      '44 agents run the work end-to-end under an AI CMO',
       'On-brand, evidence-first output grounded in your real data',
       'A learning loop that compounds — it gets smarter every cycle',
       'Replaces the stack and the busywork for one predictable price',
@@ -364,8 +364,13 @@ export const why = {
   reasons: [
     {
       k: 'Agentic, not assistive',
-      v: 'Agents that actually run your go-to-market — research, strategy, creation, publishing and optimisation — not a chat box that waits for prompts.',
+      v: 'A 43-agent team that actually runs your go-to-market — each agent perceives live channel signals, calls 100+ real tools, and acts — not a chat box that waits for prompts.',
       color: BRAND.teal,
+    },
+    {
+      k: 'Tools + senses, not just text',
+      v: 'Every specialist sees a live snapshot of your channels and wields 100+ workspace-scoped tools — research, forecasts, audits, and governed actuators — so it decides on what is true now, never blind.',
+      color: BRAND.amberDeep,
     },
     {
       k: 'One closed loop',
@@ -384,7 +389,7 @@ export const why = {
     },
     {
       k: 'You govern the AI',
-      v: 'Superadmin model control (no hard-coded models), an autonomy switchboard, kill-switch, brand guardrails, cost limits and a full audit trail.',
+      v: 'Earned, risk-tiered autonomy under a kill-switch: real spend & publishing only fire for proven agents, else they wait for one-click approval. Plus model control, cost limits and a full audit trail.',
       color: BRAND.pink,
     },
     {
@@ -464,9 +469,8 @@ export const pricing = {
   title: 'Plans that scale with your go-to-market.',
   subtitle:
     'Simple monthly credits — AI credits, images and emails — that reset every month. Start free, upgrade as your GTM engine earns it. Built for B2B and B2C teams alike.',
-  // Launch offer: 25% off every plan. Annual billing takes an extra 25% off.
-  launchLabel: 'Launch offer · 25% off everything',
-  annualLabel: 'Yearly · extra 25% off',
+  // Pricing: monthly = full list price (no discount). Yearly billing = 25% off.
+  annualLabel: 'Yearly · save 25%',
   saveLabel: 'Save 25%',
   plans: [
     {
@@ -476,18 +480,15 @@ export const pricing = {
       monthly: 299,
       yearlyPerMonth: Math.round(299 * 0.75),
       yearlyTotal: Math.round(299 * 12 * 0.75),
-      launchMonthly: Math.round(299 * 0.75),
-      launchYearlyPerMonth: Math.round(299 * 0.75 * 0.75),
-      launchYearlyTotal: Math.round(299 * 12 * 0.75 * 0.75),
       popular: false,
       features: [
         '250 AI credits / month',
         '50 images / month',
         '10,000 emails / month',
         '3 team members · 1 workspace',
-        'All 41 AI agents & 25 autonomous loops',
+        'All 45 AI agents & 26 autonomous loops',
         'Publishing, team chat & project management',
-        'LinkedIn outreach Chrome extension',
+        'LinkedIn outreach — add $50/mo per profile',
       ],
       cta: 'Start with Starter',
     },
@@ -498,9 +499,6 @@ export const pricing = {
       monthly: 999,
       yearlyPerMonth: Math.round(999 * 0.75),
       yearlyTotal: Math.round(999 * 12 * 0.75),
-      launchMonthly: Math.round(999 * 0.75),
-      launchYearlyPerMonth: Math.round(999 * 0.75 * 0.75),
-      launchYearlyTotal: Math.round(999 * 12 * 0.75 * 0.75),
       popular: true,
       features: [
         '1,000 AI credits / month',
@@ -508,7 +506,7 @@ export const pricing = {
         '50,000 emails / month',
         '15 team members · 1 workspace',
         'Everything in Starter',
-        'LinkedIn Copilot desktop app',
+        'LinkedIn outreach — add $50/mo per profile',
         'Premium support',
       ],
       cta: 'Choose Growth',
@@ -517,19 +515,16 @@ export const pricing = {
       code: 'agency',
       name: 'Agency',
       tagline: 'For agencies running many client engines',
-      monthly: 2499,
-      yearlyPerMonth: Math.round(2499 * 0.75),
-      yearlyTotal: Math.round(2499 * 12 * 0.75),
-      launchMonthly: Math.round(2499 * 0.75),
-      launchYearlyPerMonth: Math.round(2499 * 0.75 * 0.75),
-      launchYearlyTotal: Math.round(2499 * 12 * 0.75 * 0.75),
+      monthly: 2999,
+      yearlyPerMonth: Math.round(2999 * 0.75),
+      yearlyTotal: Math.round(2999 * 12 * 0.75),
       popular: false,
       features: [
         '3,000 AI credits / month',
         '1,000 images / month',
         '250,000 emails / month',
         'Unlimited team members',
-        'Unlimited workspaces — one per client',
+        '5 workspaces — one per client',
         'White-label client portals',
         'API access',
         'Priority support',
@@ -549,6 +544,25 @@ export const pricing = {
   agencyNote: 'Need custom quotas, more seats or dedicated infrastructure?',
   contactEmail: 'mailto:info@trayarunyaventures.com?subject=MarketIQ%20Enterprise',
   freeNote: 'Or start free — no card needed (25 AI credits, 10 images, 100 emails, 1 workspace)',
+  // Paid add-ons layered on top of any plan (billed separately).
+  addonsHeading: 'Power-ups, when you need them',
+  addons: [
+    {
+      kind: 'linkedin_outreach',
+      name: 'LinkedIn Outreach',
+      price: '$50/mo',
+      unit: 'per connected profile',
+      blurb: 'Unlock the LinkedIn outreach Chrome extension, desktop copilot and lead pipeline — autonomous activity tracking with you in control. Available on any paid plan.',
+    },
+    {
+      kind: 'managed_marketing',
+      name: 'Fully Managed Marketing',
+      price: '$1,499/mo',
+      unit: 'per workspace',
+      blurb: 'Our team runs that workspace’s marketing end-to-end — strategy, content, campaigns and human-delivered off-page SEO. Request it from any plan.',
+    },
+  ],
+  addonsNote: 'Add or remove add-ons anytime from your billing settings.',
 };
 
 export const faqs = [
@@ -558,7 +572,7 @@ export const faqs = [
   },
   {
     q: 'How is this different from ChatGPT or a content tool?',
-    a: 'Single tools give you a chat box. MarketiQ gives you autonomous agents that research the live web, an AI strategist that plans your go-to-market, a brand-aware studio that creates, native publishing, agentic ads, and a learning loop that compounds — all sharing one data layer.',
+    a: 'Single tools give you a chat box. MarketiQ gives you a 43-agent team under an AI CMO — each agent perceives your live channel signals and calls 100+ real tools to research, decide and act. An AI strategist plans your go-to-market, a brand-aware studio creates, native publishing + agentic ads ship it, and a learning loop compounds — all sharing one data layer.',
   },
   {
     q: 'Does it work for both B2B and B2C go-to-market?',
@@ -582,7 +596,7 @@ export const faqs = [
   },
   {
     q: 'Can agencies use it for multiple clients?',
-    a: 'Absolutely. It’s multi-tenant by design — the Agency plan gives you unlimited workspaces (one per client) and unlimited team members, with white-label client portals, approvals and on-brand reporting, plus API access. Need custom quotas or dedicated infrastructure? Enterprise starts at $5,000/month.',
+    a: 'Absolutely. It’s multi-tenant by design — the Agency plan gives you 5 workspaces (one per client) and unlimited team members, with white-label client portals, approvals and on-brand reporting, plus API access. Need more workspaces, custom quotas or dedicated infrastructure? Enterprise starts at $5,000/month.',
   },
 ];
 

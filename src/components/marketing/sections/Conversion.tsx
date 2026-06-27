@@ -130,11 +130,6 @@ export function Pricing() {
         <SectionHeading eyebrow={pricing.eyebrow} title={pricing.title} subtitle={pricing.subtitle} />
 
         <Stack alignItems="center" spacing={1.5} sx={{ mb: 6 }}>
-          <Chip
-            label={pricing.launchLabel}
-            size="small"
-            sx={{ fontWeight: 800, fontSize: 12, color: '#0E1422', background: DAY.gradient }}
-          />
           <Stack direction="row" spacing={1.5} justifyContent="center" alignItems="center">
             <Box sx={{ position: 'relative', display: 'inline-flex', p: 0.5, borderRadius: 999, bgcolor: '#FFFFFF', border: `1px solid ${DAY.line}`, boxShadow: '0 8px 20px -14px rgba(12,20,36,0.2)' }}>
               {[
@@ -168,8 +163,7 @@ export function Pricing() {
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3, alignItems: 'stretch' }}>
           {pricing.plans.map((plan, idx) => {
-            const listPrice = yearly ? plan.yearlyPerMonth : plan.monthly;
-            const launchPrice = yearly ? plan.launchYearlyPerMonth : plan.launchMonthly;
+            const perMonth = yearly ? plan.yearlyPerMonth : plan.monthly;
             const inner = (
               <Box sx={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', p: 3.5, ...(plan.popular ? {} : { borderRadius: '26px', background: DAY.panel, border: `1px solid ${DAY.line}`, boxShadow: '0 1px 2px rgba(12,20,36,0.04), 0 16px 40px -28px rgba(12,20,36,0.14)', transition: 'border-color .3s ease, box-shadow .3s ease', '&:hover': { borderColor: 'rgba(13,23,44,0.22)', boxShadow: '0 40px 80px -44px rgba(12,20,36,0.28)' } }) }}>
                 {plan.popular && (
@@ -178,9 +172,11 @@ export function Pricing() {
                 <Typography sx={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 19, color: DAY.text }}>{plan.name}</Typography>
                 <Typography sx={{ mt: 0.75, fontSize: 13.5, color: DAY.sub, minHeight: 40 }}>{plan.tagline}</Typography>
                 <Stack direction="row" alignItems="baseline" spacing={1.2} sx={{ mt: 1.5 }}>
-                  <Typography component="span" sx={{ fontWeight: 700, fontSize: '1.15rem', color: DAY.faint, textDecoration: 'line-through', textDecorationThickness: 2 }}>
-                    ${listPrice.toLocaleString()}
-                  </Typography>
+                  {yearly && (
+                    <Typography component="span" sx={{ fontWeight: 700, fontSize: '1.15rem', color: DAY.faint, textDecoration: 'line-through', textDecorationThickness: 2 }}>
+                      ${plan.monthly.toLocaleString()}
+                    </Typography>
+                  )}
                   <AnimatePresence mode="popLayout" initial={false}>
                     <MotionSpan
                       key={`${plan.code}-${String(yearly)}`}
@@ -190,15 +186,15 @@ export function Pricing() {
                       transition={{ duration: 0.3 }}
                       style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: '2.5rem', color: DAY.text, lineHeight: 1 }}
                     >
-                      ${launchPrice.toLocaleString()}
+                      ${perMonth.toLocaleString()}
                     </MotionSpan>
                   </AnimatePresence>
                   <Typography sx={{ fontSize: 14, color: DAY.sub }}>/mo</Typography>
                 </Stack>
                 <Typography sx={{ mt: 0.75, fontSize: 12.5, color: DAY.sub, minHeight: 20 }}>
                   {yearly
-                    ? `Launch: billed yearly at $${plan.launchYearlyTotal.toLocaleString()} (then $${plan.yearlyTotal.toLocaleString()})`
-                    : `Launch price · then $${plan.monthly.toLocaleString()}/mo`}
+                    ? `Billed yearly at $${plan.yearlyTotal.toLocaleString()} · save 25%`
+                    : 'Billed monthly'}
                 </Typography>
                 <Stack spacing={1.25} sx={{ mt: 2.5, flexGrow: 1 }}>
                   {plan.features.map((f) => (
@@ -246,6 +242,51 @@ export function Pricing() {
         <Stack alignItems="center" spacing={1} sx={{ mt: 5, textAlign: 'center' }}>
           <Typography sx={{ fontSize: 13.5, fontWeight: 600, color: DAY.sub }}>{pricing.seatNote}</Typography>
         </Stack>
+
+        {/* Add-ons strip */}
+        <MotionBox
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          sx={{ mt: 5 }}
+        >
+          <Stack direction="row" spacing={1.25} alignItems="center" justifyContent="center" sx={{ mb: 2 }}>
+            <AddRoundedIcon sx={{ fontSize: 20, color: DAY.teal }} />
+            <Typography sx={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: { xs: 18, md: 20 }, color: DAY.text }}>
+              {pricing.addonsHeading}
+            </Typography>
+          </Stack>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5 }}>
+            {pricing.addons.map((a) => (
+              <Box
+                key={a.kind}
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 0.75,
+                  p: 3,
+                  borderRadius: '22px',
+                  border: `1px solid ${DAY.line}`,
+                  background: DAY.panel,
+                  boxShadow: '0 1px 2px rgba(12,20,36,0.04), 0 16px 40px -28px rgba(12,20,36,0.14)',
+                }}
+              >
+                <Stack direction="row" alignItems="baseline" spacing={1} flexWrap="wrap">
+                  <Typography sx={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 17, color: DAY.text }}>
+                    {a.name}
+                  </Typography>
+                  <Typography sx={{ fontWeight: 800, fontSize: 16, color: DAY.teal }}>{a.price}</Typography>
+                  <Typography sx={{ fontSize: 13, color: DAY.sub }}>{a.unit}</Typography>
+                </Stack>
+                <Typography sx={{ fontSize: 13.5, color: 'rgba(20,30,50,0.82)' }}>{a.blurb}</Typography>
+              </Box>
+            ))}
+          </Box>
+          <Typography sx={{ mt: 1.75, fontSize: 12.5, color: DAY.sub, textAlign: 'center' }}>
+            {pricing.addonsNote}
+          </Typography>
+        </MotionBox>
 
         {/* Enterprise strip */}
         <MotionBox
