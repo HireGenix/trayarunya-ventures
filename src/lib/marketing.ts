@@ -256,7 +256,7 @@ export const chromeExtension = {
   subtitle:
     'MarketiQ Ai rides along on LinkedIn: audits and optimizes your profile, analyses any prospect with AI, drafts policy-safe connection notes and replies, and syncs every engagement back to your pipeline — automatically.',
   // Direct download until the Chrome Web Store listing is approved — then swap to the store detail URL.
-  storeUrl: 'https://mymarketiq.online',
+  storeUrl: 'https://marketiqgpt.com',
   cta: 'Download for Chrome — Free',
   storeNote: 'Coming soon to the Chrome Web Store — for now, install manually in under a minute.',
   features: [
@@ -418,7 +418,7 @@ export const launch = {
   date: 'June 30, 2026',
   bannerText: 'MarketiQ AI launches June 30, 2026',
   bannerCta: 'Get early access',
-  bannerHref: 'https://mymarketiq.online',
+  bannerHref: 'https://marketiqgpt.com',
 };
 
 /* ------------------------------------------------------------------------ */
@@ -612,7 +612,7 @@ export const nav = [
   { label: 'Why MarketiQ', href: '#why' },
   { label: 'Features', href: '#features' },
   { label: 'ROI', href: '#roi' },
-  { label: 'Compare', href: 'https://mymarketiq.online' },
+  { label: 'Compare', href: 'https://marketiqgpt.com' },
   { label: 'Pricing', href: '#pricing' },
   { label: 'FAQ', href: '#faq' },
 ];

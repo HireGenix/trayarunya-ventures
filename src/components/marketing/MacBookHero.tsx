@@ -19,7 +19,7 @@ import { DAY } from './primitives';
 export default function MacBookHero({
   src = '/dashboard-assets/shot-1.png',
   alt = 'MarketIQ dashboard',
-  caption = 'app.mymarketiq.online · Live',
+  caption = 'marketiqgpt.com · Live',
 }: {
   src?: string;
   alt?: string;

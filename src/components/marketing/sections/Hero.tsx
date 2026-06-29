@@ -22,7 +22,7 @@ const PROOF = [
 
 const TRUST = ['No credit card', 'Point at your website', 'Live in minutes'];
 
-const MQ_URL = 'https://mymarketiq.online';
+const MQ_URL = 'https://marketiqgpt.com';
 
 export default function Hero() {
   const [siteUrl, setSiteUrl] = useState('');
@@ -149,7 +149,7 @@ export default function Hero() {
 
             <MotionBox initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.35 }}>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="center" sx={{ mt: 2.5 }}>
-                <Button component={Link} href="https://mymarketiq.online" sx={shineBtnSx()} endIcon={<ArrowForwardRoundedIcon />}>
+                <Button component={Link} href="https://marketiqgpt.com" sx={shineBtnSx()} endIcon={<ArrowForwardRoundedIcon />}>
                   {hero.primaryCta}
                 </Button>
                 <Button component="a" href="#how" sx={ghostBtnSx}>

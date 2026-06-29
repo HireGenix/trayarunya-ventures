@@ -476,7 +476,7 @@ export default function Pipeline() {
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: { xs: 6, md: 8 } }}>
             <Button
               component={Link}
-              href="https://mymarketiq.online"
+              href="https://marketiqgpt.com"
               variant="outlined"
               sx={{
                 border: `1.5px solid ${DAY.line}`,

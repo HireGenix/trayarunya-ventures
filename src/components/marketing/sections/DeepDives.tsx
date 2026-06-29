@@ -14,32 +14,32 @@ import BrowserMock from '../BrowserMock';
 const DIVE_SHOTS: Record<string, { src: string; url: string; alt: string }> = {
   research: {
     src: '/dashboard-assets/shot-1.png',
-    url: 'app.mymarketiq.online/overview',
+    url: 'marketiqgpt.com/overview',
     alt: 'MarketIQ overview — plan, create and publish on autopilot',
   },
   strategy: {
     src: '/dashboard-assets/shot-3.png',
-    url: 'app.mymarketiq.online/gtm-os',
+    url: 'marketiqgpt.com/gtm-os',
     alt: 'MarketIQ GTM Operating System — superhuman GTM strategy grounded in real business data',
   },
   studio: {
     src: '/dashboard-assets/shot-5.png',
-    url: 'app.mymarketiq.online/studio',
+    url: 'marketiqgpt.com/studio',
     alt: 'MarketIQ Content Studio — Composer, Designer, Director, Planner, Library',
   },
   publish: {
     src: '/dashboard-assets/shot-6.png',
-    url: 'app.mymarketiq.online/publishing',
+    url: 'marketiqgpt.com/publishing',
     alt: 'MarketIQ Publishing pipeline — connect networks once, publish everywhere',
   },
   brain: {
     src: '/dashboard-assets/shot-2.png',
-    url: 'app.mymarketiq.online/revenue-brain',
+    url: 'marketiqgpt.com/revenue-brain',
     alt: 'MarketIQ Revenue Brain — one integrated view of the whole funnel',
   },
   frontier: {
     src: '/dashboard-assets/shot-4.png',
-    url: 'app.mymarketiq.online/ai-team',
+    url: 'marketiqgpt.com/ai-team',
     alt: 'MarketIQ AI Team — 40 specialist agents, one AI CMO orchestrating them',
   },
 };

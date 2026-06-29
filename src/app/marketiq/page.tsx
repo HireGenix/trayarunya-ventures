@@ -19,7 +19,7 @@ import Security from '@/components/marketing/sections/Security';
 /**
  * MarketiQ AI ads landing page (hosted on the Trayarunya Ventures site) — an
  * exact copy of the MarketiQ marketing site, with every CTA routed to
- * https://mymarketiq.online.
+ * https://marketiqgpt.com.
  */
 export default function MarketiqLanding() {
   return (

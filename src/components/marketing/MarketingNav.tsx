@@ -78,12 +78,12 @@ export default function MarketingNav() {
             </Stack>
 
             <Stack direction="row" spacing={1.25} sx={{ display: { xs: 'none', md: 'flex' } }}>
-              <Button component={Link} href="https://mymarketiq.online" sx={{ color: DAY.sub, fontWeight: 700, '&:hover': { color: DAY.text, background: 'rgba(13,23,44,0.05)' } }}>
+              <Button component={Link} href="https://marketiqgpt.com" sx={{ color: DAY.sub, fontWeight: 700, '&:hover': { color: DAY.text, background: 'rgba(13,23,44,0.05)' } }}>
                 Log in
               </Button>
               <Button
                 component={Link}
-                href="https://mymarketiq.online"
+                href="https://marketiqgpt.com"
                 variant="contained"
                 sx={{
                   px: 2.5,
@@ -149,7 +149,7 @@ export default function MarketingNav() {
           <Stack spacing={1.25} sx={{ mt: 3 }}>
             <Button
               component={Link}
-              href="https://mymarketiq.online"
+              href="https://marketiqgpt.com"
               variant="outlined"
               fullWidth
               sx={{ fontWeight: 700, borderRadius: 999, color: DAY.text, borderColor: 'rgba(13,23,44,0.18)', '&:hover': { borderColor: 'rgba(13,23,44,0.34)', background: 'rgba(13,23,44,0.04)' } }}
@@ -158,7 +158,7 @@ export default function MarketingNav() {
             </Button>
             <Button
               component={Link}
-              href="https://mymarketiq.online"
+              href="https://marketiqgpt.com"
               variant="contained"
               fullWidth
               sx={{ fontWeight: 700, borderRadius: 999, color: '#0E1422', background: DAY.gradient, '&:hover': { background: DAY.gradient, filter: 'brightness(1.07)' } }}

@@ -21,8 +21,8 @@ const COLS = [
     heading: 'Product',
     links: [
       ['Desktop app', '#desktop'],
-      ['Log in', 'https://mymarketiq.online'],
-      ['Start free', 'https://mymarketiq.online'],
+      ['Log in', 'https://marketiqgpt.com'],
+      ['Start free', 'https://marketiqgpt.com'],
       ['FAQ', '#faq'],
     ],
   },

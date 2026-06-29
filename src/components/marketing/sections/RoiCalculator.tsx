@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, Chip, Container, Slider, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import Link from 'next/link';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
-const API_URL = 'https://api.mymarketiq.online';
+const API_URL = 'https://api.marketiqgpt.com';
 import { roiCalc } from '@/lib/marketing';
 import { DISPLAY } from '../fonts';
 import { DAY, Glow, MotionBox, SectionHeading, shineBtnSx } from '../primitives';
@@ -215,7 +215,7 @@ export default function RoiCalculator() {
               </Typography>
             </Box>
 
-            <Button component={Link} href="https://mymarketiq.online" fullWidth sx={{ ...shineBtnSx(), mt: 2.5 }} endIcon={<ArrowForwardRoundedIcon />}>
+            <Button component={Link} href="https://marketiqgpt.com" fullWidth sx={{ ...shineBtnSx(), mt: 2.5 }} endIcon={<ArrowForwardRoundedIcon />}>
               Start free
             </Button>
             <Typography sx={{ mt: 1.5, fontSize: 11, color: DAY.faint, textAlign: 'center' }}>

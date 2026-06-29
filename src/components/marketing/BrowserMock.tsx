@@ -15,7 +15,7 @@ import { DAY } from './primitives';
 export default function BrowserMock({
   src,
   alt,
-  url = 'app.mymarketiq.online',
+  url = 'marketiqgpt.com',
   accent = DAY.teal,
 }: {
   src: string;

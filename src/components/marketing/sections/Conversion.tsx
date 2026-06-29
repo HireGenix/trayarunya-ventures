@@ -207,7 +207,7 @@ export function Pricing() {
                 <Magnetic strength={0.18}>
                   <Button
                     component={Link}
-                    href={`https://mymarketiq.online?plan=${plan.code}${yearly ? '&interval=yearly' : ''}`}
+                    href={`https://marketiqgpt.com?plan=${plan.code}${yearly ? '&interval=yearly' : ''}`}
                     fullWidth
                     size="large"
                     sx={{ mt: 3, ...(plan.popular ? shineBtnSx() : ghostBtnSx) }}
@@ -340,7 +340,7 @@ export function Pricing() {
           </Typography>
           <Typography
             component={Link}
-            href="https://mymarketiq.online"
+            href="https://marketiqgpt.com"
             sx={{ fontSize: 12.5, color: DAY.sub, textDecoration: 'none', '&:hover': { color: DAY.text, textDecoration: 'underline' } }}
           >
             {pricing.freeNote}
@@ -497,7 +497,7 @@ export function FinalCta() {
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="center" sx={{ mt: 5 }}>
             <Magnetic>
-              <Button component={Link} href="https://mymarketiq.online" size="large" sx={shineBtnSx()} endIcon={<ArrowForwardRoundedIcon />}>
+              <Button component={Link} href="https://marketiqgpt.com" size="large" sx={shineBtnSx()} endIcon={<ArrowForwardRoundedIcon />}>
                 {finalCta.primary}
               </Button>
             </Magnetic>
