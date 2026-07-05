@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>MarketiQ — Pipeline Autonomy (The pipeline that builds itself)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0E1116;--mut:#5A6472;--line:rgba(14,17,22,.08);--amber:#FFAF06;--amber2:#FFB429;--teal:#14BB87;--pink:#D92C4A;--blue:#2563EB;--violet:#7C3AED}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;background:
+ radial-gradient(1200px 800px at 88% -10%,rgba(20,187,135,.20),transparent 60%),
+ radial-gradient(1000px 700px at -10% 110%,rgba(255,175,6,.16),transparent 55%),
+ radial-gradient(900px 640px at 50% 55%,rgba(37,99,235,.05),transparent 62%),#E9EFEA}
+.bgfx{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.4;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.045'/%3E%3C/svg%3E")}
+.shell{position:relative;z-index:1;display:flex;gap:16px;height:calc(100vh - 28px);max-width:2000px;margin:14px auto;padding:14px;background:rgba(255,255,255,.46);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);border:1px solid rgba(255,255,255,.65);border-radius:30px;box-shadow:0 30px 80px rgba(14,17,22,.14)}
+/* ============ RAIL ============ */
+.rail{width:242px;flex:none;display:flex;flex-direction:column;background:linear-gradient(180deg,#10151C,#0B0F15);border-radius:24px;color:#fff;padding:18px 13px 13px;box-shadow:0 20px 50px rgba(10,14,19,.35)}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 16px}
+.blogo{width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,#FFB429,#14BB87);display:grid;place-items:center;font-weight:900;color:#0B0F14;box-shadow:0 0 26px rgba(20,187,135,.55)}
+.bname{font-weight:800;font-size:15.5px;letter-spacing:-.02em}.bname i{font-style:normal;color:#14BB87}
+.grp{font-size:9.5px;letter-spacing:.16em;color:rgba(255,255,255,.35);font-weight:800;margin:15px 10px 7px}
+.item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;color:rgba(255,255,255,.66);font-size:13.5px;font-weight:600;cursor:pointer;transition:background .18s,color .18s}
+.item svg{width:17px;height:17px;flex:none}
+.item:hover{background:rgba(255,255,255,.06);color:#fff}
+.item.on{background:#fff;color:#0E1116;font-weight:700;box-shadow:0 12px 28px rgba(0,0,0,.4)}
+.newb{margin-left:auto;font-size:8.5px;font-weight:900;letter-spacing:.08em;background:linear-gradient(135deg,#FFB429,#14BB87);color:#08110D;padding:3px 7px;border-radius:999px}
+.user{margin-top:auto;display:flex;gap:10px;align-items:center;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09);padding:10px;border-radius:14px}
+.uav{width:34px;height:34px;flex:none;border-radius:10px;background:linear-gradient(135deg,#FFB429,#14BB87);display:grid;place-items:center;font-weight:800;font-size:12px;color:#0B0F14}
+.user b{display:block;font-size:13px}.user span{font-size:11px;color:rgba(255,255,255,.45)}
+/* ============ MAIN ============ */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{display:flex;align-items:center;gap:14px;padding:8px 20px 12px}
+.tbt{font-weight:800;font-size:16px;letter-spacing:-.02em}
+.tbr{margin-left:auto;display:flex;gap:10px;align-items:center}
+.ws{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);padding:6px 12px 6px 7px;border-radius:999px;font-weight:700;font-size:13px;box-shadow:0 6px 18px rgba(14,17,22,.06)}
+.wa{width:24px;height:24px;border-radius:8px;background:linear-gradient(135deg,#FFB429,#14BB87);display:grid;place-items:center;font-size:10px;font-weight:800;color:#0B0F14}
+.bell{width:36px;height:36px;border-radius:12px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;box-shadow:0 6px 18px rgba(14,17,22,.06)}
+.bell svg{width:16px;height:16px}
+.page{flex:1;overflow:auto;padding:4px 20px 28px;scroll-behavior:smooth}
+/* ============ PAGE HEAD ============ */
+.phead{display:flex;align-items:flex-end;gap:16px;margin:4px 2px 14px}
+.crumb{font-size:10px;font-weight:800;letter-spacing:.18em;color:var(--mut)}
+h1.pt{margin:4px 0 0;font-size:29px;letter-spacing:-.045em;font-weight:800}
+.live{display:inline-flex;align-items:center;gap:7px;background:rgba(20,187,135,.1);border:1px solid rgba(20,187,135,.28);color:#0B7A59;font-size:12px;font-weight:700;padding:7px 12px;border-radius:999px;margin-bottom:3px}
+.dotp{width:7px;height:7px;border-radius:50%;background:#14BB87;box-shadow:0 0 0 0 rgba(20,187,135,.5);animation:pp 2s infinite}
+@keyframes pp{70%{box-shadow:0 0 0 9px rgba(20,187,135,0)}100%{box-shadow:0 0 0 0 rgba(20,187,135,0)}}
+.auto3{margin-left:auto;display:flex;background:#fff;border:1px solid var(--line);border-radius:12px;padding:4px;gap:2px;box-shadow:0 8px 20px rgba(14,17,22,.06)}
+.auto3 button{border:0;background:transparent;font:inherit;font-size:12.5px;font-weight:700;color:var(--mut);padding:7px 14px;border-radius:9px;cursor:pointer;transition:all .18s}
+.auto3 button.on{background:#0E1116;color:#fff}
+.protobar{display:flex;gap:9px;align-items:center;background:rgba(255,175,6,.09);border:1px solid rgba(255,175,6,.3);border-radius:14px;padding:9px 14px;font-size:12.5px;color:#7A5200;font-weight:600;margin:0 2px 16px}
+.protobar svg{width:15px;height:15px;flex:none}
+/* ============ HERO ============ */
+.hero{position:relative;overflow:hidden;border-radius:26px;margin:0 2px 16px;color:#fff;display:grid;grid-template-columns:1.02fr .98fr;gap:8px;padding:36px 40px 28px;border:1px solid rgba(255,255,255,.09);box-shadow:0 34px 80px rgba(10,14,19,.38);background:
+ radial-gradient(900px 520px at 92% -20%,rgba(37,99,235,.3),transparent 55%),
+ radial-gradient(700px 460px at -8% 122%,rgba(20,187,135,.24),transparent 55%),
+ radial-gradient(500px 360px at 55% 120%,rgba(255,175,6,.12),transparent 60%),
+ linear-gradient(155deg,#0D1218,#0A0E13 58%,#0C1118)}
+.hero:before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);background-size:46px 46px;-webkit-mask-image:radial-gradient(75% 80% at 62% 38%,#000 25%,transparent 78%);mask-image:radial-gradient(75% 80% at 62% 38%,#000 25%,transparent 78%)}
+.hero>*{position:relative}
+.eyebrow{display:inline-flex;gap:8px;align-items:center;font-size:10px;font-weight:800;letter-spacing:.2em;color:#9DC3FF;background:rgba(37,99,235,.14);border:1px solid rgba(37,99,235,.36);padding:7px 12px;border-radius:999px}
+.eyebrow svg{width:13px;height:13px}
+.hero h2{font-size:41px;line-height:1.05;letter-spacing:-.045em;margin:20px 0 14px;font-weight:800}
+.hero h2 em{font-family:"Instrument Serif",serif;font-weight:400;font-style:italic;letter-spacing:-.01em;background:linear-gradient(92deg,#6EA8FF,#2BE3AC);-webkit-background-clip:text;background-clip:text;color:transparent;padding-right:4px}
+.hsub{color:rgba(255,255,255,.62);font-size:14.5px;line-height:1.7;max-width:540px;margin:0 0 22px}
+.hsub b{color:#fff;font-weight:700}
+.hbtns{display:flex;gap:10px;margin-bottom:26px}
+.btnp{border:0;cursor:pointer;font:inherit;font-weight:800;font-size:13.5px;color:#08110D;background:linear-gradient(135deg,#FFB429,#14BB87);padding:13px 20px;border-radius:13px;box-shadow:0 16px 38px rgba(20,187,135,.38);transition:transform .2s,box-shadow .2s;display:inline-flex;align-items:center;gap:8px}
+.btnp svg{width:15px;height:15px}
+.btnp:hover{transform:translateY(-2px);box-shadow:0 22px 48px rgba(20,187,135,.5)}
+.btng{cursor:pointer;font:inherit;font-weight:700;font-size:13.5px;color:#fff;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);padding:13px 20px;border-radius:13px;transition:background .2s}
+.btng:hover{background:rgba(255,255,255,.12)}
+.tick{display:flex;gap:34px;border-top:1px solid rgba(255,255,255,.09);padding-top:20px}
+.tk b{display:block;font-size:23px;letter-spacing:-.035em;font-variant-numeric:tabular-nums;font-weight:800}
+.tk b i{font-style:normal;background:linear-gradient(92deg,#6EA8FF,#2BE3AC);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tk span{font-size:11px;color:rgba(255,255,255,.48);font-weight:600;letter-spacing:.02em}
+/* hero right: live wire feed */
+.wirewrap{display:flex;flex-direction:column;justify-content:center;min-height:420px;gap:10px;padding:6px 0 6px 22px}
+.wirehead{display:flex;align-items:center;gap:9px;font-size:10px;font-weight:800;letter-spacing:.18em;color:rgba(255,255,255,.45)}
+.wirehead .dotp{background:#6EA8FF;box-shadow:0 0 0 0 rgba(110,168,255,.5)}
+.wire{position:relative;display:flex;flex-direction:column;gap:9px;max-height:360px;overflow:hidden;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 8%,#000 84%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 8%,#000 84%,transparent 100%)}
+.wf{display:grid;grid-template-columns:34px 1fr auto;gap:11px;align-items:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:15px;padding:11px 14px;opacity:0;transform:translateY(-14px);transition:opacity .5s,transform .5s cubic-bezier(.2,.7,.2,1)}
+.wf.in{opacity:1;transform:none}
+.wf.deal{background:rgba(20,187,135,.1);border-color:rgba(20,187,135,.4);box-shadow:0 10px 30px rgba(20,187,135,.18)}
+.wfi{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;flex:none}
+.wfi svg{width:15px;height:15px}
+.wf .wt{font-size:12.5px;font-weight:700;letter-spacing:-.01em}
+.wf .wm{font-size:10.5px;color:rgba(255,255,255,.5);font-weight:600;margin-top:2px}
+.wf .wm b{color:#7DE8C6;font-weight:700}
+.wf .wv{font-size:11px;font-weight:800;color:rgba(255,255,255,.75);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wf .wv span{display:block;font-size:9px;font-weight:800;letter-spacing:.1em;color:rgba(255,255,255,.38)}
+/* ============ KPIS ============ */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:0 2px 6px}
+.kpi{position:relative;overflow:hidden;background:rgba(255,255,255,.74);border:1px solid rgba(255,255,255,.95);outline:1px solid var(--line);border-radius:20px;padding:16px 16px 14px;box-shadow:0 14px 34px rgba(14,17,22,.07);transition:transform .22s cubic-bezier(.2,.7,.2,1),box-shadow .22s}
+.kpi:hover{transform:translateY(-4px);box-shadow:0 26px 54px rgba(14,17,22,.13)}
+.kpi .kl{font-size:10.5px;font-weight:800;letter-spacing:.12em;color:var(--mut)}
+.kpi .kv{font-size:28px;font-weight:800;letter-spacing:-.045em;margin:7px 0 6px;font-variant-numeric:tabular-nums}
+.kd{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px}
+.kd svg{width:11px;height:11px}
+.kd.up{color:#0B7A59;background:rgba(20,187,135,.13)}
+.kd.dn{color:#A81E38;background:rgba(217,44,74,.11)}
+.kfoot{font-size:10.5px;color:#98A1AD;font-weight:600;margin-top:6px}
+.spark{position:absolute;right:12px;top:14px;width:84px;height:32px;opacity:.95}
+/* ============ SECTIONS ============ */
+.sect{margin:24px 2px 12px;display:flex;align-items:baseline;gap:12px}
+.sect .se{font-size:10px;font-weight:800;letter-spacing:.18em;color:var(--mut)}
+.sect h3{margin:0;font-size:19px;letter-spacing:-.03em;font-weight:800}
+.sect .hint{margin-left:auto;font-size:12px;color:var(--mut);font-weight:600}
+.card{background:rgba(255,255,255,.74);border:1px solid rgba(255,255,255,.95);outline:1px solid var(--line);border-radius:22px;padding:20px;box-shadow:0 16px 40px rgba(14,17,22,.07)}
+.grid2{display:grid;grid-template-columns:1.72fr 1fr;gap:16px;margin:0 2px}
+.chead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.chead b{font-size:15px;letter-spacing:-.02em}
+.chead .sub{font-size:12px;color:var(--mut);font-weight:600}
+.lg{margin-left:auto;display:flex;gap:16px;font-size:11.5px;color:var(--mut);font-weight:700;align-items:center}
+.lg i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:-1px}
+.tipbox{position:fixed;z-index:50;pointer-events:none;background:#0E1116;color:#fff;font-size:11.5px;font-weight:700;padding:7px 11px;border-radius:10px;box-shadow:0 14px 34px rgba(14,17,22,.3);opacity:0;transition:opacity .15s;white-space:nowrap}
+.tipbox span{color:#7DE8C6}
+/* 01 — signal conveyor */
+.conveyor{display:grid;grid-template-columns:1fr 60px 1fr 60px 1fr;gap:0;align-items:stretch;margin-top:14px}
+.cvcol{display:flex;flex-direction:column;gap:10px}
+.cvhead{font-size:10px;font-weight:800;letter-spacing:.16em;color:#98A1AD;margin-bottom:2px}
+.sig{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 13px;box-shadow:0 8px 20px rgba(14,17,22,.05)}
+.sigi{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none}
+.sigi svg{width:13px;height:13px}
+.sig b{font-size:12.5px;letter-spacing:-.01em;display:block}
+.sig span{font-size:10.5px;color:var(--mut);font-weight:600}
+.cvarr{display:grid;place-items:center;position:relative}
+.cvarr svg{width:44px;height:100%;overflow:visible}
+.flowdash{fill:none;stroke:#14BB87;stroke-width:1.8;stroke-dasharray:5 6;animation:dashm 1.1s linear infinite;opacity:.7}
+@keyframes dashm{to{stroke-dashoffset:-22}}
+.brain{background:linear-gradient(160deg,#0D1218,#0A0E13);border-radius:18px;color:#fff;padding:16px;display:flex;flex-direction:column;gap:9px;border:1px solid rgba(255,255,255,.1);box-shadow:0 18px 44px rgba(10,14,19,.3)}
+.brain .bh{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:800}
+.brain .bh .aicn{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#FFB429,#14BB87);display:grid;place-items:center;color:#08110D}
+.brain .bh .aicn svg{width:13px;height:13px}
+.bstep{display:flex;gap:8px;align-items:center;font-size:11px;color:rgba(255,255,255,.6);font-weight:600}
+.bstep svg{width:12px;height:12px;color:#2BE3AC;flex:none}
+.dealout{position:relative;background:#fff;border:1.5px solid rgba(20,187,135,.5);border-radius:16px;padding:13px 15px;box-shadow:0 16px 40px rgba(20,187,135,.18)}
+.dealout .dhh{display:flex;align-items:center;gap:8px}
+.dealout .dhh b{font-size:13px;letter-spacing:-.01em}
+.autob{margin-left:auto;font-size:8.5px;font-weight:900;letter-spacing:.1em;background:linear-gradient(135deg,#FFB429,#14BB87);color:#08110D;padding:3px 8px;border-radius:999px}
+.dealout .dmm{font-size:11px;color:var(--mut);font-weight:600;margin-top:4px;line-height:1.6}
+.dealout .dmm b{color:var(--ink)}
+.dtags{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+.dtag{font-size:9.5px;font-weight:800;padding:3px 8px;border-radius:999px;background:rgba(14,17,22,.05);color:#39424E}
+.dtag.t{background:rgba(20,187,135,.12);color:#0B7A59}
+.dtag.b{background:rgba(37,99,235,.1);color:#2563EB}
+/* 02 — scoring lab */
+.wrow{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:11px 4px;border-bottom:1px dashed var(--line)}
+.wrow:last-child{border-bottom:0}
+.wrow .wn{font-size:13px;font-weight:700;letter-spacing:-.01em}
+.wrow .wm2{font-size:10.5px;color:var(--mut);font-weight:600;margin-top:2px}
+.wbar{position:relative;height:8px;border-radius:99px;background:rgba(14,17,22,.06);overflow:visible;margin-top:8px}
+.wfill{position:absolute;top:0;left:0;height:100%;border-radius:99px;width:0;transition:width 1.3s cubic-bezier(.2,.7,.2,1)}
+.wold{position:absolute;top:-3px;width:2px;height:14px;border-radius:2px;background:rgba(14,17,22,.3)}
+.wd{font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;text-align:right}
+.wd span{display:block;font-size:10px;color:var(--mut);font-weight:700}
+.wd.up{color:#0B7A59}.wd.dn{color:#A81E38}
+.scored{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.lead{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:15px;padding:11px 14px;box-shadow:0 8px 20px rgba(14,17,22,.05)}
+.scorb{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:14px;letter-spacing:-.02em}
+.s-hot{background:rgba(20,187,135,.14);color:#0B7A59;border:1.5px solid rgba(20,187,135,.5)}
+.s-warm{background:rgba(255,175,6,.14);color:#8A5B00;border:1.5px solid rgba(255,175,6,.45)}
+.s-cold{background:rgba(14,17,22,.05);color:#5A6472;border:1.5px solid rgba(14,17,22,.12)}
+.lead .ln{font-size:13px;font-weight:700;letter-spacing:-.01em}
+.lead .lm{font-size:10.5px;color:var(--mut);font-weight:600;margin-top:2px}
+.lead .lm b{color:#0B7A59}
+.lact{font-size:10px;font-weight:800;letter-spacing:.06em;padding:5px 10px;border-radius:999px;white-space:nowrap}
+.la-route{background:rgba(20,187,135,.12);color:#0B7A59;border:1px solid rgba(20,187,135,.3)}
+.la-seq{background:rgba(37,99,235,.09);color:#2563EB;border:1px solid rgba(37,99,235,.26)}
+.la-nur{background:rgba(14,17,22,.05);color:#5A6472;border:1px solid var(--line)}
+/* 03 — ABM war room */
+.abmgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:0 2px}
+.acct{padding:17px 18px;display:flex;flex-direction:column;gap:11px}
+.acch{display:flex;align-items:center;gap:10px}
+.alogo{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-weight:800;font-size:13px;color:#fff;flex:none}
+.acch b{font-size:14.5px;letter-spacing:-.015em;display:block}
+.acch span{font-size:10.5px;color:var(--mut);font-weight:600}
+.fitp{margin-left:auto;text-align:right}
+.fitp b{font-size:16px;letter-spacing:-.02em;color:#0B7A59}
+.fitp span{display:block;font-size:9px;font-weight:800;letter-spacing:.1em;color:#98A1AD}
+.committee{display:flex;align-items:center}
+.cava{width:26px;height:26px;border-radius:50%;border:2px solid #fff;display:grid;place-items:center;font-size:9px;font-weight:800;color:#fff;margin-left:-7px;box-shadow:0 3px 8px rgba(14,17,22,.14)}
+.cava:first-child{margin-left:0}
+.cmore{font-size:10.5px;color:var(--mut);font-weight:700;margin-left:8px}
+.playline{display:flex;gap:7px;align-items:center;font-size:11px;color:var(--mut);font-weight:600;line-height:1.5}
+.playline svg{width:12px;height:12px;flex:none;color:#14BB87}
+.playline b{color:var(--ink)}
+.aprog{height:6px;border-radius:99px;background:rgba(14,17,22,.06);overflow:hidden}
+.aprogf{height:100%;border-radius:99px;background:linear-gradient(90deg,#FFB429,#14BB87);width:0;transition:width 1.3s cubic-bezier(.2,.7,.2,1)}
+.astat{display:flex;gap:7px;flex-wrap:wrap}
+/* 04 — audiences */
+.audgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:0 2px}
+.aud{padding:17px 18px;position:relative;overflow:hidden}
+.aud .ah2{display:flex;align-items:center;gap:9px}
+.audi{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;flex:none}
+.audi svg{width:14px;height:14px}
+.aud b.an{font-size:14px;letter-spacing:-.015em}
+.aud .am2{font-size:11px;color:var(--mut);font-weight:600;margin-top:2px}
+.audn{display:flex;align-items:baseline;gap:8px;margin:13px 0 4px}
+.audn b{font-size:26px;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.audn .delta{font-size:11px;font-weight:800;color:#0B7A59}
+.audrule{font-size:10.5px;color:var(--mut);font-weight:600;background:rgba(14,17,22,.035);border:1px dashed var(--line);border-radius:10px;padding:7px 10px;margin-top:9px;line-height:1.55}
+.audrule b{color:var(--ink);font-weight:700}
+.syncrow{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap}
+.pulse-b{position:absolute;top:14px;right:14px;display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:800;letter-spacing:.08em;color:#0B7A59;background:rgba(20,187,135,.1);border:1px solid rgba(20,187,135,.3);padding:4px 9px;border-radius:999px}
+.pulse-b .dotp{width:5px;height:5px}
+/* 05 — deals desk */
+.desk{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin:0 2px}
+.stagecol{background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.9);outline:1px solid var(--line);border-radius:18px;padding:13px}
+.sthead{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--mut);padding:0 3px 11px}
+.sthead svg{width:14px;height:14px;flex:none}
+.sthead .stn{margin-left:auto;font-size:10.5px;background:rgba(14,17,22,.06);padding:2px 8px;border-radius:999px}
+.dcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 13px;margin-bottom:10px;box-shadow:0 8px 20px rgba(14,17,22,.05);transition:transform .22s,box-shadow .22s}
+.dcard:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(14,17,22,.1)}
+.dcard:last-child{margin-bottom:0}
+.dcard .dn2{font-size:12.5px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:7px}
+.dcard .dv2{font-size:11px;color:var(--mut);font-weight:600;margin-top:3px}
+.dcard .dv2 b{color:var(--ink)}
+.aiact{display:flex;gap:7px;align-items:flex-start;background:rgba(37,99,235,.05);border:1px solid rgba(37,99,235,.16);border-radius:10px;padding:7px 9px;margin-top:9px;font-size:10.5px;color:#1D4FBF;font-weight:600;line-height:1.5}
+.aiact svg{width:11px;height:11px;flex:none;margin-top:1px}
+.aiact.warn{background:rgba(217,44,74,.05);border-color:rgba(217,44,74,.2);color:#A81E38}
+.aiact.done{background:rgba(20,187,135,.07);border-color:rgba(20,187,135,.25);color:#0B7A59}
+.probb{font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px;margin-left:auto;font-variant-numeric:tabular-nums}
+.p-hi{background:rgba(20,187,135,.12);color:#0B7A59}
+.p-md{background:rgba(255,175,6,.13);color:#8A5B00}
+.p-lo{background:rgba(217,44,74,.1);color:#A81E38}
+/* ============ DECK ============ */
+.deck{position:relative;overflow:hidden;border-radius:26px;margin:16px 2px 0;color:#fff;padding:28px 28px 18px;border:1px solid rgba(255,255,255,.09);box-shadow:0 34px 80px rgba(10,14,19,.38);background:
+ radial-gradient(820px 420px at 100% 0%,rgba(37,99,235,.28),transparent 55%),
+ radial-gradient(640px 420px at 0% 110%,rgba(20,187,135,.22),transparent 55%),
+ linear-gradient(160deg,#0D1218,#0A0E13)}
+.deck:before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:46px 46px;-webkit-mask-image:radial-gradient(70% 90% at 50% 0%,#000 20%,transparent 80%);mask-image:radial-gradient(70% 90% at 50% 0%,#000 20%,transparent 80%)}
+.deck>*{position:relative}
+.dh{display:flex;align-items:center;gap:13px}
+.di{width:40px;height:40px;border-radius:13px;background:linear-gradient(135deg,#FFB429,#14BB87);display:grid;place-items:center;color:#08110D;box-shadow:0 12px 30px rgba(20,187,135,.4)}
+.di svg{width:19px;height:19px}
+.deck h3{margin:0;font-size:20px;letter-spacing:-.03em}
+.deck .ds{color:rgba(255,255,255,.55);font-size:13px;font-weight:500;margin:2px 0 0}
+.dlp{margin-left:auto;font-size:11px;font-weight:800;letter-spacing:.1em;color:#9DC3FF;background:rgba(37,99,235,.14);border:1px solid rgba(37,99,235,.4);padding:7px 13px;border-radius:999px}
+.drecs{margin-top:20px}
+.drec{display:grid;grid-template-columns:46px 1fr 230px;gap:18px;align-items:center;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:17px 19px;margin-bottom:12px;transition:background .3s,border-color .3s,opacity .3s}
+.drec:hover{background:rgba(255,255,255,.075)}
+.drec.done{background:rgba(20,187,135,.09);border-color:rgba(20,187,135,.38)}
+.dri{width:44px;height:44px;border-radius:14px;display:grid;place-items:center}
+.dri svg{width:19px;height:19px}
+.drec .t{font-size:15px;font-weight:800;letter-spacing:-.015em}
+.drec .dd{color:rgba(255,255,255,.56);font-size:12.5px;line-height:1.6;margin-top:4px;font-weight:500}
+.drec .dd b{color:#fff;font-weight:700}
+.chips{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;padding:4px 11px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.66)}
+.chip svg{width:11px;height:11px;flex:none}
+.chip.up{color:#7DE8C6;border-color:rgba(20,187,135,.35);background:rgba(20,187,135,.1)}
+.dact{display:flex;flex-direction:column;gap:9px}
+.conf{display:flex;align-items:center;gap:9px;font-size:10.5px;color:rgba(255,255,255,.5);font-weight:800;letter-spacing:.04em}
+.cm{flex:1;height:5px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}
+.cmf{height:100%;border-radius:99px;background:linear-gradient(90deg,#FFB429,#14BB87);width:0;transition:width 1.2s ease}
+.aprv{border:0;cursor:pointer;font:inherit;font-weight:800;font-size:12.5px;color:#08110D;background:linear-gradient(135deg,#FFB429,#14BB87);padding:11px 14px;border-radius:12px;box-shadow:0 10px 26px rgba(20,187,135,.32);display:flex;align-items:center;justify-content:center;gap:7px;transition:transform .18s,box-shadow .18s}
+.aprv svg{width:13px;height:13px}
+.aprv:hover{transform:translateY(-1px)}
+.aprv.applied{background:rgba(20,187,135,.15);color:#7DE8C6;border:1px solid rgba(20,187,135,.45);box-shadow:none;cursor:default;transform:none}
+.ghost2{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#fff;border-radius:12px;padding:10px 14px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:background .18s}
+.ghost2:hover{background:rgba(255,255,255,.11)}
+/* flags */
+.flagp{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:10px;font-weight:800;color:#A81E38;background:rgba(217,44,74,.1);border:1px solid rgba(217,44,74,.25);padding:3px 9px;border-radius:999px}
+.flagp svg{width:10px;height:10px;flex:none}
+/* misc */
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .65s ease,transform .65s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+.foot{color:#98A1AD;font-size:12px;text-align:center;padding:28px 0 6px;font-weight:600}
+.foot b{color:#5A6472}
+</style>
+</head>
+<body>
+<div class="bgfx"></div>
+<div class="tipbox" id="tip"></div>
+<div class="shell">
+  <aside class="rail">
+    <div class="brand"><div class="blogo">M</div><div class="bname">MarketiQ <i>AI</i></div></div>
+    <div class="grp">WORKSPACE</div>
+    <div class="item">§ICO_home§ Overview</div>
+    <div class="item">§ICO_spark§ MarketiQ Strategist</div>
+    <div class="grp">GO-TO-MARKET</div>
+    <div class="item">§ICO_grid§ GTM Operating System</div>
+    <div class="item">§ICO_cmd§ Command Center</div>
+    <div class="item">§ICO_cal§ Content Calendar</div>
+    <div class="grp">PIPELINE</div>
+    <div class="item on">§ICO_target§ Pipeline Autonomy <span class="newb">NEW</span></div>
+    <div class="item">§ICO_pulse§ Revenue Intelligence</div>
+    <div class="grp">INTELLIGENCE</div>
+    <div class="item">§ICO_radar§ Competitors</div>
+    <div class="item">§ICO_globe§ AI Visibility (GEO)</div>
+    <div class="grp">GROWTH</div>
+    <div class="item">§ICO_plug§ Connections</div>
+    <div class="item">§ICO_doc§ Reports</div>
+    <div class="user"><div class="uav">SS</div><div><b>Sumit Sharma</b><span>Trayarunya Ventures</span></div></div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <div class="tbt">Pipeline Autonomy</div>
+      <div class="tbr">
+        <div class="ws"><div class="wa">TV</div> Trayarunya Ventures</div>
+        <div class="bell">§ICO_bell§</div>
+      </div>
+    </div>
+    <div class="page" id="page">
+      <div class="phead">
+        <div>
+          <div class="crumb">PIPELINE / AUTONOMOUS REVENUE DESK</div>
+          <h1 class="pt">Pipeline Autonomy</h1>
+        </div>
+        <div class="live"><span class="dotp"></span> 6 agents on shift · last action 40s ago</div>
+        <div class="auto3" id="auto3">
+          <button>Observe</button><button>Copilot</button><button class="on">Autopilot</button>
+        </div>
+      </div>
+      <div class="protobar">§ICO_flask§ <b>Prototype</b>&nbsp;— this is the agentic upgrade of Lead Scoring · Lead Finder · ABM · Audiences · Close Deals. Production wires to your live deals ledger, inbox, LinkedIn & CRM via Composio.</div>
+
+      <!-- HERO -->
+      <section class="hero reveal">
+        <div>
+          <span class="eyebrow">§ICO_bot§ ZERO MANUAL ENTRY · SELF-DRIVING PIPELINE</span>
+          <h2>You never add<br/>a deal <em>again.</em></h2>
+          <p class="hsub">Today you type deals, scores, accounts and audiences in by hand. In Pipeline Autonomy, <b>signals become deals on their own</b> — every reply, meeting and pricing-page visit is captured, scored by a model that <b>retrains on your closed-won evidence</b>, routed to the right play, and advanced stage-by-stage with receipts. You just approve the big calls.</p>
+          <div class="hbtns">
+            <button class="btnp" id="jumpDeck">§ICO_zap§ Review 4 pending agent actions</button>
+            <button class="btng">Watch a deal build itself</button>
+          </div>
+          <div class="tick">
+            <div class="tk"><b data-count="31">0</b><span>Deals created by agents · 30d</span></div>
+            <div class="tk"><b><i data-count="0" data-suffix="">0</i></b><span>Deals entered manually</span></div>
+            <div class="tk"><b data-count="92" data-suffix="%">0%</b><span>Scoring precision (top decile)</span></div>
+            <div class="tk"><b><i data-count="18" data-prefix="" data-suffix=" hrs/wk">0</i></b><span>Ops time given back</span></div>
+          </div>
+        </div>
+        <div class="wirewrap">
+          <div class="wirehead"><span class="dotp"></span> LIVE SIGNAL WIRE — WHAT THE AGENTS ARE DOING RIGHT NOW</div>
+          <div class="wire" id="wire"></div>
+        </div>
+      </section>
+
+      <!-- KPIS -->
+      <div class="kpis">
+        <div class="kpi reveal"><div class="kl">PIPELINE BUILT BY AGENTS</div><div class="kv" data-count="386" data-prefix="$" data-suffix="K">$0K</div><span class="kd up">§ICO_up§ +44% vs manual era</span><div class="kfoot">31 deals · 0 typed by a human</div><svg class="spark" viewBox="0 0 84 32"><path d="M2 27 L14 24 L26 25 L38 18 L50 15 L62 12 L74 8 L82 5" fill="none" stroke="#14BB87" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <div class="kpi reveal"><div class="kl">SIGNALS CAPTURED · 30D</div><div class="kv" data-count="2841">0</div><span class="kd up">§ICO_up§ replies · visits · intent</span><div class="kfoot">100% auto-triaged, 3.1% became deals</div><svg class="spark" viewBox="0 0 84 32"><path d="M2 26 L14 20 L26 22 L38 15 L50 17 L62 9 L74 11 L82 4" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <div class="kpi reveal"><div class="kl">MODEL RETRAINS</div><div class="kv" data-count="9">0</div><span class="kd up">§ICO_loop§ last: 2 days ago</span><div class="kfoot">learns from every closed-won / lost</div><svg class="spark" viewBox="0 0 84 32"><path d="M2 24 L14 25 L26 19 L38 21 L50 14 L62 16 L74 9 L82 7" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <div class="kpi reveal"><div class="kl">ABM ACCOUNTS SOURCED</div><div class="kv" data-count="47">0</div><span class="kd up">§ICO_up§ 12 in active plays</span><div class="kfoot">discovered & researched by ABM Scout</div><svg class="spark" viewBox="0 0 84 32"><path d="M2 28 L14 25 L26 21 L38 22 L50 16 L62 13 L74 10 L82 6" fill="none" stroke="#FFAF06" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <div class="kpi reveal"><div class="kl">STALLED DEALS RESCUED</div><div class="kv" data-count="7">0</div><span class="kd up">§ICO_up§ $61K re-activated</span><div class="kfoot">nudge sequences fired autonomously</div><svg class="spark" viewBox="0 0 84 32"><path d="M2 25 L14 26 L26 20 L38 17 L50 19 L62 11 L74 12 L82 6" fill="none" stroke="#14BB87" stroke-width="2" stroke-linecap="round"/></svg></div>
+      </div>
+
+      <!-- 01 SIGNAL → DEAL CONVEYOR -->
+      <div class="sect reveal"><span class="se">01</span><h3>Signals become deals — untouched</h3><div class="hint">reply → research → score → deal, in ~40 seconds</div></div>
+      <div class="card reveal" style="margin:0 2px">
+        <div class="chead"><b>The conveyor</b><span class="sub">watch one signal travel the whole way</span>
+          <div class="lg"><span><i style="background:#2563EB"></i>Raw signal</span><span><i style="background:linear-gradient(90deg,#FFB429,#14BB87)"></i>Agent work</span><span><i style="background:#14BB87"></i>Deal on board</span></div>
+        </div>
+        <div class="conveyor">
+          <div class="cvcol">
+            <div class="cvhead">RAW SIGNALS · LIVE</div>
+            <div class="sig"><span class="sigi" style="background:rgba(37,99,235,.1);color:#2563EB">§ICO_mail§</span><div><b>Reply: "yes, send times"</b><span>priya@nexlify.io · cold seq #4</span></div></div>
+            <div class="sig"><span class="sigi" style="background:rgba(124,58,237,.1);color:#7C3AED">§ICO_eye§</span><div><b>Pricing page · 3rd visit</b><span>acme-fintech.com · 6 pages, 9 min</span></div></div>
+            <div class="sig"><span class="sigi" style="background:rgba(20,187,135,.12);color:#0B7A59">§ICO_cal§</span><div><b>Meeting booked</b><span>Calendly · Thu 3 PM · Nexlify</span></div></div>
+            <div class="sig"><span class="sigi" style="background:rgba(255,175,6,.14);color:#8A5B00">§ICO_share§</span><div><b>LinkedIn: CEO followed you</b><span>+ commented on GTM post</span></div></div>
+          </div>
+          <div class="cvarr"><svg viewBox="0 0 44 300"><path class="flowdash" d="M4 150 H40 M32 142 L40 150 L32 158"/></svg></div>
+          <div class="cvcol" style="justify-content:center">
+            <div class="brain">
+              <div class="bh"><span class="aicn">§ICO_bot§</span> Deal Scout Agent</div>
+              <div class="bstep">§ICO_check§ Merged 3 signals → same buyer (Nexlify)</div>
+              <div class="bstep">§ICO_check§ Enriched: 42 ppl · Fintech SaaS · $8M ARR</div>
+              <div class="bstep">§ICO_check§ ICP match: <b style="color:#2BE3AC">&nbsp;“Founder/CEO · $1–10M”</b></div>
+              <div class="bstep">§ICO_check§ Scored 91 — model v9 (retrained Tue)</div>
+              <div class="bstep">§ICO_check§ Value estimated from 14 similar wins</div>
+            </div>
+          </div>
+          <div class="cvarr"><svg viewBox="0 0 44 300"><path class="flowdash" d="M4 150 H40 M32 142 L40 150 L32 158" style="animation-delay:.4s"/></svg></div>
+          <div class="cvcol" style="justify-content:center">
+            <div class="cvhead">DEAL — CREATED BY AGENT</div>
+            <div class="dealout">
+              <div class="dhh"><b>Nexlify — GTM retainer</b><span class="autob">AUTO</span></div>
+              <div class="dmm"><b>$14,500</b> est. value · stage <b>Qualify</b> · win prob <b>68%</b><br/>Source: LinkedIn → email seq #4 · Persona: Founder/CEO</div>
+              <div class="dtags"><span class="dtag t">meeting Thu 3 PM</span><span class="dtag b">brief drafted</span><span class="dtag">CRM synced</span><span class="dtag">owner: you</span></div>
+            </div>
+            <div class="playline" style="margin-top:4px">§ICO_zap§ <span>Next: agent preps <b>call brief + battlecard</b> from 3 competitor mentions in thread</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 02 SELF-TRAINING SCORING -->
+      <div class="sect reveal"><span class="se">02</span><h3>Scoring that trains itself</h3><div class="hint">weights move only on closed-won / closed-lost evidence — never vibes</div></div>
+      <div class="grid2">
+        <div class="card reveal">
+          <div class="chead"><b>Model v9 — what it learned this week</b><span class="sub">| marker = old weight · bar = new</span><div class="lg"><span class="flagp" style="color:#0B7A59;background:rgba(20,187,135,.08);border-color:rgba(20,187,135,.3)">§ICO_loop§ RETRAINED TUE · 142 outcomes</span></div></div>
+          <div class="wrow"><div><div class="wn">Booked a meeting within 7 days</div><div class="wm2">strongest closed-won predictor · present in 78% of wins</div><div class="wbar"><div class="wfill" data-w="88%" style="background:linear-gradient(90deg,#FFB429,#14BB87)"></div><span class="wold" style="left:71%"></span></div></div><div class="wd up">+34<span>weight</span></div></div>
+          <div class="wrow"><div><div class="wn">Pricing page ≥ 2 visits</div><div class="wm2">up from #6 — appeared in 9 of last 14 wins</div><div class="wbar"><div class="wfill" data-w="72%" style="background:linear-gradient(90deg,#FFB429,#14BB87)"></div><span class="wold" style="left:48%"></span></div></div><div class="wd up">+21<span>weight</span></div></div>
+          <div class="wrow"><div><div class="wn">Fintech / SaaS industry</div><div class="wm2">stable — your niche keeps converting</div><div class="wbar"><div class="wfill" data-w="58%" style="background:linear-gradient(90deg,#FFB429,#14BB87)"></div><span class="wold" style="left:56%"></span></div></div><div class="wd">+2<span>weight</span></div></div>
+          <div class="wrow"><div><div class="wn">Downloaded gated PDF</div><div class="wm2">demoted — 0 of last 11 downloads converted</div><div class="wbar"><div class="wfill" data-w="18%" style="background:linear-gradient(90deg,#F2B4C0,#D92C4A)"></div><span class="wold" style="left:44%"></span></div></div><div class="wd dn">−26<span>weight</span></div></div>
+          <div class="wrow"><div><div class="wn">Company size 200+</div><div class="wm2">flagged — enterprise deals stall 3.2x longer for you</div><div class="wbar"><div class="wfill" data-w="12%" style="background:linear-gradient(90deg,#F2B4C0,#D92C4A)"></div><span class="wold" style="left:30%"></span></div></div><div class="wd dn">−18<span>weight</span></div></div>
+        </div>
+        <div class="card reveal">
+          <div class="chead"><b>Scored & routed just now</b><span class="sub">no human queue</span></div>
+          <div class="scored">
+            <div class="lead"><div class="scorb s-hot">91</div><div><div class="ln">Priya Sharma — Nexlify</div><div class="lm">Founder · meeting booked · <b>routed to Close Deals</b></div></div><span class="lact la-route">→ DEAL CREATED</span></div>
+            <div class="lead"><div class="scorb s-hot">87</div><div><div class="ln">Marcus Cole — BrightOps</div><div class="lm">CEO · pricing 3x · warm intro available</div></div><span class="lact la-route">→ FAST LANE</span></div>
+            <div class="lead"><div class="scorb s-warm">64</div><div><div class="ln">Jenna Wu — Craftly</div><div class="lm">VP Mktg · engaged 2 posts · no meeting yet</div></div><span class="lact la-seq">→ LINKEDIN SEQ</span></div>
+            <div class="lead"><div class="scorb s-warm">58</div><div><div class="ln">Dev Patel — LoopHQ</div><div class="lm">Head of Growth · newsletter clicker</div></div><span class="lact la-seq">→ EMAIL SEQ B</span></div>
+            <div class="lead"><div class="scorb s-cold">31</div><div><div class="ln">Sam Torres — BigCorp Inc</div><div class="lm">200+ employees · matches stall pattern</div></div><span class="lact la-nur">→ NURTURE</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 03 ABM WAR ROOM -->
+      <div class="sect reveal"><span class="se">03</span><h3>ABM war room — accounts that found you</h3><div class="hint">Scout discovers · researches the committee · runs the play · you approve sends</div></div>
+      <div class="abmgrid">
+        <div class="card acct reveal">
+          <div class="acch"><div class="alogo" style="background:linear-gradient(135deg,#2563EB,#7C3AED)">NX</div><div><b>Nexlify</b><span>Fintech SaaS · 42 ppl · $8M ARR</span></div><div class="fitp"><b>94</b><span>ICP FIT</span></div></div>
+          <div class="committee">
+            <span class="cava" style="background:#2563EB">PS</span><span class="cava" style="background:#14BB87">RK</span><span class="cava" style="background:#FFAF06;color:#5A3D17">AM</span><span class="cava" style="background:#7C3AED">DT</span><span class="cmore">4-person committee mapped by Scout</span>
+          </div>
+          <div class="playline">§ICO_zap§ <span>Play: <b>Founder-to-founder</b> · step 3 of 5 · CEO replied, CFO opened 2x</span></div>
+          <div class="aprog"><div class="aprogf" data-w="60%"></div></div>
+          <div class="astat"><span class="dtag t">deal auto-created $14.5K</span><span class="dtag b">meeting Thu</span></div>
+        </div>
+        <div class="card acct reveal">
+          <div class="acch"><div class="alogo" style="background:linear-gradient(135deg,#14BB87,#0B7A59)">BO</div><div><b>BrightOps</b><span>DevOps tooling · 28 ppl · Series A</span></div><div class="fitp"><b>89</b><span>ICP FIT</span></div></div>
+          <div class="committee">
+            <span class="cava" style="background:#D92C4A">MC</span><span class="cava" style="background:#2563EB">LT</span><span class="cava" style="background:#14BB87">SB</span><span class="cmore">3 mapped · CTO missing — Scout hunting</span>
+          </div>
+          <div class="playline">§ICO_zap§ <span>Play: <b>Competitor displacement</b> · they mentioned Belkins in a reply — battlecard attached</span></div>
+          <div class="aprog"><div class="aprogf" data-w="40%"></div></div>
+          <div class="astat"><span class="dtag b">2 drafts awaiting approval</span><span class="dtag">intent: pricing 3x</span></div>
+        </div>
+        <div class="card acct reveal">
+          <div class="acch"><div class="alogo" style="background:linear-gradient(135deg,#FFAF06,#D97706)">CV</div><div><b>Cravia Group</b><span>D2C food · 60 ppl · UAE</span></div><div class="fitp"><b>83</b><span>ICP FIT</span></div></div>
+          <div class="committee">
+            <span class="cava" style="background:#7C3AED">FA</span><span class="cava" style="background:#14BB87">NK</span><span class="cmore">discovered <b>yesterday</b> from GEO citation click</span>
+          </div>
+          <div class="playline">§ICO_zap§ <span>Play: <b>Warm content path</b> · queued case-study drop → founder DM in 2 days</span></div>
+          <div class="aprog"><div class="aprogf" data-w="15%"></div></div>
+          <div class="astat"><span class="dtag">research pack ready</span><span class="dtag">no send yet — observing</span></div>
+        </div>
+      </div>
+
+      <!-- 04 LIVING AUDIENCES -->
+      <div class="sect reveal"><span class="se">04</span><h3>Audiences that maintain themselves</h3><div class="hint">membership recomputed hourly · synced to LinkedIn, email & retargeting</div></div>
+      <div class="audgrid">
+        <div class="card aud reveal">
+          <span class="pulse-b"><span class="dotp"></span> LIVE</span>
+          <div class="ah2"><span class="audi" style="background:rgba(20,187,135,.12);color:#0B7A59">§ICO_flame§</span><div><b class="an">Hot buyers — this week</b><div class="am2">auto-built from model v9 scores</div></div></div>
+          <div class="audn"><b data-count="118">0</b><span class="delta">+23 today</span></div>
+          <div class="audrule">RULE (agent-written): score ≥ <b>80</b> AND (meeting intent OR pricing ≥ 2 visits) AND persona ∈ <b>Founder/CEO, CMO</b></div>
+          <div class="syncrow"><span class="dtag b">→ LinkedIn ads</span><span class="dtag b">→ Email seq A</span><span class="dtag t">synced 11 min ago</span></div>
+        </div>
+        <div class="card aud reveal">
+          <span class="pulse-b"><span class="dotp"></span> LIVE</span>
+          <div class="ah2"><span class="audi" style="background:rgba(37,99,235,.1);color:#2563EB">§ICO_eye§</span><div><b class="an">Pricing-page lurkers</b><div class="am2">visited pricing, never spoke to you</div></div></div>
+          <div class="audn"><b data-count="342">0</b><span class="delta">+41 this week</span></div>
+          <div class="audrule">RULE: pricing ≥ <b>1 visit</b> AND no reply AND company matches ICP — agent moved <b>17</b> to Hot after 3rd visit</div>
+          <div class="syncrow"><span class="dtag b">→ Retargeting</span><span class="dtag b">→ GEO content</span><span class="dtag t">synced 24 min ago</span></div>
+        </div>
+        <div class="card aud reveal">
+          <span class="pulse-b" style="color:#A81E38;background:rgba(217,44,74,.08);border-color:rgba(217,44,74,.25)"><span class="dotp" style="background:#D92C4A"></span> DRAINING</span>
+          <div class="ah2"><span class="audi" style="background:rgba(217,44,74,.1);color:#A81E38">§ICO_snow§</span><div><b class="an">Gated-PDF tourists</b><div class="am2">the segment the model demoted</div></div></div>
+          <div class="audn"><b data-count="1204">0</b><span class="delta" style="color:#A81E38">−380 removed</span></div>
+          <div class="audrule">Agent recommendation: <b>stop paying to retarget this pool</b> — 0 conversions in 11 weeks. Budget moved to Hot buyers pending your approval.</div>
+          <div class="syncrow"><span class="flagp">§ICO_flag§ LOOP FLAG: DEFUND</span></div>
+        </div>
+      </div>
+
+      <!-- 05 DEALS DESK -->
+      <div class="sect reveal"><span class="se">05</span><h3>The deals desk — agents work every column</h3><div class="hint">stage moves need receipts · stalls trigger rescue plays automatically</div></div>
+      <div class="desk">
+        <div class="stagecol reveal">
+          <div class="sthead">§ICO_target§ QUALIFY <span class="stn">$46K · 8</span></div>
+          <div class="dcard"><div class="dn2">Nexlify <span class="autob">AUTO</span><span class="probb p-hi">68%</span></div><div class="dv2"><b>$14.5K</b> · created 40s ago by Deal Scout</div><div class="aiact">§ICO_bot§ <span>Call brief ready · battlecard vs Belkins attached to Thu meeting</span></div></div>
+          <div class="dcard"><div class="dn2">Cravia Group<span class="probb p-md">44%</span></div><div class="dv2"><b>$9K</b> · from GEO citation click</div><div class="aiact">§ICO_bot§ <span>Nurturing: case-study drop queued, DM in 2 days</span></div></div>
+        </div>
+        <div class="stagecol reveal">
+          <div class="sthead">§ICO_msg§ PROPOSAL <span class="stn">$88K · 5</span></div>
+          <div class="dcard"><div class="dn2">BrightOps<span class="probb p-hi">72%</span></div><div class="dv2"><b>$18K</b> · proposal opened 4x yesterday</div><div class="aiact">§ICO_bot§ <span>Drafted follow-up referencing their 4 pricing-section dwells — <b>awaiting your approve</b></span></div></div>
+          <div class="dcard"><div class="dn2">LoopHQ<span class="probb p-md">51%</span></div><div class="dv2"><b>$11K</b> · sent 6 days ago, silent</div><div class="aiact warn">§ICO_flag§ <span>Stall pattern detected (matches 9 lost deals) — rescue play armed: mutual-connection intro via LinkedIn</span></div></div>
+        </div>
+        <div class="stagecol reveal">
+          <div class="sthead">§ICO_hand§ NEGOTIATION <span class="stn">$74K · 3</span></div>
+          <div class="dcard"><div class="dn2">Acme Fintech<span class="probb p-hi">81%</span></div><div class="dv2"><b>$32K</b> · legal reviewing MSA</div><div class="aiact done">§ICO_check§ <span>Agent nudged procurement Tue · CFO confirmed budget on call (transcript attached)</span></div></div>
+          <div class="dcard"><div class="dn2">Craftly<span class="probb p-lo">38%</span></div><div class="dv2"><b>$12K</b> · asked for 20% discount</div><div class="aiact">§ICO_bot§ <span>Recommends holding price — 6 of 7 similar discounts still churned in 90 days</span></div></div>
+        </div>
+        <div class="stagecol reveal">
+          <div class="sthead">§ICO_trophy§ CLOSED WON <span class="stn">$96K · 4</span></div>
+          <div class="dcard"><div class="dn2">DataPeak<span class="probb p-hi">WON</span></div><div class="dv2"><b>$28K</b> · closed Mon · 34-day cycle</div><div class="aiact done">§ICO_loop§ <span>Fed back: LinkedIn+founder persona weights up, win path saved to model v9</span></div></div>
+          <div class="dcard"><div class="dn2">Bloomly<span class="probb p-hi">WON</span></div><div class="dv2"><b>$21K</b> · closed last week</div><div class="aiact done">§ICO_loop§ <span>Onboarding handoff drafted · upsell watcher armed for day 60</span></div></div>
+        </div>
+      </div>
+
+      <!-- 06 COMMAND DECK -->
+      <div class="sect reveal"><span class="se">06</span><h3>You still hold the pen</h3><div class="hint">agents propose with receipts · you approve · autonomy earns more rope over time</div></div>
+      <section class="deck reveal" id="deck">
+        <div class="dh">
+          <div class="di">§ICO_bot§</div>
+          <div><h3>Pending agent actions</h3><p class="ds">Everything above happened autonomously. These four need a human — for now.</p></div>
+          <span class="dlp">4 PENDING · AUTOPILOT LEVEL 2</span>
+        </div>
+        <div class="drecs">
+          <div class="drec"><div class="dri" style="background:rgba(20,187,135,.14);color:#2BE3AC">§ICO_mail§</div>
+            <div><div class="t">Send BrightOps follow-up referencing their pricing-section dwells</div><div class="dd">They opened the proposal <b>4x yesterday</b>, spending 6+ min on pricing. Draft mirrors your voice from 12 past wins; includes the ROI table they lingered on.</div>
+            <div class="chips"><span class="chip up">§ICO_up§ 72% win prob → est. 79% if sent today</span><span class="chip">Deal: $18K · Proposal</span></div></div>
+            <div class="dact"><button class="aprv">§ICO_check§ Approve & send</button><button class="ghost2">Edit draft</button><div class="conf">CONFIDENCE <span class="cm"><span class="cmf" data-w="93%"></span></span> 93%</div></div>
+          </div>
+          <div class="drec"><div class="dri" style="background:rgba(37,99,235,.16);color:#9DC3FF">§ICO_share§</div>
+            <div><div class="t">Fire LoopHQ rescue play — mutual-connection intro via Rahul M.</div><div class="dd">Silent <b>6 days</b> after proposal — matches your stall-then-lose pattern (9 deals). Rahul is 1st-degree with their CEO and engaged your post Tuesday.</div>
+            <div class="chips"><span class="chip up">§ICO_up§ rescue plays recovered $61K this quarter</span><span class="chip">Deal: $11K · stalled</span></div></div>
+            <div class="dact"><button class="aprv">§ICO_check§ Approve & fire</button><button class="ghost2">Snooze 2 days</button><div class="conf">CONFIDENCE <span class="cm"><span class="cmf" data-w="88%"></span></span> 88%</div></div>
+          </div>
+          <div class="drec"><div class="dri" style="background:rgba(217,44,74,.13);color:#FF8FA3">§ICO_flag§</div>
+            <div><div class="t">Defund "Gated-PDF tourists" audience — move $1.8K/mo to Hot buyers</div><div class="dd"><b>0 conversions in 11 weeks</b> across 1,204 contacts. Model v9 demoted the PDF signal (−26). Same spend on Hot buyers projects <b>+4 meetings/mo</b>.</div>
+            <div class="chips"><span class="chip up">§ICO_up§ +$1.8K/mo reallocated</span><span class="chip">Updates: Audiences · Ads</span></div></div>
+            <div class="dact"><button class="aprv">§ICO_check§ Approve & defund</button><button class="ghost2">Keep 30 more days</button><div class="conf">CONFIDENCE <span class="cm"><span class="cmf" data-w="91%"></span></span> 91%</div></div>
+          </div>
+          <div class="drec"><div class="dri" style="background:rgba(255,175,6,.14);color:#FFC65C">§ICO_bot§</div>
+            <div><div class="t">Promote autonomy: let Deal Scout create deals ≤ $5K without approval</div><div class="dd">Last 60 days: <b>31/31 agent-created deals accepted</b>, zero edits to value or stage. Level 3 would clear your queue ~2 days faster per deal.</div>
+            <div class="chips"><span class="chip up">§ICO_up§ 100% acceptance streak</span><span class="chip">Guardrail: auto-pause on 2 rejections</span></div></div>
+            <div class="dact"><button class="aprv">§ICO_check§ Grant Level 3</button><button class="ghost2">Stay at Level 2</button><div class="conf">CONFIDENCE <span class="cm"><span class="cmf" data-w="97%"></span></span> 97%</div></div>
+          </div>
+        </div>
+      </section>
+      <div class="foot">MarketiQ Pipeline Autonomy · <b>Prototype</b> — the agentic upgrade of Lead Scoring, Lead Finder, ABM, Audiences & Close Deals. Production wires to your live ledger, inbox, LinkedIn & CRM via Composio.</div>
+    </div>
+  </div>
+</div>
+<script>
+/* ---------- icons ---------- */
+const I=(p)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const ICONS={
+ ICO_home:I('<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>'),
+ ICO_spark:I('<path d="M12 2v4M12 18v4M2 12h4M18 12h4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/>'),
+ ICO_grid:I('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
+ ICO_cmd:I('<path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/>'),
+ ICO_cal:I('<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'),
+ ICO_pulse:I('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
+ ICO_radar:I('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l6-6"/>'),
+ ICO_globe:I('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>'),
+ ICO_plug:I('<path d="M9 7V3M15 7V3M6 7h12v4a6 6 0 0 1-12 0V7zM12 17v4"/>'),
+ ICO_doc:I('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/>'),
+ ICO_bell:I('<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M10.3 21a2 2 0 0 0 3.4 0"/>'),
+ ICO_flask:I('<path d="M9 3h6M10 3v6L4.5 19a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7 15h10"/>'),
+ ICO_loop:I('<path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>'),
+ ICO_zap:I('<path d="M13 2 3 14h8l-1 8 11-13h-8l0-7z"/>'),
+ ICO_up:I('<path d="M7 17 17 7M8 7h9v9"/>'),
+ ICO_flag:I('<path d="M4 22V4a2 2 0 0 1 2-2h12l-3 5 3 5H6"/>'),
+ ICO_share:I('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>'),
+ ICO_mail:I('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>'),
+ ICO_check:I('<path d="M20 6 9 17l-5-5"/>'),
+ ICO_msg:I('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),
+ ICO_bot:I('<rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4M8 4h8"/><circle cx="9" cy="14" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1.2" fill="currentColor" stroke="none"/>'),
+ ICO_target:I('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>'),
+ ICO_eye:I('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>'),
+ ICO_flame:I('<path d="M12 2c1 4-4 6-4 10a4 4 0 0 0 8 0c0-1.5-.6-2.6-1.3-3.6C13.6 10 15 8 12 2z"/><path d="M12 22a6 6 0 0 0 6-6c0-2-1-3.5-2-5"/>'),
+ ICO_snow:I('<path d="M12 2v20M4.9 6.5l14.2 11M19.1 6.5 4.9 17.5"/>'),
+ ICO_hand:I('<path d="M11 12V6a1.5 1.5 0 0 1 3 0v6"/><path d="M14 11V8a1.5 1.5 0 0 1 3 0v6a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6v-3a1.5 1.5 0 0 1 3 0"/><path d="M8 12V7a1.5 1.5 0 0 1 3 0"/>'),
+ ICO_trophy:I('<path d="M8 21h8M12 17v4M7 4h10v6a5 5 0 0 1-10 0z"/><path d="M7 6H4a2 2 0 0 0 2 4M17 6h3a2 2 0 0 1-2 4"/>'),
+};
+document.body.innerHTML=document.body.innerHTML.replace(/§(ICO_[a-z0-9]+)§/gi,(m,k)=>ICONS[k]||m);
+
+const page=document.getElementById('page');
+
+/* ---------- live wire feed ---------- */
+(function(){
+ const wire=document.getElementById('wire');
+ const EVENTS=[
+  {i:'ICO_mail',c:'rgba(37,99,235,.16);color:#9DC3FF',t:'Reply detected — "yes, send times"',m:'priya@nexlify.io · seq #4 · sentiment: <b>buying</b>',v:'+38 score',s:'SIGNAL'},
+  {i:'ICO_bot',c:'rgba(255,175,6,.16);color:#FFC65C',t:'Deal Scout researching Nexlify',m:'42 ppl · Fintech SaaS · $8M ARR · 3 signals merged',v:'12s',s:'AGENT'},
+  {i:'ICO_target',c:'rgba(20,187,135,.2);color:#7DE8C6',t:'Deal created — Nexlify · $14,500',m:'stage Qualify · prob 68% · CRM synced',v:'$14.5K',s:'AUTO DEAL',deal:1},
+  {i:'ICO_eye',c:'rgba(124,58,237,.18);color:#C4B5FD',t:'Pricing page — 3rd visit',m:'acme-fintech.com · 9 min session · moved to Hot',v:'+21 score',s:'SIGNAL'},
+  {i:'ICO_share',c:'rgba(37,99,235,.16);color:#9DC3FF',t:'ABM Scout mapped BrightOps CFO',m:'committee now 3/4 · intro path via Rahul M.',v:'89 fit',s:'AGENT'},
+  {i:'ICO_loop',c:'rgba(20,187,135,.2);color:#7DE8C6',t:'Model v9 retrained — 142 outcomes',m:'pricing-visit weight +21 · PDF signal −26',v:'v9',s:'LEARN'},
+  {i:'ICO_flag',c:'rgba(217,44,74,.18);color:#FF8FA3',t:'Stall detected — LoopHQ silent 6d',m:'matches lost-deal pattern · rescue play armed',v:'$11K',s:'WATCH'},
+  {i:'ICO_cal',c:'rgba(20,187,135,.2);color:#7DE8C6',t:'Meeting auto-scheduled — Thu 3 PM',m:'Nexlify · call brief + battlecard attached',v:'Thu',s:'AGENT'},
+ ];
+ let idx=0;
+ function push(){
+  const e=EVENTS[idx%EVENTS.length];idx++;
+  const el=document.createElement('div');
+  el.className='wf'+(e.deal?' deal':'');
+  el.innerHTML=`<span class="wfi" style="background:${e.c}">${ICONS[e.i]}</span><div><div class="wt">${e.t}</div><div class="wm">${e.m}</div></div><div class="wv">${e.v}<span>${e.s}</span></div>`;
+  wire.prepend(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('in')));
+  while(wire.children.length>6)wire.removeChild(wire.lastChild);
+ }
+ push();push();push();
+ setInterval(push,2600);
+})();
+
+/* ---------- count-up ---------- */
+function countUp(el,mult=1){
+ const target=Math.round(parseFloat(el.dataset.count)*mult),pre=el.dataset.prefix||'',suf=el.dataset.suffix||'';
+ const t0=performance.now(),dur=1400;
+ function fmt(v){return v>=1000?v.toLocaleString('en-US'):v;}
+ function step(t){const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);
+  el.textContent=pre+fmt(Math.round(target*e))+suf;
+  if(p<1)requestAnimationFrame(step);}
+ requestAnimationFrame(step);
+}
+
+/* ---------- reveal + bar triggers ---------- */
+const io=new IntersectionObserver(es=>{es.forEach(en=>{if(!en.isIntersecting)return;
+ const el=en.target;el.classList.add('in');
+ el.querySelectorAll('[data-count]').forEach(c=>{if(!c.dataset.done){c.dataset.done=1;countUp(c);}});
+ if(el.matches('[data-count]')&&!el.dataset.done){el.dataset.done=1;countUp(el);}
+ el.querySelectorAll('.wfill,.cmf,.aprogf').forEach(b=>b.style.width=b.dataset.w);
+ io.unobserve(el);
+});},{root:page,threshold:.14});
+document.querySelectorAll('.reveal,.kpi,.card').forEach(el=>io.observe(el));
+
+/* ---------- autonomy toggle (display only) ---------- */
+document.getElementById('auto3').addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b)return;
+ document.querySelectorAll('#auto3 button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+});
+
+/* ---------- deck interactions ---------- */
+const pendPill=document.querySelector('.dlp');let pending=4;
+document.querySelectorAll('.aprv').forEach(btn=>btn.addEventListener('click',()=>{
+ if(btn.classList.contains('applied'))return;
+ btn.classList.add('applied');btn.innerHTML=ICONS.ICO_check+' Approved — agent executing…';
+ btn.closest('.drec').classList.add('done');
+ const g=btn.parentElement.querySelector('.ghost2');if(g)g.style.display='none';
+ pending--;pendPill.textContent=pending+' PENDING · AUTOPILOT LEVEL 2';
+ setTimeout(()=>{btn.innerHTML=ICONS.ICO_check+' Done';},1800);
+}));
+document.getElementById('jumpDeck').addEventListener('click',()=>{
+ document.getElementById('deck').scrollIntoView({behavior:'smooth',block:'start'});});
+</script>
+</body>
+</html>

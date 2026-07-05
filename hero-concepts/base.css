@@ -1,0 +1,123 @@
+/* ============================================================
+   MarketiQ — interactive launch hero concepts (LIGHT)
+   Shared base: nav, layout, laptop, glow, proof, marquee
+   ============================================================ */
+:root{
+  --amber:#FF9D00; --amber2:#FFB52E; --teal:#0EA47A; --teal2:#10B380;
+  --pink:#F43F5E; --blue:#2E7CF6; --violet:#8B5CF6;
+  --grad:linear-gradient(135deg,#FFB52E 0%,#0EA47A 100%);
+  --gradText:linear-gradient(100deg,#F59E0B 0%,#FF8A00 32%,#10B380 68%,#0B8E68 100%);
+  --ink:#0C1424; --sub:rgba(28,41,66,.72); --faint:rgba(28,41,66,.45);
+  --line:rgba(13,23,44,.10); --lineSoft:rgba(13,23,44,.06);
+  --bg:#FFFFFF; --bg2:#F5F8FC; --panel:#fff;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:"Space Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;
+  color:var(--ink);background:var(--bg);overflow-x:hidden}
+a{text-decoration:none;color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+.vtag{position:fixed;top:14px;left:14px;z-index:60;background:var(--ink);color:#fff;font-weight:800;font-size:11.5px;
+  padding:6px 11px;border-radius:9px;letter-spacing:.04em}
+
+/* launch ribbon */
+.ribbon{position:relative;z-index:30;display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:9px 16px;font-size:13px;font-weight:700;color:#fff;
+  background:linear-gradient(90deg,#FF7A00,#FF9D00,#F43F5E)}
+.ribbon a{text-decoration:underline;text-underline-offset:2px}
+
+/* ---------- NAV (floating pill) ---------- */
+.nav{position:sticky;top:14px;z-index:40;margin-top:14px}
+.nav-inner{max-width:1140px;margin:0 auto;display:flex;align-items:center;gap:18px;padding:10px 14px 10px 18px;
+  border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.72);
+  backdrop-filter:saturate(160%) blur(18px);box-shadow:0 18px 44px -18px rgba(12,20,36,.22)}
+.brand{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:800}
+.brand img{height:26px;width:auto;display:block}
+.nav-links{display:flex;gap:18px;margin-left:8px;flex:1}
+.nav-links a{color:var(--sub);font-size:13.5px;font-weight:600;transition:color .2s}
+.nav-links a:hover{color:var(--ink)}
+.nav-cta{display:flex;align-items:center;gap:12px}
+.login{font-size:13.5px;font-weight:700;color:var(--ink)}
+.btn{appearance:none;border:0;cursor:pointer;font-family:inherit;font-weight:800;font-size:14px;color:#fff;
+  padding:11px 20px;border-radius:999px;background:var(--grad);box-shadow:0 12px 30px -10px rgba(255,157,0,.5);
+  transition:transform .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 18px 44px -12px rgba(14,164,122,.55)}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);box-shadow:none}
+.btn.ghost:hover{border-color:var(--ink)}
+@media(max-width:920px){.nav-links{display:none}}
+
+/* ---------- HERO BASE ---------- */
+.hero{position:relative;padding-top:54px}
+.badge{display:inline-flex;align-items:center;gap:9px;padding:7px 14px;margin-bottom:22px;border-radius:999px;
+  border:1px solid rgba(14,164,122,.2);background:rgba(14,164,122,.06);font-size:12.5px;font-weight:700}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 10px var(--teal);
+  animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.5)}}
+h1.title{font-weight:700;letter-spacing:-.035em;line-height:1.04;margin:0;
+  font-size:clamp(2.5rem,5.4vw,4.2rem)}
+.grad{background:var(--gradText);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.sub{margin:22px auto 0;max-width:660px;font-size:clamp(1rem,1.6vw,1.18rem);line-height:1.62;color:var(--sub)}
+.trust{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
+.trust span{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--sub)}
+.trust svg{color:var(--teal)}
+
+/* ---------- 3D LAPTOP ---------- */
+.stage{position:relative;margin-top:54px;perspective:1700px}
+.glowback{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);width:min(1040px,118vw);height:660px;
+  z-index:0;pointer-events:none;filter:blur(26px);
+  background:
+   radial-gradient(34% 44% at 28% 40%,rgba(255,157,0,.34),transparent 70%),
+   radial-gradient(38% 48% at 72% 38%,rgba(14,164,122,.32),transparent 72%),
+   radial-gradient(32% 42% at 50% 78%,rgba(46,124,246,.26),transparent 70%)}
+.laptop{position:relative;z-index:2;width:min(880px,94vw);margin:0 auto;transform-style:preserve-3d;
+  transform:rotateX(12deg);animation:floaty 7s ease-in-out infinite}
+@keyframes floaty{0%,100%{transform:rotateX(12deg) translateY(0)}50%{transform:rotateX(12deg) translateY(-12px)}}
+.screen{position:relative;border-radius:20px 20px 6px 6px;padding:12px 12px 0;background:linear-gradient(#1b2230,#0e1218);
+  box-shadow:0 56px 120px rgba(8,16,40,.42),0 10px 28px rgba(8,16,40,.3);transform:translateZ(38px)}
+.screen::before{content:"";position:absolute;inset:-14px;border-radius:26px;z-index:-1;
+  background:
+   radial-gradient(closest-side at 0% 0%,rgba(255,157,0,.85),transparent 72%),
+   radial-gradient(closest-side at 100% 0%,rgba(14,164,122,.82),transparent 72%),
+   radial-gradient(closest-side at 0% 100%,rgba(46,124,246,.78),transparent 72%),
+   radial-gradient(closest-side at 100% 100%,rgba(244,63,94,.78),transparent 72%);
+  filter:blur(22px);opacity:.9}
+.shot{display:block;width:100%;border-radius:11px 11px 0 0}
+.notch{position:absolute;top:6px;left:50%;transform:translateX(-50%);width:118px;height:8px;border-radius:0 0 8px 8px;background:#0a0d12}
+.base{height:18px;width:min(940px,98vw);margin:0 auto;background:linear-gradient(#cdd5e0,#aeb8c6);
+  border-radius:0 0 16px 16px;box-shadow:0 34px 54px rgba(8,16,40,.26);transform:translateZ(30px) rotateX(12deg)}
+.base::after{content:"";display:block;width:118px;height:6px;margin:5px auto 0;border-radius:6px;background:rgba(13,23,44,.18)}
+
+/* floating chips */
+.chip{position:absolute;z-index:5;padding:10px 13px;border-radius:13px;background:#fff;border:1px solid var(--line);
+  box-shadow:0 24px 50px -22px rgba(8,16,40,.34);font-weight:800;font-size:13px;display:flex;gap:8px;align-items:center}
+.chip i{width:9px;height:9px;border-radius:50%;display:block}
+.chip.c1{top:8%;left:-2%;animation:floaty2 6s ease-in-out infinite}
+.chip.c2{top:58%;left:-4%;animation:floaty2 7.5s ease-in-out infinite}
+.chip.c3{top:14%;right:-2%;animation:floaty2 6.8s ease-in-out infinite}
+.chip.c4{top:64%;right:-3%;animation:floaty2 8s ease-in-out infinite}
+@keyframes floaty2{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@media(max-width:900px){.chip{display:none}}
+
+/* ---------- PROOF ---------- */
+.proof{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:64px auto 0;max-width:900px;padding:26px;
+  border-radius:20px;border:1px solid var(--lineSoft);background:var(--bg2)}
+@media(max-width:600px){.proof{grid-template-columns:1fr 1fr}}
+.pf{text-align:center}
+.pf b{display:block;font-size:clamp(26px,3vw,34px);line-height:1;
+  background:var(--gradText);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.pf span{display:block;margin-top:7px;font-size:12.5px;font-weight:600;color:var(--sub)}
+
+/* ---------- MARQUEE ---------- */
+.marquee-wrap{margin-top:60px;border-top:1px solid var(--lineSoft);border-bottom:1px solid var(--lineSoft);
+  padding:18px 0;background:var(--bg2)}
+.marquee-label{text-align:center;font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--faint);
+  text-transform:uppercase;margin-bottom:12px}
+.marquee{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.marquee-track{display:flex;gap:38px;width:max-content;animation:scroll 46s linear infinite}
+@keyframes scroll{to{transform:translateX(-50%)}}
+.mq{display:flex;gap:9px;align-items:center;font-size:13px;font-weight:600;color:var(--sub);white-space:nowrap}
+.mq i{width:6px;height:6px;border-radius:50%}
+
+.foot{text-align:center;color:var(--faint);font-size:12.5px;padding:40px 0 56px}
+
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}

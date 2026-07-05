@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>MarketiQ — Agent Constellation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="base.css"/>
+<style>
+.hero{text-align:center}
+.ctas{display:flex;gap:12px;justify-content:center;margin-top:24px;flex-wrap:wrap}
+.scanform{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:999px;
+  padding:7px 7px 7px 20px;box-shadow:0 16px 40px -22px rgba(12,20,36,.3);max-width:540px;margin:30px auto 0}
+.scanform input{flex:1;border:0;outline:0;font-family:inherit;font-size:15.5px;color:var(--ink);background:transparent}
+
+/* constellation stage */
+.constel{position:relative;margin-top:46px;height:620px}
+#net{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+.tip{position:absolute;z-index:4;transform:translate(-50%,-130%);background:#0C1424;color:#fff;font-size:11.5px;
+  font-weight:700;padding:6px 10px;border-radius:8px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s}
+.tip::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#0C1424}
+.core{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;width:min(620px,86vw)}
+.core .screen{border-radius:16px 16px 5px 5px;padding:10px 10px 0}
+.core .screen::before{inset:-18px;filter:blur(26px);opacity:.95}
+.core .shot{border-radius:9px 9px 0 0}
+.core-base{width:min(660px,90vw);height:14px;margin:0 auto;background:linear-gradient(#cdd5e0,#aeb8c6);
+  border-radius:0 0 14px 14px;box-shadow:0 30px 50px rgba(8,16,40,.26)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;justify-content:center;margin-top:30px}
+.lg{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--sub)}
+.lg i{width:9px;height:9px;border-radius:50%}
+@media(max-width:760px){.constel{height:520px}.core{width:92vw}}
+</style>
+</head>
+<body>
+<div class="vtag">Concept 2 · Agent Constellation</div>
+
+<div class="ribbon">🚀 We're launching on Product Hunt on June 30, 2026 — <a href="#">follow &amp; support us →</a></div>
+
+<nav class="nav"><div class="nav-inner">
+  <a class="brand"><img src="assets/logo.png" alt="MarketiQ AI"/></a>
+  <div class="nav-links">
+    <a href="#">How it works</a><a href="#">Why MarketiQ</a><a href="#">Features</a>
+    <a href="#">ROI</a><a href="#">Compare</a><a href="#">Pricing</a><a href="#">FAQ</a>
+  </div>
+  <div class="nav-cta"><a class="login">Log in</a><button class="btn">Start free</button></div>
+</div></nav>
+
+<div class="wrap hero">
+  <span class="badge"><span class="dot"></span>The Autonomous Go-To-Market Operating System</span>
+  <h1 class="title">A living team of <span class="grad">46 AI agents</span><br/>running your go-to-market 24/7.</h1>
+  <p class="sub">Every agent senses, decides and ships — strategy, content, ads, SEO, social and revenue — connected in one autonomous system that learns with every loop.</p>
+
+  <form class="scanform" onsubmit="return false">
+    <input type="text" placeholder="yourcompany.com — point us at your site"/>
+    <button class="btn" type="submit">Build my GTM →</button>
+  </form>
+  <div class="ctas">
+    <button class="btn">Start free →</button>
+    <button class="btn ghost">See the agents work</button>
+  </div>
+
+  <!-- CONSTELLATION -->
+  <div class="constel" id="constel">
+    <canvas id="net"></canvas>
+    <div class="tip" id="tip"></div>
+    <div class="core">
+      <div class="screen"><div class="notch"></div><img class="shot" src="assets/shot.png" alt="MarketiQ dashboard"/></div>
+    </div>
+  </div>
+  <div class="core-base"></div>
+
+  <div class="legend">
+    <span class="lg"><i style="background:#FF9D00"></i>Content &amp; SEO</span>
+    <span class="lg"><i style="background:#2E7CF6"></i>Ads &amp; Growth</span>
+    <span class="lg"><i style="background:#F43F5E"></i>Social &amp; Brand</span>
+    <span class="lg"><i style="background:#8B5CF6"></i>Revenue &amp; ABM</span>
+    <span class="lg"><i style="background:#0EA47A"></i>Strategy &amp; Analytics</span>
+  </div>
+
+  <div class="proof" id="proof">
+    <div class="pf"><b data-count="46">0</b><span>AI agents</span></div>
+    <div class="pf"><b data-count="31">0</b><span>autonomous loops</span></div>
+    <div class="pf"><b data-count="14">0</b><span>GTM stages, one loop</span></div>
+    <div class="pf"><b>24/7</b><span>always-on</span></div>
+  </div>
+</div>
+
+<div class="marquee-wrap">
+  <div class="marquee-label">One cockpit · 30+ connected modules</div>
+  <div class="marquee"><div class="marquee-track" id="mq"></div></div>
+</div>
+
+<div class="foot">MarketiQ · Concept 2 — Agent Constellation (interactive preview)</div>
+
+<script>
+var AGENTS=[
+ ['SEO Agent','#FF9D00'],['Content Writer','#FF9D00'],['Blog Engine','#FF9D00'],['Keyword Scout','#FF9D00'],['On-page SEO','#FF9D00'],
+ ['Ads Strategist','#2E7CF6'],['Bid Optimizer','#2E7CF6'],['Creative Gen','#2E7CF6'],['Growth Loop','#2E7CF6'],['Landing CRO','#2E7CF6'],
+ ['Social Manager','#F43F5E'],['LinkedIn Agent','#F43F5E'],['Community','#F43F5E'],['Brand Guardian','#F43F5E'],['PR Scout','#F43F5E'],
+ ['ABM Agent','#8B5CF6'],['Lead Scorer','#8B5CF6'],['Pipeline','#8B5CF6'],['Revenue Loop','#8B5CF6'],['Email Nurture','#8B5CF6'],
+ ['ICP Research','#0EA47A'],['Strategist','#0EA47A'],['Analyst','#0EA47A'],['Attribution','#0EA47A'],['Competitor Intel','#0EA47A'],
+ ['Calendar','#FF9D00'],['Video Agent','#2E7CF6'],['Sentiment','#F43F5E'],['Forecast','#8B5CF6'],['Experimenter','#0EA47A']
+];
+var canvas=document.getElementById('net'), ctx=canvas.getContext('2d'), tip=document.getElementById('tip'),
+    constel=document.getElementById('constel'), W=0,H=0,nodes=[],t=0,mouse={x:-999,y:-999};
+function size(){var r=constel.getBoundingClientRect();W=canvas.width=r.width*devicePixelRatio;H=canvas.height=r.height*devicePixelRatio;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);build();}
+function build(){nodes=[];var cw=constel.clientWidth, ch=constel.clientHeight, cx=cw/2, cy=ch/2;
+  var rx=Math.min(cw*0.46,520), ry=Math.min(ch*0.44,300);
+  AGENTS.forEach(function(a,i){var ang=(i/AGENTS.length)*Math.PI*2;
+    var rr=0.86+0.14*Math.sin(i*1.7);
+    nodes.push({name:a[0],c:a[1],ang:ang,rx:rx*rr,ry:ry*rr,cx:cx,cy:cy,
+      sp:0.0006+Math.random()*0.0006,ph:Math.random()*6.28,x:0,y:0});});}
+function draw(){t++;ctx.clearRect(0,0,W,H);
+  nodes.forEach(function(n){n.ang+=n.sp;n.x=n.cx+Math.cos(n.ang)*n.rx;n.y=n.cy+Math.sin(n.ang)*n.ry;});
+  // links between nearby nodes
+  for(var i=0;i<nodes.length;i++){for(var j=i+1;j<nodes.length;j++){
+    var a=nodes[i],b=nodes[j],dx=a.x-b.x,dy=a.y-b.y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<150){var al=(1-d/150)*0.22;ctx.strokeStyle='rgba(28,41,66,'+al+')';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}}}
+  // pulse links to center
+  var cx=constel.clientWidth/2, cy=constel.clientHeight/2;
+  nodes.forEach(function(n,i){
+    var pulse=(Math.sin(t*0.03+n.ph)+1)/2;
+    ctx.strokeStyle='rgba(14,164,122,'+(0.04+pulse*0.10)+')';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(cx,cy);ctx.stroke();
+    // node glow
+    var r=5+pulse*2.5;
+    var g=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,r*3);
+    g.addColorStop(0,n.c);g.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(n.x,n.y,r*3,0,6.28);ctx.fill();
+    ctx.fillStyle=n.c;ctx.beginPath();ctx.arc(n.x,n.y,r,0,6.28);ctx.fill();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(n.x,n.y,r*0.4,0,6.28);ctx.fill();
+  });
+  // hover detection
+  var hit=null;nodes.forEach(function(n){if(Math.abs(n.x-mouse.x)<14&&Math.abs(n.y-mouse.y)<14)hit=n;});
+  if(hit){tip.style.left=hit.x+'px';tip.style.top=hit.y+'px';tip.textContent=hit.name;tip.style.opacity=1;}
+  else tip.style.opacity=0;
+  requestAnimationFrame(draw);
+}
+constel.addEventListener('mousemove',function(e){var r=constel.getBoundingClientRect();mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top;});
+constel.addEventListener('mouseleave',function(){mouse.x=mouse.y=-999;});
+window.addEventListener('resize',size);size();draw();
+
+// proof count-up
+function countTo(el,to,dur){var t0=performance.now();(function f(t){var p=Math.min((t-t0)/dur,1);
+  el.textContent=Math.round(p*to);if(p<1)requestAnimationFrame(f);})(t0);}
+var counted=false;
+new IntersectionObserver(function(en){en.forEach(function(e){if(e.isIntersecting&&!counted){counted=true;
+  document.querySelectorAll('#proof b[data-count]').forEach(function(b){countTo(b,+b.dataset.count,1100);});}});},{threshold:.4})
+  .observe(document.getElementById('proof'));
+
+// marquee
+var MODS=[['Content','#FF9D00'],['SEO','#0EA47A'],['Ads','#2E7CF6'],['Email','#8B5CF6'],['Social','#F43F5E'],
+['LinkedIn','#0EA47A'],['ABM','#FF9D00'],['CRO','#2E7CF6'],['Analytics','#0EA47A'],['Attribution','#8B5CF6'],
+['Revenue','#F43F5E'],['Brand','#FF9D00'],['PMM','#2E7CF6'],['Launch','#0EA47A'],['Calendar','#8B5CF6']];
+var mq=document.getElementById('mq');
+function rrow(){return MODS.map(function(m){return '<span class="mq"><i style="background:'+m[1]+'"></i>'+m[0]+'</span>';}).join('');}
+mq.innerHTML=rrow()+rrow();
+</script>
+</body>
+</html>

@@ -2,6 +2,7 @@
  * Blog post store — backed by Azure Postgres (Prisma).
  */
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export interface BlogPost {
   id: string;
@@ -17,9 +18,18 @@ export interface BlogPost {
   views: number;
   date: string; // ISO date (publish/created)
   updatedAt: string;
+  // On-page SEO (populated by the MarketIQ engine; optional for manual posts).
+  metaTitle?: string;
+  metaDescription?: string;
+  canonical?: string;
+  focusKeyword?: string;
+  ogImage?: string;
+  readingTime?: number;
+  seo?: unknown;
+  sourceId?: string;
 }
 
-function toPost(row: {
+type Row = {
   id: string;
   title: string;
   slug: string;
@@ -33,11 +43,39 @@ function toPost(row: {
   views: number;
   date: string;
   updatedAt: string;
-}): BlogPost {
+  metaTitle: string | null;
+  metaDescription: string | null;
+  canonical: string | null;
+  focusKeyword: string | null;
+  ogImage: string | null;
+  readingTime: number | null;
+  seo: Prisma.JsonValue | null;
+  sourceId: string | null;
+};
+
+function toPost(row: Row): BlogPost {
   return {
-    ...row,
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    excerpt: row.excerpt,
+    content: row.content,
+    author: row.author,
+    category: row.category,
+    tags: row.tags,
     coverImage: row.coverImage ?? undefined,
     status: row.status === 'Published' ? 'Published' : 'Draft',
+    views: row.views,
+    date: row.date,
+    updatedAt: row.updatedAt,
+    metaTitle: row.metaTitle ?? undefined,
+    metaDescription: row.metaDescription ?? undefined,
+    canonical: row.canonical ?? undefined,
+    focusKeyword: row.focusKeyword ?? undefined,
+    ogImage: row.ogImage ?? undefined,
+    readingTime: row.readingTime ?? undefined,
+    seo: (row.seo as unknown) ?? undefined,
+    sourceId: row.sourceId ?? undefined,
   };
 }
 
@@ -89,6 +127,7 @@ export const blogStore = {
         views: 0,
         date: (input.date as string) || now.split('T')[0],
         updatedAt: now,
+        ...seoData(input),
       },
     });
     return toPost(row);
@@ -112,6 +151,66 @@ export const blogStore = {
           patch.status === 'Published' ? 'Published' : patch.status === 'Draft' ? 'Draft' : undefined,
         date: patch.date ?? undefined,
         updatedAt: new Date().toISOString(),
+        ...seoData(patch),
+      },
+    });
+    return toPost(row);
+  },
+
+  /**
+   * Upsert a post pushed by the MarketIQ engine (keyed by slug). Stores the full
+   * on-page SEO bundle so the public render is SEO-complete.
+   */
+  async upsertFromEngine(input: {
+    slug: string;
+    title: string;
+    excerpt?: string;
+    content: string;
+    author?: string;
+    category?: string;
+    tags?: string[];
+    coverImage?: string | null;
+    status?: 'Published' | 'Draft';
+    publishedAt?: string;
+    sourceId?: string;
+    metaTitle?: string;
+    metaDescription?: string;
+    canonical?: string;
+    focusKeyword?: string;
+    ogImage?: string | null;
+    readingTime?: number;
+    seo?: unknown;
+  }): Promise<BlogPost> {
+    const now = new Date().toISOString();
+    const slug = slugify(input.slug || input.title);
+    const base = {
+      title: (input.title || 'Untitled').slice(0, 200),
+      excerpt: (input.excerpt || '').slice(0, 400),
+      content: input.content || '',
+      author: (input.author || 'Editorial Team').slice(0, 80),
+      category: (input.category || 'General').slice(0, 60),
+      tags: Array.isArray(input.tags) ? input.tags.map((t) => String(t).slice(0, 40)).slice(0, 20) : [],
+      coverImage: input.coverImage ? String(input.coverImage).slice(0, 500) : null,
+      status: input.status === 'Draft' ? 'Draft' : 'Published',
+      date: (input.publishedAt || now).split('T')[0],
+      updatedAt: now,
+      sourceId: input.sourceId ?? null,
+      metaTitle: input.metaTitle ?? null,
+      metaDescription: input.metaDescription ?? null,
+      canonical: input.canonical ?? null,
+      focusKeyword: input.focusKeyword ?? null,
+      ogImage: input.ogImage ?? null,
+      readingTime: input.readingTime ?? null,
+      seo: (input.seo as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+    };
+    const row = await prisma.blogPost.upsert({
+      where: { slug },
+      update: base,
+      create: {
+        id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
+        slug,
+        views: 0,
+        ...base,
       },
     });
     return toPost(row);
@@ -135,3 +234,16 @@ export const blogStore = {
     }
   },
 };
+
+function seoData(input: Partial<BlogPost>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (input.metaTitle !== undefined) out.metaTitle = input.metaTitle || null;
+  if (input.metaDescription !== undefined) out.metaDescription = input.metaDescription || null;
+  if (input.canonical !== undefined) out.canonical = input.canonical || null;
+  if (input.focusKeyword !== undefined) out.focusKeyword = input.focusKeyword || null;
+  if (input.ogImage !== undefined) out.ogImage = input.ogImage || null;
+  if (input.readingTime !== undefined) out.readingTime = input.readingTime ?? null;
+  if (input.sourceId !== undefined) out.sourceId = input.sourceId || null;
+  if (input.seo !== undefined) out.seo = (input.seo as Prisma.InputJsonValue) ?? Prisma.JsonNull;
+  return out;
+}

@@ -76,6 +76,18 @@ model BlogPost {
   date       String
   updatedAt  String
 
+  // On-page SEO bundle (populated by the MarketIQ engine on publish; optional
+  // for manually-authored posts, which synthesize metadata at render time).
+  metaTitle       String?
+  metaDescription String?
+  canonical       String?
+  focusKeyword    String?
+  ogImage         String?
+  readingTime     Int?    @default(0)
+  seo             Json?
+  // MarketIQ source content-item id (idempotent re-publish/update).
+  sourceId        String?
+
   @@map("blog_posts")
 }
 

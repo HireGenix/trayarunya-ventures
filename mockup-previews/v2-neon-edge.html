@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MarketiQ — V2 Neon Edge</title>
+<style>
+  :root{
+    --amber:#FFB52E; --teal:#1ED7A0; --pink:#FF4D6D; --blue:#5B8DEF; --violet:#A78BFA;
+    --ink:#EAF0FF; --sub:rgba(190,205,235,.72); --line:rgba(255,255,255,.10);
+    --bg:#070A12;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:radial-gradient(120% 90% at 50% 0%,#0d1426 0%,#070A12 60%);
+    color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;overflow-x:hidden}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+  .badge{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:999px;
+    padding:7px 14px;font-size:13px;font-weight:700;color:var(--sub);background:rgba(255,255,255,.04);backdrop-filter:blur(8px)}
+  .badge .dot{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 12px var(--teal)}
+  h1{font-size:clamp(34px,6vw,70px);line-height:1.04;letter-spacing:-.03em;margin:22px 0 14px;font-weight:850}
+  h1 .g{background:linear-gradient(100deg,var(--amber),var(--teal) 60%,var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{font-size:clamp(16px,2.2vw,21px);color:var(--sub);max-width:640px;margin:0 auto 26px;line-height:1.55}
+  .cta{display:inline-flex;gap:10px;align-items:center;padding:14px 26px;border-radius:14px;font-weight:800;font-size:16px;
+    text-decoration:none;color:#04110d;background:linear-gradient(135deg,var(--amber),var(--teal));
+    box-shadow:0 0 0 1px rgba(255,255,255,.15), 0 18px 50px rgba(30,215,160,.4);transition:transform .2s,box-shadow .2s}
+  .cta:hover{transform:translateY(-2px);box-shadow:0 24px 70px rgba(255,181,46,.5)}
+  .ghost{color:var(--ink);background:rgba(255,255,255,.05);border:1px solid var(--line);box-shadow:none}
+
+  .hero{position:relative;text-align:center;padding:74px 0 40px}
+  /* MASSIVE neon bloom behind laptop */
+  .bloom{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);width:min(1300px,140vw);height:900px;z-index:0;pointer-events:none}
+  .bloom span{position:absolute;border-radius:50%;filter:blur(60px);opacity:.9;animation:pulse 9s ease-in-out infinite}
+  .b1{inset:8% 30% 30% 8%;background:radial-gradient(circle,rgba(255,181,46,.9),transparent 65%)}
+  .b2{inset:6% 8% 28% 34%;background:radial-gradient(circle,rgba(30,215,160,.85),transparent 65%);animation-delay:-3s}
+  .b3{inset:40% 22% 6% 30%;background:radial-gradient(circle,rgba(255,77,109,.7),transparent 65%);animation-delay:-6s}
+  .b4{inset:30% 4% 20% 60%;background:radial-gradient(circle,rgba(91,141,239,.7),transparent 65%);animation-delay:-4.5s}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+
+  .stage{position:relative;z-index:2;perspective:1700px;margin-top:34px}
+  .laptop{width:min(880px,92vw);margin:0 auto;transform-style:preserve-3d;
+    transform:rotateX(18deg) rotateY(10deg);transition:transform .5s cubic-bezier(.2,.7,.2,1)}
+  .stage:hover .laptop{transform:rotateX(9deg) rotateY(4deg)}
+  .screen{position:relative;border-radius:22px 22px 6px 6px;padding:13px 13px 0;background:linear-gradient(#0c1018,#05070c);
+    box-shadow:0 60px 140px rgba(0,0,0,.7), 0 0 80px rgba(30,215,160,.25);transform-style:preserve-3d}
+  .screen::before{content:"";position:absolute;inset:-4px;border-radius:26px;z-index:-1;
+    background:conic-gradient(from 0deg,var(--amber),var(--teal),var(--blue),var(--pink),var(--amber));
+    filter:blur(20px);opacity:1;animation:spin 7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .shot{display:block;width:100%;border-radius:12px 12px 0 0}
+  .notch{position:absolute;top:5px;left:50%;transform:translateX(-50%);width:120px;height:8px;border-radius:0 0 8px 8px;background:#04060a}
+  .base{height:18px;width:min(940px,96vw);margin:0 auto;background:linear-gradient(#2a3242,#161c28);
+    border-radius:0 0 16px 16px;box-shadow:0 40px 60px rgba(0,0,0,.6);transform:translateZ(-6px) rotateX(18deg)}
+  .base::after{content:"";display:block;width:120px;height:6px;margin:4px auto 0;border-radius:6px;background:rgba(255,255,255,.12)}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin:96px 0;perspective:1200px}
+  @media(max-width:860px){.cards{grid-template-columns:1fr}}
+  .card{position:relative;border-radius:20px;padding:26px;background:rgba(255,255,255,.045);
+    border:1px solid var(--line);backdrop-filter:blur(12px);transform-style:preserve-3d;transition:transform .3s}
+  .card::before{content:"";position:absolute;inset:0;border-radius:20px;padding:1.4px;
+    background:conic-gradient(from var(--a,0deg),var(--amber),var(--teal),var(--blue),var(--pink),var(--amber));
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;opacity:.7}
+  .card:hover{transform:translateY(-10px) rotateX(7deg) rotateY(-7deg)}
+  .card:hover::before{opacity:1;filter:drop-shadow(0 0 16px rgba(30,215,160,.55))}
+  .ic{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--amber),var(--teal));box-shadow:0 0 26px rgba(30,215,160,.5);transform:translateZ(40px)}
+  .ic svg{width:22px;height:22px}
+  .card h3{margin:16px 0 6px;font-size:19px;transform:translateZ(28px)}
+  .card p{margin:0;color:var(--sub);font-size:14.5px;line-height:1.6;transform:translateZ(16px)}
+  .foot{text-align:center;color:var(--sub);padding:50px 0;font-size:13px}
+  .vtag{position:fixed;top:14px;left:14px;z-index:9;background:#fff;color:#070A12;font-weight:800;font-size:12px;padding:7px 12px;border-radius:10px;letter-spacing:.04em}
+</style>
+</head>
+<body>
+  <div class="vtag">V2 · Neon Edge</div>
+  <section class="hero">
+    <div class="bloom"><span class="b1"></span><span class="b2"></span><span class="b3"></span><span class="b4"></span></div>
+    <div class="wrap">
+      <span class="badge"><span class="dot"></span> Autonomous GTM Operating System</span>
+      <h1>Your whole marketing team,<br/><span class="g">on autopilot.</span></h1>
+      <p class="lede">46 AI agents and 31 autonomous loops run one closed loop — research, strategy, creation, publishing and learning.</p>
+      <a class="cta" href="#">Start free →</a>
+      <a class="cta ghost" href="#" style="margin-left:10px">Watch demo</a>
+
+      <div class="stage">
+        <div class="laptop">
+          <div class="screen"><div class="notch"></div><img class="shot" src="assets/shot.png" alt="MarketiQ dashboard"/></div>
+        </div>
+        <div class="base"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <div class="cards">
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#04110d" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div><h3>Autonomous strategy</h3><p>The AI CMO senses, decides and directs 46 agents daily — no manual planning.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#04110d" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg></div><h3>Create + publish</h3><p>Content, creatives, video and blogs ship with 100% on-page SEO, on autopilot.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#04110d" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg></div><h3>Compounding learning</h3><p>Every outcome feeds back — the system gets sharper with each cycle.</p></div>
+    </div>
+  </div>
+  <div class="foot">V2 preview · dark · heavy neon bloom + rotating conic borders + glass 3D cards</div>
+  <script>
+    // animate conic border angle for a living glow
+    let a=0; setInterval(()=>{a=(a+2)%360; document.documentElement.style.setProperty('--a',a+'deg');},40);
+  </script>
+</body>
+</html>

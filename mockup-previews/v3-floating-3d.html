@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MarketiQ — V3 Floating 3D</title>
+<style>
+  :root{
+    --amber:#FF9D00; --amber2:#FFB52E; --teal:#0EA47A; --pink:#F43F5E; --blue:#2E7CF6;
+    --ink:#0C1424; --sub:rgba(28,41,66,.72); --line:rgba(13,23,44,.10);
+    --bg:#F4F7FC; --grad:linear-gradient(135deg,var(--amber2),var(--teal));
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:
+     radial-gradient(60% 50% at 50% 0%,#FFF6E6 0%,transparent 60%),
+     radial-gradient(50% 40% at 90% 10%,#E2F8F0 0%,transparent 60%),var(--bg);
+    color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;overflow-x:hidden}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+  .badge{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:999px;
+    padding:7px 14px;font-size:13px;font-weight:700;color:var(--sub);background:rgba(255,255,255,.7);backdrop-filter:blur(8px)}
+  .badge .dot{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 4px rgba(14,164,122,.18)}
+  h1{font-size:clamp(34px,6vw,68px);line-height:1.05;letter-spacing:-.03em;margin:22px 0 14px;font-weight:850}
+  h1 .g{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{font-size:clamp(16px,2.2vw,21px);color:var(--sub);max-width:640px;margin:0 auto 26px;line-height:1.55}
+  .cta{display:inline-flex;gap:10px;align-items:center;padding:14px 26px;border-radius:14px;font-weight:800;font-size:16px;
+    text-decoration:none;color:#fff;background:var(--grad);box-shadow:0 14px 34px rgba(255,157,0,.32);transition:transform .2s}
+  .cta:hover{transform:translateY(-2px)}
+  .ghost{color:var(--ink);background:#fff;border:1px solid var(--line);box-shadow:none}
+
+  .hero{position:relative;text-align:center;padding:70px 0 30px}
+  .scene{position:relative;z-index:2;perspective:1400px;margin-top:30px;height:auto}
+  .glowback{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);width:min(1000px,120vw);height:680px;z-index:0;pointer-events:none;filter:blur(30px);
+    background:
+      radial-gradient(36% 46% at 32% 42%,rgba(255,157,0,.6),transparent 70%),
+      radial-gradient(40% 50% at 70% 40%,rgba(14,164,122,.55),transparent 72%),
+      radial-gradient(34% 44% at 50% 76%,rgba(46,124,246,.4),transparent 70%);
+    animation:breathe 10s ease-in-out infinite}
+  @keyframes breathe{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.07)}}
+
+  .rig{transform-style:preserve-3d;transition:transform .15s ease-out;will-change:transform}
+  .laptop{width:min(880px,92vw);margin:0 auto;transform-style:preserve-3d;transform:rotateX(14deg)}
+  .screen{position:relative;border-radius:22px 22px 6px 6px;padding:14px 14px 0;background:linear-gradient(#1b2230,#0e1218);
+    box-shadow:0 60px 120px rgba(8,16,40,.45);transform-style:preserve-3d;transform:translateZ(40px)}
+  .screen::before{content:"";position:absolute;inset:-3px;border-radius:24px;z-index:-1;
+    background:conic-gradient(from 0deg,var(--amber),var(--teal),var(--blue),var(--pink),var(--amber));
+    filter:blur(15px);opacity:.85;animation:spin 9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .shot{display:block;width:100%;border-radius:12px 12px 0 0}
+  .notch{position:absolute;top:6px;left:50%;transform:translateX(-50%);width:120px;height:8px;border-radius:0 0 8px 8px;background:#0a0d12}
+  .base{height:20px;width:min(940px,96vw);margin:0 auto;background:linear-gradient(#cdd5e0,#aeb8c6);border-radius:0 0 16px 16px;
+    box-shadow:0 36px 56px rgba(8,16,40,.3);transform:translateZ(34px) rotateX(14deg)}
+  .base::after{content:"";display:block;width:120px;height:6px;margin:5px auto 0;border-radius:6px;background:rgba(13,23,44,.18)}
+  /* floating mini cards in 3D space around the laptop */
+  .chip{position:absolute;padding:12px 16px;border-radius:14px;background:#fff;border:1px solid var(--line);
+    box-shadow:0 24px 50px -22px rgba(8,16,40,.4);font-weight:800;font-size:13.5px;display:flex;gap:8px;align-items:center}
+  .chip i{width:10px;height:10px;border-radius:50%}
+  .c1{top:12%;left:2%;transform:translateZ(90px)}
+  .c2{top:62%;left:-2%;transform:translateZ(120px)}
+  .c3{top:18%;right:1%;transform:translateZ(110px)}
+  .c4{top:70%;right:-1%;transform:translateZ(80px)}
+  @media(max-width:880px){.chip{display:none}}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin:100px 0;perspective:1200px}
+  @media(max-width:860px){.cards{grid-template-columns:1fr}}
+  .card{position:relative;border-radius:20px;padding:26px;background:#fff;border:1px solid var(--line);
+    box-shadow:0 24px 50px -24px rgba(8,16,40,.28);transform-style:preserve-3d;transition:transform .25s}
+  .card:hover{transform:translateY(-8px) rotateX(8deg) rotateY(-8deg) scale(1.02)}
+  .ic{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;background:var(--grad);
+    box-shadow:0 10px 24px rgba(255,157,0,.3);transform:translateZ(50px)}
+  .ic svg{width:22px;height:22px}
+  .card h3{margin:16px 0 6px;font-size:19px;transform:translateZ(32px)}
+  .card p{margin:0;color:var(--sub);font-size:14.5px;line-height:1.6;transform:translateZ(20px)}
+  .foot{text-align:center;color:var(--sub);padding:50px 0;font-size:13px}
+  .vtag{position:fixed;top:14px;left:14px;z-index:9;background:#0C1424;color:#fff;font-weight:800;font-size:12px;padding:7px 12px;border-radius:10px}
+</style>
+</head>
+<body>
+  <div class="vtag">V3 · Floating 3D (move your mouse)</div>
+  <section class="hero">
+    <div class="wrap">
+      <span class="badge"><span class="dot"></span> Autonomous GTM Operating System</span>
+      <h1>Move your mouse —<br/>the whole <span class="g">scene tilts in 3D</span>.</h1>
+      <p class="lede">A living, parallax product scene. Floating signal-cards orbit the dashboard while the laptop reacts to your cursor.</p>
+      <a class="cta" href="#">Start free →</a>
+      <a class="cta ghost" href="#" style="margin-left:10px">Watch demo</a>
+
+      <div class="scene" id="scene">
+        <div class="glowback"></div>
+        <div class="rig" id="rig">
+          <div class="chip c1"><i style="background:#0EA47A"></i> +38% pipeline</div>
+          <div class="chip c2"><i style="background:#FF9D00"></i> Blog published</div>
+          <div class="chip c3"><i style="background:#2E7CF6"></i> Budget → Meta</div>
+          <div class="chip c4"><i style="background:#F43F5E"></i> Lead scored</div>
+          <div class="laptop">
+            <div class="screen"><div class="notch"></div><img class="shot" src="assets/shot.png" alt="MarketiQ dashboard"/></div>
+          </div>
+          <div class="base"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <div class="cards">
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></div><h3>Autonomous strategy</h3><p>The AI CMO senses, decides and directs 46 agents daily — no manual planning.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg></div><h3>Create + publish</h3><p>Content, creatives, video and blogs ship with 100% on-page SEO, on autopilot.</p></div>
+      <div class="card"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg></div><h3>Compounding learning</h3><p>Every outcome feeds back — the system gets sharper with each cycle.</p></div>
+    </div>
+  </div>
+  <div class="foot">V3 preview · cursor-parallax 3D rig · floating signal cards · orbital glow</div>
+  <script>
+    const scene=document.getElementById('scene'), rig=document.getElementById('rig');
+    scene.addEventListener('mousemove',e=>{
+      const r=scene.getBoundingClientRect();
+      const x=(e.clientX-r.left)/r.width-.5, y=(e.clientY-r.top)/r.height-.5;
+      rig.style.transform=`rotateX(${ -y*14 }deg) rotateY(${ x*18 }deg)`;
+    });
+    scene.addEventListener('mouseleave',()=>{rig.style.transform='rotateX(0) rotateY(0)';});
+  </script>
+</body>
+</html>
