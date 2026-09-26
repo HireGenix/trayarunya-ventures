@@ -10,7 +10,7 @@ import {
   Star as StarIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
-import { GradientMesh, GradientText, GlowButton, AuroraBackground, MagneticButton, SURFACE, TEXT, CARD } from '@/components/cinematic';
+import { GradientMesh, GradientText, GlowButton, AuroraBackground, MagneticButton, Scene3D, SURFACE, TEXT, CARD, DEPTH, CREATIVE_GRADIENT } from '@/components/cinematic';
 import { stats } from '@/data/websiteInfo';
 import AnimatedCounter from '@/components/cinematic/AnimatedCounter';
 import HeroShowcase from './HeroShowcase';
@@ -22,8 +22,14 @@ const wordContainer = {
   visible: { transition: { staggerChildren: 0.08, delayChildren: 0.2 } },
 };
 const wordItem = {
-  hidden: { opacity: 0, y: 30, filter: 'blur(8px)' },
-  visible: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
+  hidden: { opacity: 0, y: 40, rotateX: -90, transformPerspective: 800 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    rotateX: 0,
+    transformPerspective: 800,
+    transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] },
+  },
 };
 
 const HeroSection = () => {
@@ -34,6 +40,8 @@ const HeroSection = () => {
   const sy = useSpring(my, { stiffness: 120, damping: 20 });
   const showcaseX = useTransform(sx, [-0.5, 0.5], [22, -22]);
   const showcaseY = useTransform(sy, [-0.5, 0.5], [16, -16]);
+  const showcaseRotY = useTransform(sx, [-0.5, 0.5], [-14, 14]);
+  const showcaseRotX = useTransform(sy, [-0.5, 0.5], [12, -12]);
   const copyX = useTransform(sx, [-0.5, 0.5], [-8, 8]);
 
   const handleMouse = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -62,6 +70,7 @@ const HeroSection = () => {
     >
       <AuroraBackground intensity={0.22} grid variant="light" />
       <GradientMesh dark={false} />
+      <Scene3D variant="hero" />
 
       <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2 }}>
         <Box
@@ -91,8 +100,9 @@ const HeroSection = () => {
                   fontSize: '0.7rem',
                   fontWeight: 700,
                   color: TEXT.heading,
-                  background: 'rgba(15,23,42,0.04)',
-                  border: '1px solid rgba(15,23,42,0.08)',
+                  background: 'rgba(255,255,255,0.75)',
+                  border: '1px solid rgba(124,92,255,0.22)',
+                  boxShadow: '0 4px 0 rgba(124,92,255,0.18), 0 12px 26px rgba(255,77,141,0.14)',
                   backdropFilter: 'blur(10px)',
                 }}
               />
@@ -119,7 +129,12 @@ const HeroSection = () => {
                       key={wi}
                       component={motion.span}
                       variants={wordItem}
-                      sx={{ display: 'inline-block', mr: '0.25em' }}
+                      sx={{
+                        display: 'inline-block',
+                        mr: '0.25em',
+                        transformOrigin: '50% 100%',
+                        textShadow: li === 0 ? DEPTH.textExtrude : undefined,
+                      }}
                     >
                       {li === 1 ? <GradientText>{word}</GradientText> : word}
                     </Box>
@@ -244,14 +259,32 @@ const HeroSection = () => {
           </Box>
 
           {/* RIGHT: live animated showcase */}
-          <Box
-            component={motion.div}
-            initial={{ opacity: 0, scale: 0.94, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            style={{ x: showcaseX, y: showcaseY }}
-          >
-            <HeroShowcase />
+          <Box sx={{ perspective: 1400, position: 'relative' }}>
+            {/* 3D floor glow under the stage */}
+            <Box
+              aria-hidden
+              sx={{
+                position: 'absolute',
+                left: '8%',
+                right: '8%',
+                bottom: -30,
+                height: 60,
+                borderRadius: '50%',
+                background: 'radial-gradient(closest-side, rgba(124,92,255,0.35), transparent)',
+                filter: 'blur(8px)',
+              }}
+            />
+            <Box
+              component={motion.div}
+              initial={{ opacity: 0, scale: 0.9, y: 40, rotateX: 25 }}
+              animate={{ opacity: 1, scale: 1, y: 0, rotateX: 0 }}
+              transition={{ duration: 1, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              style={{ x: showcaseX, y: showcaseY, rotateX: showcaseRotX, rotateY: showcaseRotY, transformStyle: 'preserve-3d' }}
+            >
+              <Box sx={{ transform: 'translateZ(40px)', transformStyle: 'preserve-3d' }}>
+                <HeroShowcase />
+              </Box>
+            </Box>
           </Box>
         </Box>
 
@@ -261,6 +294,7 @@ const HeroSection = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 1.1 }}
+          style={{ rotateX: 6, transformPerspective: 1200 }}
           sx={{
             mt: { xs: 6, md: 8 },
             display: 'grid',
@@ -270,7 +304,8 @@ const HeroSection = () => {
             borderRadius: 4,
             background: CARD.bg,
             border: CARD.border,
-            boxShadow: CARD.shadow,
+            boxShadow: `${DEPTH.card}, 0 8px 0 -2px rgba(255,77,141,0.18)`,
+            transformOrigin: '50% 0%',
           }}
         >
           {stats.map((s) => (
@@ -283,7 +318,7 @@ const HeroSection = () => {
                 sx={{
                   fontWeight: 800,
                   fontSize: { xs: '1.8rem', md: '2.4rem' },
-                  background: 'linear-gradient(90deg, #ffaf06, #14bb87)',
+                  background: CREATIVE_GRADIENT,
                   backgroundClip: 'text',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',

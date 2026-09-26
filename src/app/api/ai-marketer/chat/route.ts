@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { headers } from 'next/headers';
 import {
   getGpt5Env,
+  getChatDeployment,
   responsesUrl,
   buildChatInstructions,
   chatTools,
@@ -219,7 +220,7 @@ export async function POST(req: NextRequest) {
             method: 'POST',
             headers: { 'api-key': env.apiKey, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              model: env.deployment,
+              model: getChatDeployment(),
               instructions: buildChatInstructions(),
               input,
               tools: chatTools(),

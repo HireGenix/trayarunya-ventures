@@ -57,12 +57,12 @@ export default function FloatingCTA() {
               color: '#0a0a0f',
               fontWeight: 800,
               fontSize: '0.95rem',
-              background: 'linear-gradient(95deg,#ffaf06 0%,#ffc73c 45%,#14bb87 130%)',
-              boxShadow: '0 14px 40px rgba(255,175,6,0.4), 0 8px 24px rgba(20,187,135,0.28)',
+              background: 'linear-gradient(95deg,#ffc73c 0%,#ffaf06 50%,#ff8a3d 100%)',
+              boxShadow: '0 5px 0 #b86f00, 0 14px 36px rgba(255,77,141,0.35)',
               transition: 'transform 0.25s ease, box-shadow 0.25s ease',
               '&:hover': {
                 transform: 'translateY(-2px)',
-                boxShadow: '0 20px 52px rgba(255,175,6,0.5), 0 12px 30px rgba(20,187,135,0.34)',
+                boxShadow: '0 7px 0 #b86f00, 0 20px 46px rgba(124,92,255,0.4)',
               },
             }}
           >

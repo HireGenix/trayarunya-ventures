@@ -25,6 +25,8 @@ let theme = createTheme({
       dark: '#d99000',
       contrastText: '#000000',
     },
+    // Creative accents used by the 3D agency theme
+    // (hot pink #ff4d8d, violet #7c5cff) live in components/cinematic/surfaces.ts.
     secondary: {
       main: '#14bb87', // Green
       light: '#4dcca3',
@@ -123,7 +125,7 @@ let theme = createTheme({
     },
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 12,
   },
   shadows: [
     'none',
@@ -156,21 +158,36 @@ let theme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 12,
           padding: '10px 24px',
-          boxShadow: '0px 4px 14px rgba(0, 0, 0, 0.1)',
-          transition: 'all 0.3s ease',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease',
           '&:hover': {
             transform: 'translateY(-2px)',
-            boxShadow: '0px 8px 20px rgba(0, 0, 0, 0.15)',
+          },
+          '&:active': {
+            transform: 'translateY(2px)',
           },
         },
+        // Tactile 3D "clay" buttons with an extruded base.
         contained: {
+          boxShadow: '0 5px 0 rgba(15,23,42,0.25), 0 10px 22px rgba(15,23,42,0.12)',
+          '&:hover': {
+            boxShadow: '0 7px 0 rgba(15,23,42,0.25), 0 16px 30px rgba(124,92,255,0.25)',
+          },
+          '&:active': {
+            boxShadow: '0 1px 0 rgba(15,23,42,0.25), 0 4px 10px rgba(15,23,42,0.12)',
+          },
           '&.MuiButton-containedPrimary': {
-            background: 'linear-gradient(135deg, #ffaf06 0%, #ffc046 100%)',
+            background: 'linear-gradient(135deg, #ffc046 0%, #ffaf06 55%, #ff8a3d 100%)',
+            boxShadow: '0 5px 0 #b86f00, 0 12px 24px rgba(255,77,141,0.28)',
+            '&:hover': { boxShadow: '0 7px 0 #b86f00, 0 18px 34px rgba(255,77,141,0.35)' },
+            '&:active': { boxShadow: '0 1px 0 #b86f00, 0 4px 10px rgba(255,77,141,0.25)' },
           },
           '&.MuiButton-containedSecondary': {
-            background: 'linear-gradient(135deg, #14bb87 0%, #4dcca3 100%)',
+            background: 'linear-gradient(135deg, #4dcca3 0%, #14bb87 100%)',
+            boxShadow: '0 5px 0 #0a6e4f, 0 12px 24px rgba(20,187,135,0.28)',
+            '&:hover': { boxShadow: '0 7px 0 #0a6e4f, 0 18px 34px rgba(20,187,135,0.35)' },
+            '&:active': { boxShadow: '0 1px 0 #0a6e4f, 0 4px 10px rgba(20,187,135,0.25)' },
           },
         },
         outlined: {
@@ -184,12 +201,12 @@ let theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 16,
-          boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.05)',
-          transition: 'all 0.3s ease',
+          borderRadius: 20,
+          boxShadow: '0 2px 0 rgba(124,92,255,0.14), 0 18px 40px -12px rgba(15,23,42,0.18)',
+          transition: 'transform 0.4s cubic-bezier(0.22,1,0.36,1), box-shadow 0.4s ease',
           '&:hover': {
-            transform: 'translateY(-5px)',
-            boxShadow: '0px 16px 40px rgba(0, 0, 0, 0.1)',
+            transform: 'perspective(1000px) translateY(-8px) rotateX(4deg)',
+            boxShadow: '0 6px 0 rgba(124,92,255,0.18), 0 32px 60px -14px rgba(124,92,255,0.35)',
           },
         },
       },

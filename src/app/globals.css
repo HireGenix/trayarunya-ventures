@@ -55,16 +55,16 @@ html.lenis body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #ffaf06, #14bb87);
+  background: linear-gradient(180deg, #ff9f1c, #ff4d8d, #7c5cff, #14bb87);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #ffc046, #4dcca3);
+  background: linear-gradient(180deg, #ffc046, #ff7aa8, #9b82ff, #4dcca3);
 }
 
 ::selection {
-  background: rgba(255, 175, 6, 0.3);
+  background: rgba(255, 77, 141, 0.28);
   color: #0a0a0a;
 }
 
@@ -148,7 +148,21 @@ html.lenis body {
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-image: linear-gradient(90deg, #ffaf06, #14bb87);
+  background-image: linear-gradient(90deg, #ff9f1c, #ff4d8d, #7c5cff, #14bb87);
+}
+
+/* 3D utilities */
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.perspective {
+  perspective: 1200px;
+}
+
+.text-extrude {
+  text-shadow: 1px 1px 0 #ffaf06, 2px 2px 0 #ff4d8d, 3px 3px 0 #7c5cff,
+    4px 4px 12px rgba(124, 92, 255, 0.25);
 }
 
 .bg-gradient-primary {

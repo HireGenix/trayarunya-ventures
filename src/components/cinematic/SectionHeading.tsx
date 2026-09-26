@@ -4,6 +4,7 @@ import React from 'react';
 import { Box, Chip, Typography } from '@mui/material';
 import Reveal from './Reveal';
 import TextReveal from './TextReveal';
+import { CREATIVE_GRADIENT, DEPTH } from './surfaces';
 
 interface SectionHeadingProps {
   eyebrow?: string;
@@ -36,7 +37,7 @@ const SectionHeading = ({
       }}
     >
       {eyebrow && (
-        <Reveal direction="down" distance={16}>
+        <Reveal direction="down" distance={16} variant="flip">
           <Chip
             label={eyebrow}
             sx={{
@@ -47,11 +48,11 @@ const SectionHeading = ({
               letterSpacing: '0.12em',
               fontWeight: 700,
               fontSize: '0.7rem',
-              color: dark ? '#ffaf06' : '#0a0a0a',
-              background: dark
-                ? 'rgba(255, 175, 6, 0.12)'
-                : 'linear-gradient(90deg, #ffaf06, #14bb87)',
+              color: dark ? '#ffaf06' : '#ffffff',
+              background: dark ? 'rgba(255, 175, 6, 0.12)' : CREATIVE_GRADIENT,
               border: dark ? '1px solid rgba(255,175,6,0.3)' : 'none',
+              boxShadow: dark ? 'none' : '0 4px 0 rgba(90,50,200,0.45), 0 10px 22px rgba(255,77,141,0.28)',
+              transform: 'translateY(-2px)',
             }}
           />
         </Reveal>
@@ -67,6 +68,7 @@ const SectionHeading = ({
             lineHeight: 1.1,
             letterSpacing: '-0.02em',
             color: dark ? '#ffffff' : '#0a0a0a',
+            textShadow: dark ? '0 6px 30px rgba(124,92,255,0.35)' : DEPTH.textExtrude,
           }}
         >
           {typeof title === 'string' ? <TextReveal text={title} /> : title}

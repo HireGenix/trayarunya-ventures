@@ -19,4 +19,5 @@ export { default as Parallax } from './Parallax';
 export { default as TiltCard } from './TiltCard';
 export { default as MagneticButton } from './MagneticButton';
 export { default as FloatingCTA } from './FloatingCTA';
+export { default as Scene3D, Cube3D, Ring3D, Sphere3D, Pill3D } from './Shapes3D';
 export * from './surfaces';

@@ -1,5 +1,5 @@
 /**
- * Server-only configuration for the AI Sales Chat (Azure OpenAI GPT-5.5, Responses API).
+ * Server-only configuration for the AI Sales Chat (Azure OpenAI GPT-6 Luna, Responses API).
  *
  * NEVER import this into a client component — it reads secret env vars.
  */
@@ -29,6 +29,16 @@ export function getGpt5Env(): Gpt5Env | null {
   endpoint = endpoint.replace(/\/openai\/responses.*$/, '');
 
   return { endpoint, apiKey, deployment, apiVersion };
+}
+
+/**
+ * Model/deployment used by the public AI Sales Chat (/ai-chat, /contact).
+ * Defaults to GPT-6 Luna; override with AZURE_CHAT_DEPLOYMENT.
+ */
+export const CHAT_MODEL_DEFAULT = 'gpt-6-luna';
+
+export function getChatDeployment(): string {
+  return process.env.AZURE_CHAT_DEPLOYMENT?.trim() || CHAT_MODEL_DEFAULT;
 }
 
 /** Full URL for the Responses API. */

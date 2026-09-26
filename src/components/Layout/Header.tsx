@@ -228,11 +228,16 @@ export default function Header() {
                     borderRadius: '50px',
                     fontWeight: 700,
                     color: '#0a0a0a',
-                    background: 'linear-gradient(95deg, #ffaf06, #14bb87)',
-                    boxShadow: '0 8px 24px rgba(255,175,6,0.3)',
+                    background: 'linear-gradient(95deg, #ffc73c 0%, #ffaf06 50%, #ff8a3d 100%)',
+                    boxShadow: '0 4px 0 #b86f00, 0 10px 22px rgba(255,77,141,0.28)',
                     '&:hover': {
-                      background: 'linear-gradient(95deg, #ffc046, #4dcca3)',
+                      background: 'linear-gradient(95deg, #ffd35c 0%, #ffaf06 45%, #ff4d8d 110%)',
+                      boxShadow: '0 6px 0 #b86f00, 0 16px 30px rgba(124,92,255,0.32)',
                       transform: 'translateY(-2px)',
+                    },
+                    '&:active': {
+                      boxShadow: '0 1px 0 #b86f00, 0 4px 10px rgba(255,77,141,0.25)',
+                      transform: 'translateY(2px)',
                     },
                   }}
                 >
@@ -337,7 +342,8 @@ export default function Header() {
               borderRadius: '50px',
               fontWeight: 700,
               color: '#0a0a0a',
-              background: 'linear-gradient(95deg, #ffaf06, #14bb87)',
+              background: 'linear-gradient(95deg, #ffc73c 0%, #ffaf06 50%, #ff8a3d 100%)',
+              boxShadow: '0 4px 0 #b86f00, 0 10px 22px rgba(255,77,141,0.28)',
             }}
           >
             Book a Strategy Call

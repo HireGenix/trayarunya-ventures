@@ -5,7 +5,7 @@ import { Box, BoxProps } from '@mui/material';
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
 
 type Direction = 'up' | 'down' | 'left' | 'right' | 'none';
-type RevealVariant = 'rise' | 'fade' | 'scale' | 'blur' | 'clip';
+type RevealVariant = 'rise' | 'fade' | 'scale' | 'blur' | 'clip' | 'flip';
 
 interface RevealProps extends Omit<BoxProps, 'component'> {
   children: React.ReactNode;
@@ -36,9 +36,10 @@ const offset = (direction: Direction, distance: number) => {
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 /**
- * Scroll-triggered cinematic reveal. Default `rise` variant combines a soft
- * upward drift with a subtle scale + blur-clear for a richer, more dramatic
- * entrance than a plain fade. Other variants: fade, scale, blur, clip (mask wipe).
+ * Scroll-triggered cinematic 3D reveal. Default `rise` variant tips content up
+ * out of the page in perspective (rotateX) with a soft drift, scale and
+ * blur-clear. Other variants: fade, scale, blur, clip (mask wipe), flip (full
+ * 3D card flip-in).
  */
 const Reveal = ({
   children,
@@ -80,16 +81,32 @@ const Reveal = ({
           visible: { opacity: 1, clipPath: 'inset(0 0 0% 0)', y: 0 },
         };
         break;
+      case 'flip':
+        variants = {
+          hidden: { opacity: 0, rotateX: -70, y: distance / 2, transformPerspective: 1000 },
+          visible: { opacity: 1, rotateX: 0, y: 0, transformPerspective: 1000 },
+        };
+        break;
       case 'rise':
       default:
         variants = {
           hidden: {
             opacity: 0,
-            scale: 0.97,
-            filter: 'blur(8px)',
+            scale: 0.96,
+            rotateX: 16,
+            filter: 'blur(6px)',
+            transformPerspective: 1200,
             ...offset(direction, distance),
           },
-          visible: { opacity: 1, scale: 1, filter: 'blur(0px)', x: 0, y: 0 },
+          visible: {
+            opacity: 1,
+            scale: 1,
+            rotateX: 0,
+            filter: 'blur(0px)',
+            transformPerspective: 1200,
+            x: 0,
+            y: 0,
+          },
         };
         break;
     }

@@ -27,8 +27,8 @@ export default function ScrollProgress() {
         right: 0,
         height: 3,
         zIndex: 2000,
-        background: 'linear-gradient(90deg,#ffaf06,#14bb87,#0A66C2)',
-        boxShadow: '0 0 12px rgba(255,175,6,0.5)',
+        background: 'linear-gradient(90deg,#ff9f1c,#ff4d8d,#7c5cff,#14bb87)',
+        boxShadow: '0 0 12px rgba(255,77,141,0.5)',
       }}
     />
   );
