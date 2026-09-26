@@ -14,10 +14,10 @@ import {
 import { CARD, TEXT } from '@/components/cinematic';
 
 const slides = [
-  { key: 'ai', label: 'AI Decision Engine', caption: 'Data decides every move', Cmp: AIBrainAnimation, accent: '#ffaf06' },
-  { key: 'lead', label: 'Lead Filtering', caption: 'Only qualified buyers get through', Cmp: LeadFilterAnimation, accent: '#ffaf06' },
-  { key: 'out', label: 'Personalized Outreach', caption: 'Conversations that get replies', Cmp: OutreachAnimation, accent: '#14bb87' },
-  { key: 'create', label: 'Content Creation', caption: 'Authority content, built fast', Cmp: ContentCreationAnimation, accent: '#0A66C2' },
+  { key: 'ai', label: 'MarketiQ AI Engine', caption: 'Data decides every move', Cmp: AIBrainAnimation, accent: '#ffaf06' },
+  { key: 'lead', label: 'Audience Intelligence', caption: 'Target only high-value audiences', Cmp: LeadFilterAnimation, accent: '#ffaf06' },
+  { key: 'out', label: 'Personalized Engagement', caption: 'Messaging that converts', Cmp: OutreachAnimation, accent: '#14bb87' },
+  { key: 'create', label: 'Content Creation', caption: 'On-brand content, built 10x faster', Cmp: ContentCreationAnimation, accent: '#0A66C2' },
   { key: 'post', label: 'Smart Posting', caption: 'Right channel, right moment', Cmp: ContentPostingAnimation, accent: '#ffaf06' },
   { key: 'ads', label: 'Paid Amplification', caption: 'Scale only what converts', Cmp: AdsAnimation, accent: '#14bb87' },
 ];

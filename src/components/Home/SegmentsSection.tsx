@@ -32,7 +32,7 @@ const SegmentsSection = () => {
               <br /> one engine, tuned to you
             </>
           }
-          subtitle="Our flagship is B2B and high-ticket sales. But the same data-driven growth engine powers consumer and direct-to-consumer brands too. Pick your world."
+          subtitle="From SaaS and fintech to e-commerce, healthcare and education — MarketiQ AI tunes the same data-driven growth engine to your business model. Pick your world."
         />
 
         {/* Switcher */}

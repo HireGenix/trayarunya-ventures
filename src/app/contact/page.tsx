@@ -18,7 +18,7 @@ import { companyInfo, faqInfo, stats, testimonials } from '@/data/websiteInfo';
 const promises = [
   'A senior strategist on the call — not a salesperson',
   'A clear read on your current growth gaps',
-  'A concrete plan for your LinkedIn pipeline',
+  'A concrete, AI-backed growth plan for your brand',
   'No obligation, no pressure',
 ];
 
@@ -33,7 +33,7 @@ export default function ContactPage() {
             <br /> <GradientText>our problem.</GradientText>
           </>
         }
-        subtitle="Chat with our AI Sales Partner right now. Tell it where you’re stuck — it researches your company live, builds your Ideal Customer Profile on screen, captures your details, and maps how the partnership turns LinkedIn into high-ticket pipeline."
+        subtitle="Chat with our AI Sales Partner right now. Tell it where you’re stuck — it researches your company live, builds your Ideal Customer Profile on screen, captures your details, and maps how MarketiQ AI and our team can scale your growth across every channel."
       />
 
       {/* AI Marketer experience */}

@@ -20,9 +20,9 @@ const ProofSection = () => {
     >
       <Container maxWidth="lg">
         <SectionHeading
-          eyebrow="PARTNER RESULTS"
-          title="Growth our partners can feel"
-          subtitle="We measure success the way you do — in qualified calls, pipeline and closed high-ticket deals."
+          eyebrow="50+ GLOBAL CLIENTS"
+          title="Growth our clients can measure"
+          subtitle="Brands across SaaS, e-commerce, healthcare, fintech, education and more trust us to scale — measured in customers, revenue and ROI."
         />
 
         <Box

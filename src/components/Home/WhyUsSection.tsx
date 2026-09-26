@@ -24,11 +24,11 @@ const WhyUsSection = () => {
           eyebrow="WHY ONLY TRAYARUNYA"
           title={
             <>
-              The difference between a vendor
-              <br /> and a <GradientText>growth partner</GradientText>
+              The difference between a traditional agency
+              <br /> and an <GradientText>AI-powered growth engine</GradientText>
             </>
           }
-          subtitle="Anyone can run campaigns. Few will own your outcome. Here’s what changes when marketing is treated as a partnership."
+          subtitle="Anyone can run campaigns. Few can run them on their own agentic AI platform. Here’s what changes when MarketiQ AI and senior strategists work as one."
         />
 
         <Box sx={{ maxWidth: 920, mx: 'auto' }}>

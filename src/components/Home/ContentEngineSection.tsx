@@ -8,7 +8,7 @@ import { Reveal, SectionHeading, SURFACE, TEXT, CARD } from '@/components/cinema
 import { contentEngine } from '@/data/websiteInfo';
 
 /** Where the homepage CTAs point. Swap to the live app subdomain when ready. */
-const CONTENT_ENGINE_URL = '/contact';
+const CONTENT_ENGINE_URL = '/marketiq';
 
 const ContentEngineSection = () => {
   const { eyebrow, badge, title, subtitle, capabilities, stages, stats, whyLine, ctaPrimary, ctaSecondary } =

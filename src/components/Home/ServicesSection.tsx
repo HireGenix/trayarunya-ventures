@@ -22,8 +22,8 @@ const ServicesSection = () => {
       <Container maxWidth="lg">
         <SectionHeading
           eyebrow="WHAT WE OWN FOR YOU"
-          title="A full-stack B2B growth engine"
-          subtitle="Every service is built around one outcome: qualified, high-ticket pipeline. LinkedIn is the engine — these are the systems around it."
+          title="A full-stack, AI-powered digital marketing engine"
+          subtitle="Every service runs on MarketiQ AI and is built around one outcome: measurable growth. Strategy, search, social, paid, creative and automation — orchestrated as one system."
         />
 
         <Box

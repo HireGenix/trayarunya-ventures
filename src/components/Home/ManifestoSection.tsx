@@ -30,7 +30,7 @@ const ManifestoSection = () => {
                 mb: 2,
               }}
             >
-              THE PARTNERSHIP DIFFERENCE
+              THE TRAYARUNYA DIFFERENCE
             </Typography>
           </Reveal>
           <Reveal delay={0.05}>
@@ -43,9 +43,9 @@ const ManifestoSection = () => {
                 letterSpacing: '-0.02em',
               }}
             >
-              Most agencies see a <Box component="span" sx={{ color: TEXT.muted }}>client</Box>.
+              Most agencies sell <Box component="span" sx={{ color: TEXT.muted }}>hours</Box>.
               <br />
-              We see a <GradientText>business worth fighting for.</GradientText>
+              We deliver <GradientText>AI-powered growth.</GradientText>
             </Typography>
           </Reveal>
         </Box>

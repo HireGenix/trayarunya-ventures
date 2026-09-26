@@ -4,13 +4,13 @@ import React from 'react';
 import { Box, Container, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import LinkedInIcon from '@mui/icons-material/LinkedIn';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { Reveal, GradientText, GlowButton, SURFACE, TEXT } from '@/components/cinematic';
-import { linkedinFunnel } from '@/data/websiteInfo';
+import { gtmFunnel } from '@/data/websiteInfo';
 
 const widths = [100, 86, 70, 54, 40];
 
-const LinkedInFunnelSection = () => {
+const GTMFunnelSection = () => {
   return (
     <Box
       component="section"
@@ -56,33 +56,33 @@ const LinkedInFunnelSection = () => {
                   border: '1px solid rgba(10,102,194,0.4)',
                 }}
               >
-                <LinkedInIcon sx={{ color: '#0A66C2' }} />
+                <AutoAwesomeIcon sx={{ color: '#0A66C2' }} />
                 <Typography sx={{ fontWeight: 700, fontSize: '0.78rem', letterSpacing: '0.1em' }}>
-                  THE SIGNATURE ENGINE
+                  THE MARKETIQ AI GTM ENGINE
                 </Typography>
               </Box>
             </Reveal>
             <Reveal delay={0.05}>
               <Typography variant="h2" sx={{ fontWeight: 800, fontSize: { xs: '2rem', md: '2.9rem' }, lineHeight: 1.12, mb: 2.5, letterSpacing: '-0.02em' }}>
-                From LinkedIn profile to <GradientText gradient="linear-gradient(90deg,#0A66C2,#14bb87)">closed high-ticket deals</GradientText>
+                From market intelligence to <GradientText gradient="linear-gradient(90deg,#0A66C2,#14bb87)">compounding revenue</GradientText>
               </Typography>
             </Reveal>
             <Reveal delay={0.1}>
               <Typography sx={{ color: TEXT.body, fontSize: '1.05rem', lineHeight: 1.7, mb: 4 }}>
-                Most “LinkedIn marketing” stops at posting. We engineer the entire funnel — turning quiet
-                profiles into a system that books calls with buyers who can actually sign.
+                Most agencies stop at running campaigns. We engineer your entire go-to-market — powered by
+                MarketiQ AI, our own agentic platform — turning data into a system that grows revenue.
               </Typography>
             </Reveal>
             <Reveal delay={0.15}>
-              <GlowButton component={Link} href="/services/linkedin-lead-generation" size="large">
-                See the LinkedIn engine
+              <GlowButton component={Link} href="/services/ai-gtm-marketiq" size="large">
+                See the AI GTM engine
               </GlowButton>
             </Reveal>
           </Box>
 
           {/* Right: animated funnel */}
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
-            {linkedinFunnel.map((stage, i) => (
+            {gtmFunnel.map((stage, i) => (
               <Box
                 key={stage.stage}
                 component={motion.div}
@@ -97,17 +97,17 @@ const LinkedInFunnelSection = () => {
                   p: { xs: 2, md: 2.4 },
                   borderRadius: 2.5,
                   background:
-                    i === linkedinFunnel.length - 1
+                    i === gtmFunnel.length - 1
                       ? 'linear-gradient(95deg, #ffaf06, #14bb87)'
                       : 'linear-gradient(95deg, rgba(10,102,194,0.9), rgba(10,102,194,0.55))',
-                  border: i === linkedinFunnel.length - 1
+                  border: i === gtmFunnel.length - 1
                     ? '1px solid rgba(255,255,255,0.15)'
                     : '1px solid rgba(10,102,194,0.3)',
-                  boxShadow: i === linkedinFunnel.length - 1
+                  boxShadow: i === gtmFunnel.length - 1
                     ? '0 8px 24px rgba(255,175,6,0.25)'
                     : '0 8px 20px rgba(10,102,194,0.2)',
                   textAlign: 'center',
-                  color: i === linkedinFunnel.length - 1 ? '#0a0a0a' : '#fff',
+                  color: i === gtmFunnel.length - 1 ? '#0a0a0a' : '#fff',
                 }}
               >
                 <Typography sx={{ fontWeight: 800, fontSize: { xs: '0.95rem', md: '1.05rem' }, lineHeight: 1.2 }}>
@@ -116,7 +116,7 @@ const LinkedInFunnelSection = () => {
                 <Typography
                   sx={{
                     fontSize: '0.78rem',
-                    opacity: i === linkedinFunnel.length - 1 ? 0.8 : 0.85,
+                    opacity: i === gtmFunnel.length - 1 ? 0.8 : 0.85,
                     display: { xs: 'none', sm: 'block' },
                   }}
                 >
@@ -134,4 +134,4 @@ const LinkedInFunnelSection = () => {
   );
 };
 
-export default LinkedInFunnelSection;
+export default GTMFunnelSection;

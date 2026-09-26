@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import AboutView from '@/components/About/AboutView';
 
 export const metadata: Metadata = {
-  title: 'About — Your B2B Growth Partner | Trayarunya Ventures',
+  title: 'About — AI-Powered Digital Marketing Agency | Trayarunya Ventures',
   description:
-    'Trayarunya Ventures is a B2B growth partner that owns your marketing outcomes — built so founders get a partner, not a vendor. LinkedIn-led high-ticket pipeline.',
+    'Trayarunya Ventures is the most advanced AI-powered digital marketing agency, powered by MarketiQ AI — our own GTM agentic AI platform — and trusted by 50+ global clients across industries.',
 };
 
 export default function AboutPage() {
