@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyIngestRequest } from '@marketiq/nextjs/ingest';
+import { verifyIngestRequest } from '@/lib/marketiq/ingest';
 import { blogStore } from '@/lib/blogStore';
 
 export const runtime = 'nodejs';

@@ -1,5 +1,5 @@
-import { buildRssXml } from '@marketiq/nextjs';
-import type { FeedResponse } from '@marketiq/nextjs';
+import { buildRssXml } from '@/lib/marketiq';
+import type { FeedResponse } from '@/lib/marketiq';
 import { blogStore } from '@/lib/blogStore';
 import { SITE_URL, SITE_NAME } from '@/lib/blogRender';
 

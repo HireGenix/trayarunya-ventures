@@ -1,10 +1,10 @@
 /**
  * Render helpers: turn a stored BlogPost into the connector's Article shape so
- * the @marketiq/nextjs metadata/JSON-LD helpers produce SEO-complete output —
+ * the MarketIQ connector (src/lib/marketiq) metadata/JSON-LD helpers produce SEO-complete output —
  * whether the post was pushed by the MarketIQ engine (full SEO bundle stored) or
  * authored manually in the admin (SEO synthesized at render time).
  */
-import type { Article, SeoBundle } from '@marketiq/nextjs';
+import type { Article, SeoBundle } from '@/lib/marketiq';
 import type { BlogPost } from '@/lib/blogStore';
 
 export const SITE_URL = (
