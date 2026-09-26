@@ -89,7 +89,7 @@ const SETTINGS_ID = 'main';
 const DEFAULTS: SettingsData = {
   general: {
     siteName: 'Trayarunya Ventures',
-    siteDescription: 'Your B2B growth partner — LinkedIn lead generation for high-ticket sales',
+    siteDescription: 'The most advanced AI digital marketing agency — powered by MarketiQ AI, our own GTM agentic AI platform',
     siteUrl: 'https://trayarunyaventures.com',
     logoUrl: '/Trayarunya-ventures-logo-Transparent.png',
     faviconUrl: '/favicon.ico',
@@ -103,7 +103,7 @@ const DEFAULTS: SettingsData = {
       youtube: '',
     },
     footerText:
-      "Trayarunya Ventures isn't your agency — we're your marketing partner. We own your pain points and turn LinkedIn into high-ticket pipeline.",
+      'Trayarunya Ventures is the most advanced AI-powered digital marketing agency, with its own GTM agentic AI platform — MarketiQ AI — trusted by 50+ global clients across industries.',
     copyrightText: `© ${new Date().getFullYear()} Trayarunya Ventures. All rights reserved.`,
   },
   notifications: {

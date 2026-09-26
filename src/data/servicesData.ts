@@ -21,7 +21,10 @@ export interface ServiceData {
   outcome: string;
   whatWeDo: string[];
   deliverables: string[];
-  metrics: ServiceMetric[];export const services: ServiceData[] = [
+  metrics: ServiceMetric[];
+}
+
+export const services: ServiceData[] = [
   {
     slug: 'ai-gtm-marketiq',
     name: 'AI-Powered GTM Strategy with MarketiQ AI',
@@ -203,8 +206,6 @@ export interface ServiceData {
       { label: 'Manual work cut', value: '-60%' },
     ],
   },
-];
-
 ];
 
 export const getService = (slug: string) => services.find((s) => s.slug === slug);

@@ -5,10 +5,10 @@ import { Box, Typography } from '@mui/material';
 import { motion } from 'framer-motion';
 
 export const OPENER_PROMPTS = [
-  'Audit my LinkedIn',
-  'I need more B2B leads',
-  'Scale my D2C ads',
-  'Fix my cold outreach',
+  'Audit my marketing',
+  'I need more leads & sales',
+  'Scale my ads ROAS',
+  'Tell me about MarketiQ AI',
 ];
 
 export const LIVE_PROMPTS = [

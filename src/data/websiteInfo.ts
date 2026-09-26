@@ -178,7 +178,7 @@ export const differentiators = [
 ];
 
 /** Headline proof stats. */
-export const stats = [
+export const stats: { value: number; prefix?: string; suffix?: string; label: string }[] = [
   { value: 50, suffix: '+', label: 'Global clients served' },
   { value: 15, suffix: '+', label: 'Industries' },
   { value: 45, label: 'AI agents in MarketiQ AI' },

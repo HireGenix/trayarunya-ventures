@@ -144,7 +144,7 @@ export default function AdminLogin() {
             transition={{ duration: 0.6 }}
           >
             <Typography sx={{ fontSize: 34, fontWeight: 800, lineHeight: 1.2, mb: 1.5 }}>
-              Your B2B growth,
+              Your AI marketing,
               <Box component="span" sx={{ color: GOLD }}>
                 {' '}
                 command centre.
