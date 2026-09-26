@@ -1,4 +1,4 @@
-import { createRevalidateRoute } from '@marketiq/nextjs/revalidate';
+import { createRevalidateRoute } from '@/lib/marketiq/revalidate';
 
 // Optional: if this site is also configured in pull mode, the engine pings here
 // to trigger on-demand ISR. (Push-mode sites get articles via /api/marketiq/ingest.)

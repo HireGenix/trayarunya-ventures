@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { toNextMetadata, jsonLdScriptProps } from '@marketiq/nextjs';
+import { toNextMetadata, jsonLdScriptProps } from '@/lib/marketiq';
 import { blogStore } from '@/lib/blogStore';
 import { toArticle, SITE_URL, SITE_NAME } from '@/lib/blogRender';
 
