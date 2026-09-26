@@ -22,11 +22,11 @@ export async function POST(req: NextRequest) {
   const auth = getAuth(req);
   if (!auth) return json({ error: 'Unauthorized' }, 401);
 
-  const provider: Provider = providerConfigured('gpt-5.5')
-    ? 'gpt-5.5'
+  const provider: Provider = providerConfigured('gpt-6-luna')
+    ? 'gpt-6-luna'
     : providerConfigured('claude-opus')
       ? 'claude-opus'
-      : 'gpt-5.5';
+      : 'gpt-6-luna';
   if (!providerConfigured(provider)) {
     return json({ error: 'not_configured', message: 'No AI provider configured.' }, 503);
   }

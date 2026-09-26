@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Box, BoxProps } from '@mui/material';
+import { SPECTRUM } from './surfaces';
 
 interface GradientTextProps extends BoxProps {
   children: React.ReactNode;
@@ -9,11 +10,11 @@ interface GradientTextProps extends BoxProps {
 }
 
 /**
- * Inline gold→green gradient text used for emphasis words in headlines.
+ * Inline creative spectrum gradient text used for emphasis words in headlines.
  */
 const GradientText = ({
   children,
-  gradient = 'linear-gradient(90deg, #ffaf06 0%, #14bb87 100%)',
+  gradient = SPECTRUM,
   sx,
   ...rest
 }: GradientTextProps) => (

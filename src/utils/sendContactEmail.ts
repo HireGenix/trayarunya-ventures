@@ -35,7 +35,7 @@ interface ContactEmailParams {
   notifyEmail?: string; // Email to receive notifications (admin email)
   country?: string;
   source?: string;
-  // AI-personalised content (from GPT-5.5) — optional
+  // AI-personalised content (from GPT-6 Luna) — optional
   aiCustomerHtml?: string; // inner HTML body for the customer email
   aiEmailSubject?: string; // personalised subject line for the customer email
   aiTeamSummary?: string; // briefing for the sales team (admin email)

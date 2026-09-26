@@ -32,7 +32,7 @@ npm run db:import           # one-time import of legacy data/*.json (idempotent)
 > in the Vercel project env (Production + Preview).
 
 
-## AI Sales Chat (Azure OpenAI GPT-5.5 — Responses API)
+## AI Sales Chat (Azure OpenAI GPT-6 Luna — Responses API)
 
 The text-based AI Sales Partner on `/contact`. It chats with the visitor, researches
 their company live (Tavily + Crawl4AI) and builds an **Ideal Customer Profile (ICP)**
@@ -42,7 +42,7 @@ on screen in realtime, then emails the lead to the team.
 |---|---|---|
 | `AZURE_GPT5_ENDPOINT` | Resource base URL, e.g. `https://hiregenix-resource.cognitiveservices.azure.com` (everything before `/openai/responses`) | Azure Portal → resource → Overview |
 | `AZURE_GPT5_KEY` | API key. Can reuse `AZURE_OPENAI_REALTIME_KEY`. | Azure Portal → resource → Keys and Endpoint |
-| `AZURE_GPT5_DEPLOYMENT` | Deployment name — `gpt-5.5` | Azure AI Foundry → Deployments |
+| `AZURE_GPT5_DEPLOYMENT` | Deployment name — `gpt-6-luna` | Azure AI Foundry → Deployments |
 | `AZURE_GPT5_API_VERSION` | Responses API version — `2025-04-01-preview` | — |
 
 ## Web scraping for ICP enrichment
@@ -119,7 +119,7 @@ npm run dev   # http://localhost:3000/contact
 | `AZURE_ANTHROPIC_KEY` | Anthropic key. Falls back to `AZURE_GPT5_KEY` / realtime key if unset |
 | `AZURE_ANTHROPIC_MODEL` | Defaults to `claude-opus-4-7` |
 
-The admin AI Assistant (`/admin/assistant`) lets staff switch between **GPT-5.5** (Azure
+The admin AI Assistant (`/admin/assistant`) lets staff switch between **GPT-6 Luna** (Azure
 Responses API, reuses `AZURE_GPT5_*`) and **Claude Opus** (above) per conversation.
 
 ### Admin auth

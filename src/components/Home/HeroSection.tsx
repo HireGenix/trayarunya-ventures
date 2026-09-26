@@ -10,10 +10,11 @@ import {
   Star as StarIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
-import { GradientMesh, GradientText, GlowButton, AuroraBackground, MagneticButton, SURFACE, TEXT, CARD } from '@/components/cinematic';
+import { GradientMesh, GradientText, GlowButton, AuroraBackground, MagneticButton, SURFACE, TEXT, CARD, SPECTRUM } from '@/components/cinematic';
 import { stats } from '@/data/websiteInfo';
 import AnimatedCounter from '@/components/cinematic/AnimatedCounter';
 import HeroShowcase from './HeroShowcase';
+import Scene3D from '@/components/three/Scene3D';
 
 const headline = ['The most advanced', 'AI digital marketing agency.'];
 
@@ -35,6 +36,8 @@ const HeroSection = () => {
   const showcaseX = useTransform(sx, [-0.5, 0.5], [22, -22]);
   const showcaseY = useTransform(sy, [-0.5, 0.5], [16, -16]);
   const copyX = useTransform(sx, [-0.5, 0.5], [-8, 8]);
+  const showcaseTiltX = useTransform(sy, [-0.5, 0.5], [8, -8]);
+  const showcaseTiltY = useTransform(sx, [-0.5, 0.5], [-10, 10]);
 
   const handleMouse = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = sectionRef.current?.getBoundingClientRect();
@@ -62,6 +65,7 @@ const HeroSection = () => {
     >
       <AuroraBackground intensity={0.22} grid variant="light" />
       <GradientMesh dark={false} />
+      <Scene3D variant="hero" />
 
       <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2 }}>
         <Box
@@ -246,10 +250,11 @@ const HeroSection = () => {
           {/* RIGHT: live animated showcase */}
           <Box
             component={motion.div}
-            initial={{ opacity: 0, scale: 0.94, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            style={{ x: showcaseX, y: showcaseY }}
+            initial={{ opacity: 0, scale: 0.94 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            style={{ x: showcaseX, y: showcaseY, rotateX: showcaseTiltX, rotateY: showcaseTiltY, transformPerspective: 1400 }}
+            sx={{ transformStyle: 'preserve-3d' }}
           >
             <HeroShowcase />
           </Box>
@@ -268,9 +273,12 @@ const HeroSection = () => {
             gap: { xs: 2, md: 1 },
             p: { xs: 2.5, md: 3 },
             borderRadius: 4,
-            background: CARD.bg,
+            background: 'rgba(255,255,255,0.72)',
+            backdropFilter: 'blur(18px)',
             border: CARD.border,
-            boxShadow: CARD.shadow,
+            boxShadow: `${CARD.shadow}, 0 1px 0 rgba(255,255,255,0.9) inset`,
+            position: 'relative',
+            zIndex: 2,
           }}
         >
           {stats.map((s) => (
@@ -283,7 +291,7 @@ const HeroSection = () => {
                 sx={{
                   fontWeight: 800,
                   fontSize: { xs: '1.8rem', md: '2.4rem' },
-                  background: 'linear-gradient(90deg, #ffaf06, #14bb87)',
+                  background: SPECTRUM,
                   backgroundClip: 'text',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',

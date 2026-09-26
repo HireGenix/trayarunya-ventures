@@ -7,6 +7,7 @@ import GradientMesh from './GradientMesh';
 import AuroraBackground from './AuroraBackground';
 import TextReveal from './TextReveal';
 import { SURFACE, TEXT } from './surfaces';
+import Scene3D from '@/components/three/Scene3D';
 
 interface PageHeroProps {
   eyebrow?: string;
@@ -35,6 +36,7 @@ const PageHero = ({ eyebrow, title, subtitle, children, accent = '#ffaf06' }: Pa
     >
       <AuroraBackground intensity={0.22} grid variant="light" />
       <GradientMesh dark={false} />
+      <Scene3D variant="page" />
       <Container maxWidth="md" sx={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
         {eyebrow && (
           <Reveal direction="down" distance={16}>

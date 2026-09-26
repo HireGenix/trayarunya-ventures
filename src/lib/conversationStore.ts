@@ -41,7 +41,8 @@ function toConv(row: Row): Conversation {
   return {
     id: row.id,
     title: row.title,
-    provider: row.provider as Provider,
+    // Conversations saved before the GPT-6 Luna upgrade used the 'gpt-5.5' id.
+    provider: (row.provider === 'gpt-5.5' ? 'gpt-6-luna' : row.provider) as Provider,
     messages: (row.messages as ConvMessage[]) ?? [],
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     return json({ error: 'bad_request' }, 400);
   }
 
-  const provider: Provider = body.provider === 'claude-opus' ? 'claude-opus' : 'gpt-5.5';
+  const provider: Provider = body.provider === 'claude-opus' ? 'claude-opus' : 'gpt-6-luna';
   if (!providerConfigured(provider)) {
     return json(
       {
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
         message:
           provider === 'claude-opus'
             ? 'Claude Opus is not configured (set AZURE_ANTHROPIC_*).'
-            : 'GPT-5.5 is not configured (set AZURE_GPT5_*).',
+            : 'GPT-6 Luna is not configured (set AZURE_GPT5_*).',
       },
       503
     );

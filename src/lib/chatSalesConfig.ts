@@ -1,5 +1,5 @@
 /**
- * Server-only configuration for the AI Sales Chat (Azure OpenAI GPT-5.5, Responses API).
+ * Server-only configuration for the AI Sales Chat (Azure OpenAI GPT-6 Luna, Responses API).
  *
  * NEVER import this into a client component — it reads secret env vars.
  */
@@ -14,12 +14,12 @@ export interface Gpt5Env {
   apiVersion: string;
 }
 
-/** Read + validate the GPT-5.5 env. Returns null if not fully configured. */
+/** Read + validate the GPT-6 Luna env. Returns null if not fully configured. */
 export function getGpt5Env(): Gpt5Env | null {
   const rawEndpoint = process.env.AZURE_GPT5_ENDPOINT?.trim();
   const apiKey =
     process.env.AZURE_GPT5_KEY?.trim() || process.env.AZURE_OPENAI_REALTIME_KEY?.trim();
-  const deployment = process.env.AZURE_GPT5_DEPLOYMENT?.trim() || 'gpt-5.5';
+  const deployment = process.env.AZURE_GPT5_DEPLOYMENT?.trim() || 'gpt-6-luna';
   const apiVersion = process.env.AZURE_GPT5_API_VERSION?.trim() || '2025-04-01-preview';
 
   if (!rawEndpoint || !apiKey) return null;
@@ -85,7 +85,7 @@ RULES
 - The visitor can attach screenshots/images and links. If they attach a screenshot (e.g. their analytics, ads, a social profile), LOOK at it carefully and use what you see to ask sharper questions and enrich the ICP. If they attach a website or social link, call scrape_website on it to read it, then weave in what you learn. Acknowledge attachments naturally ("Thanks — I can see your numbers here…").`;
 }
 
-/** Tool/function definitions exposed to GPT-5.5 (Responses API format). */
+/** Tool/function definitions exposed to GPT-6 Luna (Responses API format). */
 export function chatTools() {
   return [
     {
