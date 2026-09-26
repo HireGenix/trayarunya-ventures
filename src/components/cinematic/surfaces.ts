@@ -11,9 +11,9 @@ export const SURFACE = {
   peach: 'linear-gradient(180deg,#fff5f2 0%,#fdeee9 100%)',
   lavender: 'linear-gradient(180deg,#f6f3ff 0%,#efeaff 100%)',
   heroLight:
-    'radial-gradient(120% 120% at 50% 0%, #fff4e0 0%, #f3fbf8 48%, #eef5ff 100%)',
-  /** Bold final-CTA accent (gold -> green). White text on this. */
-  ctaBold: 'linear-gradient(135deg,#ffaf06 0%,#14bb87 100%)',
+    'radial-gradient(60% 60% at 85% 20%, rgba(124,92,255,0.16) 0%, transparent 70%), radial-gradient(50% 50% at 10% 85%, rgba(255,77,141,0.12) 0%, transparent 70%), radial-gradient(120% 120% at 50% 0%, #fff4e0 0%, #f7f3ff 48%, #eef5ff 100%)',
+  /** Bold final-CTA accent (violet -> pink -> orange). White text on this. */
+  ctaBold: 'linear-gradient(135deg,#5b3df5 0%,#b83cf0 38%,#ff4d8d 70%,#ff7a1a 100%)',
 } as const;
 
 /** Solid fallbacks (use where a gradient string isn't accepted). */
@@ -50,6 +50,9 @@ export const LINE = {
 
 /** Vibrant accents that pop on light surfaces. */
 export const ACCENTS = ['#ffaf06', '#14bb87', '#0A66C2', '#ff5a5f', '#7c5cff'] as const;
+
+/** Signature creative-agency spectrum (gold -> pink -> violet -> green). */
+export const SPECTRUM = 'linear-gradient(90deg,#ffaf06 0%,#ff4d8d 35%,#7c5cff 68%,#14bb87 100%)';
 
 /**
  * Build a soft pastel tint card style for a given accent colour on light bg.

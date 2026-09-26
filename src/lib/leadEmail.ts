@@ -1,7 +1,7 @@
 /**
- * Server-only: generate a personalised lead email with Azure OpenAI GPT-5.5.
+ * Server-only: generate a personalised lead email with Azure OpenAI GPT-6 Luna.
  *
- * Given the chat transcript + captured lead/ICP fields, GPT-5.5 drafts a warm,
+ * Given the chat transcript + captured lead/ICP fields, GPT-6 Luna drafts a warm,
  * specific welcome email for the prospect plus a tight briefing for our sales
  * team. The HTML is later wrapped in the branded Trayarunya email shell.
  */
@@ -85,7 +85,7 @@ Rules for customer_html:
 Rules for team_summary:
 - Tight internal notes: who they are, segment/industry/country, their core problem, opportunity, and the recommended next move. Plain sentences separated by \n.`;
 
-/** Generate a personalised lead email via GPT-5.5. Returns null if unavailable. */
+/** Generate a personalised lead email via GPT-6 Luna. Returns null if unavailable. */
 export async function generateLeadEmail(input: LeadEmailInput): Promise<LeadEmailContent | null> {
   const env = getGpt5Env();
   if (!env) return null;

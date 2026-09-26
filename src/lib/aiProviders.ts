@@ -1,7 +1,7 @@
 /**
  * Server-only unified streaming layer for the internal admin assistant.
  * Supports two providers via Azure:
- *   - 'gpt-5.5'      → Azure OpenAI Responses API
+ *   - 'gpt-6-luna'      → Azure OpenAI Responses API
  *   - 'claude-opus'  → Azure Anthropic Messages API
  *
  * Both expose the same async generator of text deltas via streamChat().
@@ -9,7 +9,7 @@
  */
 import { getGpt5Env, responsesUrl } from '@/lib/chatSalesConfig';
 
-export type Provider = 'gpt-5.5' | 'claude-opus';
+export type Provider = 'gpt-6-luna' | 'claude-opus';
 
 export interface ChatImage {
   /** Full data URL, e.g. data:image/png;base64,xxxx */
@@ -49,7 +49,7 @@ export function getAnthropicEnv(): AnthropicEnv | null {
 }
 
 export function providerConfigured(provider: Provider): boolean {
-  return provider === 'gpt-5.5' ? Boolean(getGpt5Env()) : Boolean(getAnthropicEnv());
+  return provider === 'gpt-6-luna' ? Boolean(getGpt5Env()) : Boolean(getAnthropicEnv());
 }
 
 const SYSTEM_PROMPT = `You are the internal AI assistant for the Trayarunya Ventures team — a sharp, helpful copilot for an AI-powered digital marketing agency (B2B, B2C and D2C) with its own GTM agentic AI platform, MarketiQ AI. Help staff with marketing strategy, copywriting, campaign planning, lead research, content, analysis, and general work tasks. Be concise, practical, and format answers in clean Markdown when helpful.`;
@@ -62,13 +62,13 @@ const SYSTEM_PROMPT = `You are the internal AI assistant for the Trayarunya Vent
  */
 const CLAUDE_MAX_OUTPUT_TOKENS = 128000;
 
-/** Stream GPT-5.5 (Azure Responses API) text deltas. */
+/** Stream GPT-6 Luna (Azure Responses API) text deltas. */
 async function* streamGpt(
   messages: ChatMessage[],
   system: string
 ): AsyncGenerator<string> {
   const env = getGpt5Env();
-  if (!env) throw new Error('GPT-5.5 is not configured');
+  if (!env) throw new Error('GPT-6 Luna is not configured');
 
   const input = messages.map((m) => {
     const parts: Array<Record<string, unknown>> = [
@@ -99,7 +99,7 @@ async function* streamGpt(
 
   if (!res.ok || !res.body) {
     const detail = await res.text().catch(() => '');
-    throw new Error(`GPT-5.5 error ${res.status}: ${detail.slice(0, 300)}`);
+    throw new Error(`GPT-6 Luna error ${res.status}: ${detail.slice(0, 300)}`);
   }
 
   const reader = res.body.getReader();
@@ -215,10 +215,10 @@ export function streamChat(opts: {
     : streamGpt(opts.messages, system);
 }
 
-/** Non-streaming GPT-5.5 completion (Azure Responses API). Returns full text. */
+/** Non-streaming GPT-6 Luna completion (Azure Responses API). Returns full text. */
 async function completeGpt(messages: ChatMessage[], system: string): Promise<string> {
   const env = getGpt5Env();
-  if (!env) throw new Error('GPT-5.5 is not configured');
+  if (!env) throw new Error('GPT-6 Luna is not configured');
 
   const input = messages.map((m) => ({
     type: 'message',
@@ -240,7 +240,7 @@ async function completeGpt(messages: ChatMessage[], system: string): Promise<str
 
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
-    throw new Error(`GPT-5.5 error ${res.status}: ${detail.slice(0, 300)}`);
+    throw new Error(`GPT-6 Luna error ${res.status}: ${detail.slice(0, 300)}`);
   }
 
   const data = (await res.json()) as Record<string, unknown>;

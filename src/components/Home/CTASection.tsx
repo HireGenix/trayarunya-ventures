@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { Reveal, GradientMesh, GradientText, GlowButton, SURFACE } from '@/components/cinematic';
+import Scene3D from '@/components/three/Scene3D';
 
 const MotionLink = motion.create(Link);
 
@@ -22,6 +23,7 @@ const CTASection = () => {
       }}
     >
       <GradientMesh dark={false} intensity={1.2} grid={false} />
+      <Scene3D variant="cta" />
       <Container maxWidth="md" sx={{ position: 'relative', zIndex: 2, textAlign: 'center' }}>
         <Reveal>
           <Typography

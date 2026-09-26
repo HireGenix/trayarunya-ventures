@@ -33,12 +33,28 @@ const offset = (direction: Direction, distance: number) => {
   }
 };
 
+/** 3D hinge rotation so content swings into place in perspective. */
+const tilt = (direction: Direction, deg = 14) => {
+  switch (direction) {
+    case 'up':
+      return { rotateX: deg };
+    case 'down':
+      return { rotateX: -deg };
+    case 'left':
+      return { rotateY: -deg };
+    case 'right':
+      return { rotateY: deg };
+    default:
+      return {};
+  }
+};
+
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 /**
  * Scroll-triggered cinematic reveal. Default `rise` variant combines a soft
- * upward drift with a subtle scale + blur-clear for a richer, more dramatic
- * entrance than a plain fade. Other variants: fade, scale, blur, clip (mask wipe).
+ * upward drift, a 3D perspective hinge and a subtle scale + blur-clear for a
+ * richer, more dramatic entrance than a plain fade. Other variants: fade, scale, blur, clip (mask wipe).
  */
 const Reveal = ({
   children,
@@ -87,9 +103,20 @@ const Reveal = ({
             opacity: 0,
             scale: 0.97,
             filter: 'blur(8px)',
+            transformPerspective: 1200,
             ...offset(direction, distance),
+            ...tilt(direction),
           },
-          visible: { opacity: 1, scale: 1, filter: 'blur(0px)', x: 0, y: 0 },
+          visible: {
+            opacity: 1,
+            scale: 1,
+            filter: 'blur(0px)',
+            x: 0,
+            y: 0,
+            rotateX: 0,
+            rotateY: 0,
+            transformPerspective: 1200,
+          },
         };
         break;
     }

@@ -121,7 +121,7 @@ async function runTool(
       .filter(Boolean)
       .join('\n');
 
-    // Draft a personalised, on-brand email with GPT-5.5 from the chat so far.
+    // Draft a personalised, on-brand email with GPT-6 Luna from the chat so far.
     let aiEmail: Awaited<ReturnType<typeof generateLeadEmail>> = null;
     try {
       aiEmail = await generateLeadEmail({

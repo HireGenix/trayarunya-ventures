@@ -68,10 +68,10 @@ export async function POST(req: NextRequest) {
   }
 
   const type: ArtifactType = body.type === 'proposal' ? 'proposal' : 'deck';
-  let provider: Provider = body.provider === 'claude-opus' ? 'claude-opus' : 'gpt-5.5';
+  let provider: Provider = body.provider === 'claude-opus' ? 'claude-opus' : 'gpt-6-luna';
   if (!providerConfigured(provider)) {
     // Fall back to whichever provider is configured.
-    provider = provider === 'gpt-5.5' ? 'claude-opus' : 'gpt-5.5';
+    provider = provider === 'gpt-6-luna' ? 'claude-opus' : 'gpt-6-luna';
     if (!providerConfigured(provider)) {
       return json({ error: 'not_configured', message: 'No AI provider is configured.' }, 503);
     }

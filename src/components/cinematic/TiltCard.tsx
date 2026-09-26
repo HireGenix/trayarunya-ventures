@@ -6,7 +6,7 @@ import { motion, useMotionValue, useSpring, useTransform, useReducedMotion } fro
 
 interface TiltCardProps extends Omit<BoxProps, 'component'> {
   children: React.ReactNode;
-  /** Max tilt in degrees. Default 10 */
+  /** Max tilt in degrees. Default 12 */
   max?: number;
   /** Add a moving glare highlight */
   glare?: boolean;
@@ -19,7 +19,7 @@ interface TiltCardProps extends Omit<BoxProps, 'component'> {
  */
 export default function TiltCard({
   children,
-  max = 10,
+  max = 12,
   glare = true,
   sx,
   ...rest
@@ -68,9 +68,15 @@ export default function TiltCard({
       <Box
         component={motion.div}
         style={{ rotateX, rotateY, transformStyle: 'preserve-3d' }}
-        whileHover={{ scale: 1.02 }}
+        whileHover={{ scale: 1.03, z: 30 }}
         transition={{ type: 'spring', stiffness: 250, damping: 18 }}
-        sx={{ position: 'relative', height: '100%', borderRadius: 'inherit' }}
+        sx={{
+          position: 'relative',
+          height: '100%',
+          borderRadius: 'inherit',
+          transition: 'filter 0.3s ease',
+          '&:hover': { filter: 'drop-shadow(0 28px 36px rgba(91,61,245,0.18))' },
+        }}
       >
         {children}
         {glare && (

@@ -45,7 +45,7 @@ import { Chip, Stack } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-type Provider = 'gpt-5.5' | 'claude-opus';
+type Provider = 'gpt-6-luna' | 'claude-opus';
 
 interface Attachment {
   name: string;
@@ -77,7 +77,7 @@ interface ConvSummary {
 }
 
 const PROVIDER_LABEL: Record<Provider, string> = {
-  'gpt-5.5': 'GPT-5.5',
+  'gpt-6-luna': 'GPT-6 Luna',
   'claude-opus': 'Claude Opus',
 };
 
@@ -90,7 +90,7 @@ export default function AssistantPage() {
   const [conversations, setConversations] = useState<ConvSummary[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
-  const [provider, setProvider] = useState<Provider>('gpt-5.5');
+  const [provider, setProvider] = useState<Provider>('gpt-6-luna');
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -165,7 +165,7 @@ export default function AssistantPage() {
       const conv = data.conversation;
       setActiveId(conv.id);
       setMessages(conv.messages || []);
-      setProvider(conv.provider || 'gpt-5.5');
+      setProvider(conv.provider || 'gpt-6-luna');
       pinnedRef.current = true;
       if (isMobile) setSidebarOpen(false);
     } catch {
@@ -545,7 +545,7 @@ export default function AssistantPage() {
             onChange={(e) => setProvider(e.target.value as Provider)}
             sx={{ minWidth: 150, borderRadius: 2 }}
           >
-            <MenuItem value="gpt-5.5">GPT-5.5</MenuItem>
+            <MenuItem value="gpt-6-luna">GPT-6 Luna</MenuItem>
             <MenuItem value="claude-opus">Claude Opus</MenuItem>
           </Select>
         </Box>

@@ -1,6 +1,6 @@
 /**
  * Agent kit — the agentic core for the Marketing OS. Wraps the Azure AI
- * providers (GPT-5.5 / Claude Opus) with structured JSON output, robust
+ * providers (GPT-6 Luna / Claude Opus) with structured JSON output, robust
  * extraction and zod validation, plus a graceful fallback so production
  * endpoints never hard-fail when a provider is momentarily unavailable.
  *
@@ -15,15 +15,15 @@ import {
 } from '@/lib/aiProviders';
 
 /** Pick whichever provider is configured, preferring the requested one. */
-export function pickProvider(preferred: Provider = 'gpt-5.5'): Provider | null {
+export function pickProvider(preferred: Provider = 'gpt-6-luna'): Provider | null {
   if (providerConfigured(preferred)) return preferred;
-  const other: Provider = preferred === 'gpt-5.5' ? 'claude-opus' : 'gpt-5.5';
+  const other: Provider = preferred === 'gpt-6-luna' ? 'claude-opus' : 'gpt-6-luna';
   if (providerConfigured(other)) return other;
   return null;
 }
 
 export function anyProviderConfigured(): boolean {
-  return providerConfigured('gpt-5.5') || providerConfigured('claude-opus');
+  return providerConfigured('gpt-6-luna') || providerConfigured('claude-opus');
 }
 
 /** Extract the first balanced JSON object/array from a model response. */
@@ -76,7 +76,7 @@ export async function runStructured<T>(opts: {
   user: string;
   preferred?: Provider;
 }): Promise<StructuredResult<T>> {
-  const provider = pickProvider(opts.preferred ?? 'gpt-5.5');
+  const provider = pickProvider(opts.preferred ?? 'gpt-6-luna');
   if (!provider) {
     return { ok: false, data: null, provider: null, error: 'no_provider_configured' };
   }
@@ -128,7 +128,7 @@ export async function runText(opts: {
   user: string;
   preferred?: Provider;
 }): Promise<{ ok: boolean; text: string; provider: Provider | null; error?: string }> {
-  const provider = pickProvider(opts.preferred ?? 'gpt-5.5');
+  const provider = pickProvider(opts.preferred ?? 'gpt-6-luna');
   if (!provider) return { ok: false, text: '', provider: null, error: 'no_provider_configured' };
   try {
     const text = await completeText({

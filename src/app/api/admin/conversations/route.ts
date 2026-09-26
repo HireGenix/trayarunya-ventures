@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 const saveSchema = z.object({
   id: z.string().optional(),
   title: z.string().optional(),
-  provider: z.enum(['gpt-5.5', 'claude-opus']),
+  provider: z.enum(['gpt-6-luna', 'claude-opus']),
   messages: z
     .array(
       z.object({
