@@ -41,7 +41,7 @@ const ProblemSection = () => {
             <Typography variant="h2" sx={{ fontWeight: 800, fontSize: { xs: '2rem', md: '3rem' }, lineHeight: 1.15, letterSpacing: '-0.02em' }}>
               You don’t have a marketing problem.
               <br />
-              You have a <GradientText gradient="linear-gradient(90deg,#d92c4a,#ffaf06)">partnership problem.</GradientText>
+              You have an <GradientText gradient="linear-gradient(90deg,#d92c4a,#ffaf06)">intelligence problem.</GradientText>
             </Typography>
           </Reveal>
         </Box>

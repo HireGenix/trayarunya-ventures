@@ -7,7 +7,7 @@ import Link from 'next/link';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { Layout } from '@/components/Layout';
 import { PageHero, Reveal, SectionHeading, GlowButton, GradientText, FaqAccordion, TiltCard, SURFACE, TEXT, CARD } from '@/components/cinematic';
-import { LinkedInFunnelSection, WhyUsSection } from '@/components/Home';
+import { GTMFunnelSection, WhyUsSection } from '@/components/Home';
 import { manifesto, processSteps, faqInfo } from '@/data/websiteInfo';
 
 const stepColors = ['#ffaf06', '#14bb87', '#0A66C2', '#8E44AD'];
@@ -19,15 +19,15 @@ const HowWeWorkPage = () => {
         eyebrow="HOW WE WORK"
         title={
           <>
-            We don’t work for you.
+            Human expertise.
             <br />
-            We work <GradientText>as you.</GradientText>
+            <GradientText>Agentic AI speed.</GradientText>
           </>
         }
-        subtitle="A look inside the partnership model and the operating system we use to turn your marketing into a predictable, LinkedIn-led growth engine."
+        subtitle="A look inside how our strategists and MarketiQ AI — our own agentic GTM platform — turn your marketing into a data-driven, compounding growth engine."
       >
         <GlowButton component={Link} href="/contact" size="large">
-          Start the partnership
+          Get started
         </GlowButton>
       </PageHero>
 
@@ -37,7 +37,7 @@ const HowWeWorkPage = () => {
           <SectionHeading
             eyebrow="THE MODEL"
             title="Three commitments we make"
-            subtitle="This is what “partner, not vendor” actually means in practice."
+            subtitle="What working with an AI-first digital marketing agency actually means in practice."
           />
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3,1fr)' }, gap: 3 }}>
             {manifesto.map((m, i) => (
@@ -132,13 +132,13 @@ const HowWeWorkPage = () => {
         </Container>
       </Box>
 
-      <LinkedInFunnelSection />
+      <GTMFunnelSection />
 
       <WhyUsSection />
 
       <Box sx={{ background: SURFACE.mint, py: { xs: 8, md: 12 } }}>
         <Container maxWidth="md">
-          <SectionHeading eyebrow="QUESTIONS" title="The partnership, answered" />
+          <SectionHeading eyebrow="QUESTIONS" title="Your questions, answered" />
           <FaqAccordion items={faqInfo} />
         </Container>
       </Box>
@@ -150,7 +150,7 @@ const HowWeWorkPage = () => {
               Let’s make your growth our problem.
             </Typography>
             <Typography sx={{ color: 'rgba(255,255,255,0.85)', mb: 4 }}>
-              Book a strategy call and experience what a true marketing partner feels like.
+              Book a strategy call and experience what AI-powered digital marketing feels like.
             </Typography>
             <GlowButton component={Link} href="/contact" size="large">
               Book a Strategy Call

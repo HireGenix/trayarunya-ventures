@@ -18,11 +18,11 @@ const ServicesOverview = () => {
         eyebrow="OUR SERVICES"
         title={
           <>
-            One partner. A complete
-            <br /> B2B growth engine.
+            One agency. A complete
+            <br /> AI-powered marketing engine.
           </>
         }
-        subtitle="LinkedIn is the engine. These are the systems we build and run around it — all owned end-to-end, all tied to high-ticket pipeline."
+        subtitle="Full-funnel digital marketing, powered by MarketiQ AI — our own agentic GTM platform. Every service owned end-to-end and tied to measurable growth."
       >
         <GlowButton component={Link} href="/contact" size="large">
           Book a Strategy Call

@@ -121,9 +121,9 @@ export async function POST(req: NextRequest) {
     .map((s) => `- ${s.name}: ${s.tagline} (solves: ${s.pain}; outcome: ${s.outcome})`)
     .join('\n');
 
-  const system = `You are a senior brand strategist and deck/proposal writer for ${BRAND.company}, a B2B/B2C/D2C digital-marketing agency. ${companyInfo.tagline}
+  const system = `You are a senior brand strategist and deck/proposal writer for ${BRAND.company}, an AI-powered digital marketing agency serving B2B, B2C and D2C brands. ${companyInfo.tagline}
 
-You produce sales collateral that positions ${BRAND.company} as the client's marketing PARTNER who owns their pain points and drives high-ticket pipeline (especially via LinkedIn).
+You produce sales collateral that positions ${BRAND.company} as the most advanced AI digital marketing agency — with its own GTM agentic AI platform, MarketiQ AI, and 50+ global clients served across industries — that drives measurable, full-funnel growth.
 
 OUR SERVICES (draw on these, do not invent others):
 ${serviceLines}
@@ -132,7 +132,7 @@ OUTPUT RULES — CRITICAL:
 - Respond with a SINGLE valid JSON object and NOTHING else. No markdown, no code fences, no commentary.
 - Match EXACTLY this ${type === 'deck' ? 'DeckSpec' : 'ProposalSpec'} shape:
 ${type === 'deck' ? DECK_SHAPE : PROPOSAL_SHAPE}
-- For a deck: produce 8-12 slides for a Gamma-style, visually rich narrative. ALWAYS start with a "title" slide and end with a "closing" slide. Use a VARIETY of layouts — favour "cards", "stats", "timeline", "twoColumn", "section" and "quote" over plain bullet "content" slides (use at most 2-3 content slides). Use "cards" to break ideas into 3-6 punchy concept cards (each with a short title + 1-line body). Use "stats" for credible metrics (3x pipeline, 40% reply rate, etc.). Use "timeline" for rollout phases. Use "twoColumn" for problem/solution or before/after with leftHeading + rightHeading. Add a short "kicker" eyebrow to most slides. You may set "accent" to "gold", "green", "dark" or "light" to vary the mood. Keep all text tight (headings <8 words, bullets/card bodies <14 words). Make stats punchy and credible.
+- For a deck: produce 8-12 slides for a Gamma-style, visually rich narrative. ALWAYS start with a "title" slide and end with a "closing" slide. Use a VARIETY of layouts — favour "cards", "stats", "timeline", "twoColumn", "section" and "quote" over plain bullet "content" slides (use at most 2-3 content slides). Use "cards" to break ideas into 3-6 punchy concept cards (each with a short title + 1-line body). Use "stats" for credible metrics (4x ROAS, +180% organic traffic, etc.). Use "timeline" for rollout phases. Use "twoColumn" for problem/solution or before/after with leftHeading + rightHeading. Add a short "kicker" eyebrow to most slides. You may set "accent" to "gold", "green", "dark" or "light" to vary the mood. Keep all text tight (headings <8 words, bullets/card bodies <14 words). Make stats punchy and credible.
 - For a proposal: 4-7 sections (e.g. Understanding Your Challenge, Our Approach, What We'll Do, Why ${BRAND.company}, Expected Outcomes). Write persuasive, specific, confident copy. Include realistic pricing tiers and a 3-phase timeline.
 - Be specific to the client/context provided. If little context is given, craft a strong, generic-but-premium ${BRAND.company} ${type}.`;
 

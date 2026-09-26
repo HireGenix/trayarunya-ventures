@@ -4,9 +4,10 @@ import React from 'react';
 import { Box, Container, Typography, Stack } from '@mui/material';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import LinkedInIcon from '@mui/icons-material/LinkedIn';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { Reveal, GradientMesh, GradientText, GlowButton, SURFACE } from '@/components/cinematic';
-import { companyInfo } from '@/data/websiteInfo';
+
+const MotionLink = motion.create(Link);
 
 const CTASection = () => {
   return (
@@ -38,8 +39,8 @@ const CTASection = () => {
         </Reveal>
         <Reveal delay={0.1}>
           <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: { xs: '1.05rem', md: '1.25rem' }, maxWidth: 620, mx: 'auto', mb: 5, lineHeight: 1.6 }}>
-            Book a strategy call. We’ll audit your growth, map the opportunity, and show you exactly how
-            the partnership turns LinkedIn into high-ticket pipeline.
+            Book a strategy call. We’ll run a free AI-powered marketing audit, map your growth opportunities
+            and show you exactly how MarketiQ AI and our team will scale your brand.
           </Typography>
         </Reveal>
         <Reveal delay={0.2}>
@@ -48,10 +49,8 @@ const CTASection = () => {
               Book a Strategy Call
             </GlowButton>
             <Box
-              component={motion.a}
-              href={companyInfo.contact.socialMedia.linkedin}
-              target="_blank"
-              rel="noopener noreferrer"
+              component={MotionLink}
+              href="/marketiq"
               whileHover={{ y: -3 }}
               sx={{
                 display: 'inline-flex',
@@ -64,16 +63,16 @@ const CTASection = () => {
                 textDecoration: 'none',
                 fontWeight: 600,
                 border: '1px solid rgba(255,255,255,0.18)',
-                '&:hover': { borderColor: '#0A66C2' },
+                '&:hover': { borderColor: '#ffaf06' },
               }}
             >
-              <LinkedInIcon sx={{ color: '#0A66C2' }} /> Connect on LinkedIn
+              <AutoAwesomeIcon sx={{ color: '#ffaf06' }} /> Explore MarketiQ AI
             </Box>
           </Stack>
         </Reveal>
         <Reveal delay={0.3}>
           <Typography sx={{ mt: 4, color: 'rgba(255,255,255,0.65)', fontSize: '0.85rem' }}>
-            No pressure. No fluff. Just a clear plan for your pipeline.
+            No pressure. No fluff. Just a clear, data-backed plan for your growth.
           </Typography>
         </Reveal>
       </Container>

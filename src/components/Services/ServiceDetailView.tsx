@@ -224,7 +224,7 @@ const ServiceDetailView = ({ service }: { service: ServiceData }) => {
               Ready to make this your engine?
             </Typography>
             <Typography sx={{ color: 'rgba(255,255,255,0.85)', mb: 4 }}>
-              Book a strategy call and we’ll map exactly how {service.shortName} drives your high-ticket pipeline.
+              Book a strategy call and we’ll map exactly how {service.shortName} accelerates your growth — powered by MarketiQ AI.
             </Typography>
             <GlowButton component={Link} href="/contact" size="large">
               Book a Strategy Call

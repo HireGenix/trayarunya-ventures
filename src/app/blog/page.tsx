@@ -7,13 +7,13 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: `Blog | ${SITE_NAME}`,
-  description: `Insights on B2B growth, LinkedIn lead generation, and demand generation from ${SITE_NAME}.`,
+  description: `Insights on AI-powered digital marketing, GTM strategy, SEO and performance marketing from ${SITE_NAME}.`,
   alternates: { canonical: `${SITE_URL}/blog` },
   openGraph: {
     type: 'website',
     url: `${SITE_URL}/blog`,
     title: `Blog | ${SITE_NAME}`,
-    description: `Insights on B2B growth, LinkedIn lead generation, and demand generation from ${SITE_NAME}.`,
+    description: `Insights on AI-powered digital marketing, GTM strategy, SEO and performance marketing from ${SITE_NAME}.`,
   },
 };
 
@@ -37,7 +37,7 @@ export default async function BlogIndexPage() {
       </p>
       <h1 style={{ fontSize: '2.5rem', margin: '0 0 0.5rem', fontWeight: 800 }}>Blog</h1>
       <p style={{ color: '#5A6473', marginTop: 0 }}>
-        B2B growth, LinkedIn lead generation, and demand generation — published and SEO-optimized
+        AI-powered digital marketing, GTM strategy, SEO and performance marketing — published and SEO-optimized
         automatically.
       </p>
 

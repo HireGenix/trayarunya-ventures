@@ -38,7 +38,7 @@ export interface BrandKit {
 export const BRAND: BrandKit = {
   company: 'Trayarunya Ventures',
   wordmark: { primary: 'Trayarunya', secondary: 'VENTURES' },
-  tagline: 'Your B2B growth partner — we turn LinkedIn into high-ticket pipeline.',
+  tagline: 'The most advanced AI digital marketing agency — powered by MarketiQ AI.',
   colors: {
     gold: 'FFAF06',
     goldLight: 'FFC046',

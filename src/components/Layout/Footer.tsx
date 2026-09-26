@@ -62,7 +62,7 @@ export default function Footer() {
                 Ready to build your growth engine?
               </Typography>
               <Typography sx={{ color: TEXT.body, maxWidth: 520 }}>
-                Let’s turn your LinkedIn into a predictable high-ticket pipeline — together, as partners.
+                Let’s scale your brand with AI-powered digital marketing — backed by MarketiQ AI and a team trusted by 50+ global clients.
               </Typography>
             </Box>
             <Button
@@ -192,7 +192,7 @@ export default function Footer() {
             © {new Date().getFullYear()} {companyInfo.name}. All rights reserved.
           </Typography>
           <Typography sx={{ color: TEXT.muted, fontSize: '0.82rem' }}>
-            B2B growth partners · LinkedIn-led high-ticket pipeline
+            AI-powered digital marketing agency · Home of MarketiQ AI
           </Typography>
         </Box>
       </Container>

@@ -26,14 +26,14 @@ import { companyInfo, manifesto, stats } from '@/data/websiteInfo';
 const values = [
   {
     icon: <HandshakeIcon />,
-    title: 'Partnership over transactions',
-    description: 'We win only when you win. Your number is our number.',
+    title: 'AI-first innovation',
+    description: 'We build our own AI — MarketiQ AI — so you always get the edge.',
     color: '#ffaf06',
   },
   {
     icon: <RocketLaunchIcon />,
     title: 'Outcomes over activity',
-    description: 'We’re judged on pipeline and revenue — not impressions.',
+    description: 'We’re judged on customers, revenue and ROI — not impressions.',
     color: '#14bb87',
   },
   {
@@ -44,8 +44,8 @@ const values = [
   },
   {
     icon: <FavoriteIcon />,
-    title: 'Obsessed with your buyers',
-    description: 'Everything starts and ends with your ideal customer.',
+    title: 'Obsessed with your customers',
+    description: 'Everything starts and ends with the people you want to win.',
     color: '#d92c4a',
   },
 ];
@@ -57,15 +57,15 @@ const AboutView = () => {
         eyebrow="ABOUT TRAYARUNYA"
         title={
           <>
-            We’re not an agency.
+            The most advanced
             <br />
-            We’re your <GradientText>growth partner.</GradientText>
+            <GradientText>AI digital marketing agency.</GradientText>
           </>
         }
         subtitle={companyInfo.promise}
       >
         <GlowButton component={Link} href="/contact" size="large">
-          Partner with us
+          Work with us
         </GlowButton>
       </PageHero>
 
@@ -79,23 +79,23 @@ const AboutView = () => {
           </Reveal>
           <Reveal delay={0.05}>
             <Typography variant="h3" sx={{ fontWeight: 800, fontSize: { xs: '1.8rem', md: '2.6rem' }, lineHeight: 1.2, mb: 3, color: TEXT.heading }}>
-              Built because B2B founders deserved a partner, not a vendor.
+              Built because brands deserved more than a traditional agency.
             </Typography>
           </Reveal>
           <Reveal delay={0.1}>
             <Typography sx={{ color: TEXT.body, fontSize: '1.1rem', lineHeight: 1.8, mb: 2.5 }}>
-              {companyInfo.name} was founded in {companyInfo.founded} with a simple frustration: B2B
-              companies were paying agencies that ran campaigns but never owned outcomes. Strategy
-              decks were delivered, retainers were charged, and pipeline stayed flat.
+              {companyInfo.name} was founded in {companyInfo.founded} with a simple frustration: brands
+              were paying agencies that moved slowly, worked in silos and relied on guesswork. Strategy
+              decks were delivered, retainers were charged, and growth stayed flat.
             </Typography>
           </Reveal>
           <Reveal delay={0.15}>
             <Typography sx={{ color: TEXT.body, fontSize: '1.1rem', lineHeight: 1.8 }}>
-              So we built the opposite. A partner that absorbs your pain, builds the strategy as if the
-              business were ours, and executes a LinkedIn-led growth engine that turns attention into
-              high-ticket deals. Today we operate across the {' '}
-              <GradientText sx={{ fontWeight: 700 }}>US and India</GradientText>, partnering with
-              founders who want predictable pipeline — not promises.
+              So we built the opposite — and the technology to power it. MarketiQ AI, our own agentic
+              Go-To-Market platform, researches, plans, creates, publishes and optimises alongside our
+              senior strategists. Today we operate across the {' '}
+              <GradientText sx={{ fontWeight: 700 }}>US and India</GradientText> and have served
+              50+ global clients across industries — from SaaS and fintech to e-commerce, healthcare and education.
             </Typography>
           </Reveal>
 
@@ -142,7 +142,7 @@ const AboutView = () => {
       {/* Manifesto */}
       <Box sx={{ background: SURFACE.mint, py: { xs: 8, md: 12 } }}>
         <Container maxWidth="lg">
-          <SectionHeading eyebrow="HOW WE THINK" title="The partner mindset" />
+          <SectionHeading eyebrow="HOW WE THINK" title="The Trayarunya mindset" />
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3,1fr)' }, gap: 3 }}>
             {manifesto.map((m, i) => (
               <Reveal key={m.key} delay={i * 0.1}>

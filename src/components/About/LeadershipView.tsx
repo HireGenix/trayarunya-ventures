@@ -13,25 +13,25 @@ const leadership = [
   {
     name: 'Growth Strategy',
     role: 'Founder & Growth Lead',
-    bio: 'Leads partner strategy and the LinkedIn-led growth engine — turning founder visions into predictable high-ticket pipeline.',
+    bio: 'Leads GTM strategy and the MarketiQ AI vision — turning brand ambitions into measurable, compounding growth.',
     color: '#ffaf06',
   },
   {
     name: 'Demand & Performance',
-    role: 'Head of Demand Generation',
-    bio: 'Owns multi-channel demand and paid media, tying every dollar of spend to qualified pipeline and closed revenue.',
+    role: 'Head of Performance Marketing',
+    bio: 'Owns paid media, SEO and multi-channel demand, tying every dollar of spend to customers and revenue.',
     color: '#14bb87',
   },
   {
     name: 'Content & Brand',
-    role: 'Head of Content & Personal Branding',
-    bio: 'Builds founder authority and story-driven content that warms buyers and pulls in inbound at scale.',
+    role: 'Head of Content & Creative',
+    bio: 'Leads social, content and creative — producing on-brand stories at AI speed that audiences love.',
     color: '#0A66C2',
   },
   {
-    name: 'Client Partnership',
-    role: 'Head of Partnerships',
-    bio: 'Ensures every partner is treated as in-house — accountable to outcomes, transparent in reporting, relentless on results.',
+    name: 'AI & Client Success',
+    role: 'Head of AI & Client Success',
+    bio: 'Runs MarketiQ AI for 50+ global clients — accountable to outcomes, transparent in reporting, relentless on results.',
     color: '#8E44AD',
   },
 ];

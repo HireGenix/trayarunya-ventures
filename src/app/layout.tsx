@@ -14,22 +14,23 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'Trayarunya Ventures — Your B2B Growth Partner | LinkedIn Lead Gen for High-Ticket Sales',
+  title: 'Trayarunya Ventures — The Most Advanced AI Digital Marketing Agency | Powered by MarketiQ AI',
   description:
-    "Trayarunya Ventures isn't your agency — we're your marketing partner. We own your pain points, strategize like the business is ours, and execute a B2B growth engine that turns LinkedIn into high-ticket pipeline.",
+    'Trayarunya Ventures is the most advanced AI-powered digital marketing agency, with its own GTM agentic AI platform — MarketiQ AI. Trusted by 50+ global clients across industries for SEO, performance marketing, social, content and GTM strategy.',
   keywords: [
-    'B2B marketing partner',
-    'LinkedIn lead generation',
-    'high-ticket sales',
-    'B2B demand generation',
-    'LinkedIn marketing agency',
-    'personal branding',
-    'fractional CMO',
+    'AI digital marketing agency',
+    'digital marketing agency',
+    'MarketiQ AI',
+    'agentic AI marketing',
+    'GTM platform',
+    'performance marketing',
+    'SEO and AI search optimisation',
+    'social media marketing',
   ],
   openGraph: {
-    title: 'Trayarunya Ventures — Your B2B Growth Partner',
+    title: 'Trayarunya Ventures — The Most Advanced AI Digital Marketing Agency',
     description:
-      'We don\'t take clients. We take partners. A B2B growth engine that turns LinkedIn into high-ticket pipeline.',
+      'Powered by MarketiQ AI, our own GTM agentic AI platform. Trusted by 50+ global clients across industries.',
     type: 'website',
   },
   icons: {

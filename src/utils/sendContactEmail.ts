@@ -106,7 +106,7 @@ function brandedShell(preheader: string, innerHtml: string): string {
                       <img src="${LOGO_URL}" alt="Trayarunya Ventures" height="40" style="height:40px;display:block;border:0;outline:none;" />
                     </td>
                     <td align="right" style="vertical-align:middle;">
-                      <span style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#1a1206;text-transform:uppercase;">Growth Partners</span>
+                      <span style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#1a1206;text-transform:uppercase;">AI Digital Marketing</span>
                     </td>
                   </tr>
                 </table>
@@ -133,7 +133,7 @@ function brandedShell(preheader: string, innerHtml: string): string {
                 <p style="margin:0 0 12px 0;font-size:12.5px;color:${
                   BRAND.slate
                 };line-height:1.6;">
-                  Your B2B Growth Partner — LinkedIn-led high-ticket pipeline.<br/>
+                  The most advanced AI digital marketing agency · Powered by MarketiQ AI.<br/>
                   <a href="mailto:info@trayarunyaventures.com" style="color:${
                     BRAND.orange
                   };text-decoration:none;">info@trayarunyaventures.com</a>
@@ -267,14 +267,14 @@ Respond promptly.`.trim(),
     <p style="margin:0 0 14px 0;">Thank you for reaching out to <strong>Trayarunya Ventures</strong>. We've received your note${
       subject ? ` about <em>${esc(subject)}</em>` : ""
     } and a senior growth strategist is already reviewing it.</p>
-    <p style="margin:0 0 14px 0;">We don't treat you as just another client — we work as your growth partner, owning your pipeline goals as if the company were ours. Expect a personal reply within <strong>24 hours</strong> with concrete next steps.</p>
+    <p style="margin:0 0 14px 0;">Our senior strategists and MarketiQ AI — our own GTM agentic AI platform — will map a growth plan built around your goals. Expect a personal reply within <strong>24 hours</strong> with concrete next steps.</p>
     <p style="margin:0 0 14px 0;">— The Trayarunya Ventures Growth Team</p>`;
 
   const customerInner = `
     <h1 style="margin:0 0 4px 0;font-size:23px;color:${BRAND.ink};font-weight:800;">Welcome aboard, ${esc(
     firstName
   )} 👋</h1>
-    <p style="margin:0 0 20px 0;font-size:13px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:${BRAND.orange};">Your B2B growth partner</p>
+    <p style="margin:0 0 20px 0;font-size:13px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:${BRAND.orange};">AI-powered digital marketing</p>
     ${aiCustomerHtml || defaultCustomerBody}
     <div style="margin-top:22px;">
       <a href="${SITE_URL}/contact" style="display:inline-block;background:linear-gradient(135deg,${BRAND.amber},${BRAND.orange});color:#1a1206;font-weight:800;font-size:14px;text-decoration:none;padding:13px 28px;border-radius:99px;">Book your strategy call →</a>
@@ -283,12 +283,12 @@ Respond promptly.`.trim(),
   const customerConfirmation = {
     subject:
       aiEmailSubject ||
-      `Welcome to Trayarunya Ventures, ${firstName} — let's grow your pipeline`,
+      `Welcome to Trayarunya Ventures, ${firstName} — let's grow your brand`,
     text: `Hi ${firstName},
 
 Thank you for connecting with Trayarunya Ventures. A senior growth strategist is reviewing your message and will reach out within 24 hours with concrete next steps.
 
-We work as your growth partner — owning your pipeline goals as if the company were ours.
+Our senior strategists and MarketiQ AI — our own GTM agentic AI platform — will map a growth plan built around your goals.
 
 Book a strategy call: ${SITE_URL}/contact
 

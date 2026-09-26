@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import ServicesOverview from '@/components/Services/ServicesOverview';
 
 export const metadata: Metadata = {
-  title: 'B2B Marketing Services | Trayarunya Ventures',
+  title: 'AI-Powered Digital Marketing Services | Trayarunya Ventures',
   description:
-    'A complete B2B growth engine: LinkedIn lead generation, demand generation, personal branding, content, paid ads and fractional CMO leadership — all owned end-to-end.',
+    'Full-funnel digital marketing powered by MarketiQ AI: AI GTM strategy, performance marketing, SEO & AI search, social media & content, brand & web, automation and CRO.',
 };
 
 export default function ServicesPage() {

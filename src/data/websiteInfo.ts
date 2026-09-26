@@ -1,17 +1,19 @@
 /**
- * Central content/copy hub for the Trayarunya Ventures marketing site.
+ * Central content/copy hub for the Trayarunya Ventures digital marketing agency site.
  * Keep marketing copy here so pages and components stay clean and consistent.
  */
 
 export const companyInfo = {
   name: 'Trayarunya Ventures',
-  tagline: 'Your B2B Growth Partner — not just another agency.',
+  tagline: 'The most advanced AI-powered digital marketing agency — powered by our own GTM platform, MarketiQ AI.',
   promise:
-    "We don't take clients. We take partners. We own your pain points as our own, strategize your marketing as if the company were ours, and execute like your in-house growth team.",
+    'We combine senior marketing strategists with MarketiQ AI — our proprietary agentic Go-To-Market platform — to research, plan, create, launch and optimise full-funnel digital marketing faster and smarter than any traditional agency.',
   founded: 'October 2024',
   headquarters: 'Global (USA & India)',
-  specialty: 'B2B growth & LinkedIn-led high-ticket pipeline',
-  segments: 'B2B (flagship), B2C & D2C',
+  specialty: 'AI-powered full-funnel digital marketing & agentic GTM',
+  platform: 'MarketiQ AI',
+  clientsServed: '50+',
+  segments: 'B2B, B2C & D2C brands across 15+ industries',
   contact: {
     email: 'info@trayarunyaventures.com',
     phone: ['+1 (971) 512-1701 (US)', '+91-8954333390 (India)'],
@@ -25,45 +27,59 @@ export const companyInfo = {
   },
 };
 
-/** The partner manifesto — three pillars of how we operate. */
+/** Industries our 50+ global clients come from. */
+export const industries = [
+  'SaaS & Technology',
+  'E-commerce & D2C',
+  'Healthcare',
+  'Fintech & BFSI',
+  'Education & EdTech',
+  'Real Estate',
+  'Manufacturing',
+  'Hospitality & Travel',
+  'Professional Services',
+  'Retail & Consumer',
+];
+
+/** The three pillars of how we operate. */
 export const manifesto = [
   {
-    key: 'own-the-pain',
-    title: 'We own your pain',
+    key: 'ai-first',
+    title: 'AI-first, not AI-washed',
     description:
-      'We sit on your side of the table. Your stalled pipeline, your missed targets, your “why isn’t this working?” — we feel it as if it were ours, because in this partnership, it is.',
+      'We don’t bolt ChatGPT onto old workflows. Every engagement runs on MarketiQ AI — our own agentic GTM platform that researches, plans, creates and optimises around the clock.',
   },
   {
-    key: 'own-the-strategy',
-    title: 'We strategize as our own',
+    key: 'full-funnel',
+    title: 'Full-funnel, every channel',
     description:
-      'No copy-paste playbooks. We build the growth strategy we’d build if it were our own company on the line — rooted in your buyers, your offer and your numbers.',
+      'Search, social, paid media, content, email, web and automation — orchestrated as one system, so every channel compounds the others instead of competing for budget.',
   },
   {
-    key: 'own-the-execution',
-    title: 'We execute like in-house',
+    key: 'outcome-driven',
+    title: 'Accountable to growth',
     description:
-      'Strategy is worthless without execution. We run the campaigns, write the content and book the calls — accountable to outcomes, not slide decks.',
+      'Senior strategists own your numbers — revenue, ROAS, CAC and pipeline — with transparent, real-time dashboards instead of vanity-metric reports.',
   },
 ];
 
 /** The pains we solve — used in the "Problem" explainer. */
 export const painPoints = [
   {
-    title: 'Feast-or-famine pipeline',
-    description: 'Leads spike then vanish. You can never forecast revenue with confidence.',
+    title: 'Channels that don’t talk to each other',
+    description: 'SEO, social, ads and email run in silos, so budget leaks and growth never compounds.',
   },
   {
-    title: 'LinkedIn that doesn’t convert',
-    description: 'A profile that reads like a resume and outreach that feels like spam.',
+    title: 'Slow, manual agency workflows',
+    description: 'Weeks for a campaign brief, days for a creative — while the market moves on without you.',
   },
   {
-    title: 'Agencies that vanish after onboarding',
-    description: 'Hand-offs, junior account managers and reports full of vanity metrics.',
+    title: 'Guesswork instead of data',
+    description: 'Decisions based on gut feel and last month’s report, not live market and customer signals.',
   },
   {
     title: 'Marketing disconnected from revenue',
-    description: 'Lots of activity, likes and traffic — but no clear line to closed high-ticket deals.',
+    description: 'Lots of activity, likes and traffic — but no clear line to customers, sales and ROI.',
   },
 ];
 
@@ -71,102 +87,102 @@ export const painPoints = [
 export const processSteps = [
   {
     number: '01',
-    title: 'Understand',
-    subtitle: 'Absorb the pain',
+    title: 'Research',
+    subtitle: 'AI-powered discovery',
     description:
-      'Deep discovery into your offer, buyers, numbers and bottlenecks. We map your ICP and the real reason deals stall — before touching a single campaign.',
-    deliverable: 'Growth audit & ICP map',
+      'MarketiQ AI agents analyse your brand, customers, competitors and live market demand — while our strategists map your goals, audiences and growth levers.',
+    deliverable: 'Market intelligence & audience map',
   },
   {
     number: '02',
     title: 'Strategize',
-    subtitle: 'Build the engine',
+    subtitle: 'Build the GTM plan',
     description:
-      'We design the full growth strategy — positioning, offer, channels and the LinkedIn-led funnel — the way we’d build it if the company were ours.',
-    deliverable: 'Strategy & funnel blueprint',
+      'We design your full go-to-market and digital marketing strategy — positioning, channels, funnel, content calendar and media plan — grounded in data, not opinions.',
+    deliverable: 'GTM strategy & channel blueprint',
   },
   {
     number: '03',
     title: 'Execute',
-    subtitle: 'Run it like in-house',
+    subtitle: 'Launch across channels',
     description:
-      'We build profiles, produce content, run outreach and ads, and book qualified calls. You watch pipeline fill while we own the day-to-day.',
-    deliverable: 'Live campaigns & booked calls',
+      'Our team and AI agents produce content and creatives, launch SEO, social, paid and email programs, and build the funnels and automations that convert.',
+    deliverable: 'Live, multi-channel campaigns',
   },
   {
     number: '04',
-    title: 'Scale',
-    subtitle: 'Compound the wins',
+    title: 'Optimise',
+    subtitle: 'Learn & compound',
     description:
-      'We double down on what converts, kill what doesn’t, and systemise the engine so growth compounds month over month.',
-    deliverable: 'Optimised, compounding pipeline',
+      'Autonomous optimisation loops learn from every result — reallocating spend, refreshing creative and sharpening strategy so growth compounds month over month.',
+    deliverable: 'Continuously optimised growth engine',
   },
 ];
 
-/** The signature LinkedIn high-ticket funnel explainer. */
-export const linkedinFunnel = [
+/** The signature AI-powered GTM funnel explainer. */
+export const gtmFunnel = [
   {
-    stage: 'Authority Profile',
-    description: 'A buyer-facing profile engineered to convert visitors into trust.',
-    metric: 'Profile views → leads',
+    stage: 'Market Intelligence',
+    description: 'AI agents research your market, competitors and customers in real time.',
+    metric: '24/7 research',
   },
   {
-    stage: 'Magnetic Content',
-    description: 'Hook-driven posts that warm your exact decision-makers daily.',
-    metric: 'Reach the right buyers',
+    stage: 'GTM Strategy',
+    description: 'Positioning, audiences, channels and a data-backed media & content plan.',
+    metric: 'Strategy in days',
   },
   {
-    stage: 'Human Outreach',
-    description: 'Personalised conversations — never spray-and-pray automation.',
-    metric: '~28% reply rate',
+    stage: 'Omnichannel Execution',
+    description: 'SEO, social, paid media, content and email launched as one system.',
+    metric: '10x faster production',
   },
   {
-    stage: 'Qualified Calls',
-    description: 'Booked meetings with economic buyers who can sign.',
-    metric: '3.4x more calls',
+    stage: 'Conversion & Automation',
+    description: 'High-converting funnels, CRO and marketing automation that nurture every lead.',
+    metric: '+64% conversion lift',
   },
   {
-    stage: 'Closed High-Ticket Deals',
-    description: 'A predictable pipeline of high-value contracts.',
-    metric: '$480K+ in 90 days',
+    stage: 'Revenue Growth',
+    description: 'Compounding customers, sales and ROI — measured in real time.',
+    metric: '4.2x average ROAS',
   },
 ];
 
-/** Why partners choose only Trayarunya — us vs a typical agency. */
+/** Why brands choose Trayarunya — us vs a typical agency. */
 export const differentiators = [
   {
-    title: 'Partner, not vendor',
-    us: 'We own your number with you and act like your team.',
-    them: 'Treats you as a ticket and a monthly retainer.',
+    title: 'Own agentic AI platform',
+    us: 'Every campaign runs on MarketiQ AI — our proprietary GTM platform.',
+    them: 'Rents generic tools and does the rest manually.',
   },
   {
-    title: 'Senior operators on your account',
-    us: 'Strategists who’ve built B2B pipelines do the work.',
+    title: 'Senior strategists on your account',
+    us: 'Experienced marketers who’ve scaled brands globally do the work.',
     them: 'Hands you to a junior account manager after the pitch.',
   },
   {
+    title: 'Speed at scale',
+    us: 'AI agents + experts ship in days what agencies take weeks to do.',
+    them: 'Long briefs, slow approvals and missed market moments.',
+  },
+  {
+    title: 'Full-funnel, omnichannel',
+    us: 'SEO, social, paid, content, email and web working as one engine.',
+    them: 'Siloed channels and disconnected reporting.',
+  },
+  {
     title: 'Revenue-obsessed',
-    us: 'Every action tied to pipeline and closed deals.',
+    us: 'Every action tied to customers, revenue and ROI.',
     them: 'Reports impressions, likes and other vanity metrics.',
-  },
-  {
-    title: 'B2B & LinkedIn specialists',
-    us: 'Deep focus on high-ticket B2B and LinkedIn.',
-    them: 'Generalists spread thin across every industry.',
-  },
-  {
-    title: 'Strategy + execution',
-    us: 'We build the plan and run it end-to-end.',
-    them: 'Sells you a strategy deck, then disappears.',
   },
 ];
 
 /** Headline proof stats. */
-export const stats = [
-  { value: 3.4, suffix: 'x', label: 'More qualified calls booked' },
-  { value: 212, prefix: '+', suffix: '%', label: 'Average pipeline growth' },
-  { value: 480, prefix: '$', suffix: 'K+', label: 'Pipeline generated in 90 days' },
-  { value: 28, suffix: '%', label: 'Average LinkedIn reply rate' },
+export const stats: { value: number; prefix?: string; suffix?: string; label: string }[] = [
+  { value: 50, suffix: '+', label: 'Global clients served' },
+  { value: 15, suffix: '+', label: 'Industries' },
+  { value: 45, label: 'AI agents in MarketiQ AI' },
+  { value: 4.2, suffix: 'x', label: 'Average return on ad spend' },
 ];
 
 export const testimonials = [
@@ -175,61 +191,61 @@ export const testimonials = [
     position: 'Founder & CEO',
     company: 'TechNova',
     quote:
-      'They didn’t act like an agency — they acted like our growth team. Within 90 days our LinkedIn went from silent to our #1 source of high-ticket calls.',
+      'Their MarketiQ AI platform plus a sharp strategy team changed how we go to market. Campaigns that used to take weeks now launch in days — and they perform better.',
   },
   {
     name: 'Priya R.',
     position: 'CMO',
     company: 'MarketLeap',
     quote:
-      'Finally, a partner that ties everything back to pipeline. The strategy was sharp and, more importantly, they actually executed it.',
+      'Finally, a digital marketing agency that ties everything back to revenue. SEO, paid and content finally work as one system — and we can see the ROI in real time.',
   },
   {
     name: 'Rohit P.',
     position: 'Founder',
     company: 'InsightEdge',
     quote:
-      'The personal branding work made me the go-to voice in our niche. Inbound leads now come to us pre-sold.',
+      'The AI-driven research uncovered audiences and keywords we had never considered. Our organic traffic and inbound demand have grown every single month.',
   },
   {
     name: 'Sonal T.',
-    position: 'VP Sales',
-    company: 'BrightHire',
+    position: 'Head of Growth',
+    company: 'BrightCart',
     quote:
-      'Their LinkedIn outreach books calls with real decision-makers — not tyre-kickers. It feels like having an SDR team that never sleeps.',
+      'Our ROAS more than doubled after they took over paid media. The creative testing and optimisation never stop — it feels like having an in-house team that never sleeps.',
   },
 ];
 
 export const faqInfo = [
   {
-    question: 'How are you different from a typical marketing agency?',
+    question: 'How are you different from a typical digital marketing agency?',
     answer:
-      'We operate as your partner, not a vendor. We absorb your pain points, build the strategy as if the business were ours, and execute it like an in-house team — accountable to pipeline and revenue, not vanity metrics.',
+      'We run every engagement on MarketiQ AI — our own agentic Go-To-Market platform — combined with senior strategists. That means faster execution, deeper insight and continuous optimisation, all accountable to revenue rather than vanity metrics.',
   },
   {
-    question: 'Why do you focus so heavily on LinkedIn?',
+    question: 'What is MarketiQ AI?',
     answer:
-      'For B2B and high-ticket sales, LinkedIn is where decision-makers actually are. Done right, it’s the most reliable channel to build trust at scale and book qualified calls with economic buyers.',
+      'MarketiQ AI is our proprietary Autonomous GTM platform: AI agents that research your market, build strategy, create on-brand content, publish across channels, run ads and learn from every result in a closed loop.',
   },
   {
-    question: 'What kind of companies do you partner with?',
+    question: 'What kind of companies do you work with?',
     answer:
-      'B2B founders, consultants and companies selling high-ticket offers who want predictable pipeline — not one-off campaigns.',
+      'We’ve served 50+ global clients across SaaS, e-commerce, healthcare, fintech, education, real estate, manufacturing and more — B2B, B2C and D2C brands of every size.',
   },
   {
-    question: 'Do you only do LinkedIn?',
+    question: 'Which services do you offer?',
     answer:
-      'No. LinkedIn is our signature engine, but we run full-funnel demand generation, paid ads, content, funnels and fractional CMO leadership around it.',
+      'Full-funnel digital marketing: AI-powered GTM strategy, SEO & AI search (AEO/GEO), performance marketing, social media & content, brand & creative, websites, CRO and marketing automation.',
   },
   {
     question: 'How quickly will we see results?',
     answer:
-      'Foundations go live in the first weeks; most partners see qualified conversations within 30–45 days and meaningful pipeline within 90 days.',
+      'Campaigns typically go live within the first 2–3 weeks. Paid channels show results within weeks, while SEO and content compound meaningfully over 60–90 days.',
   },
   {
     question: 'How do we get started?',
     answer:
-      'Book a strategy call. We’ll audit your current growth, map the opportunity, and show you exactly how the partnership would work — no obligation.',
+      'Book a strategy call. We’ll run a free AI-powered marketing audit, map your growth opportunities and show you exactly how we’d scale your brand — no obligation.',
   },
 ];
 
@@ -240,36 +256,36 @@ export const faqInfo = [
  */
 export const growthEngine = {
   brain: {
-    label: 'AI Decision Engine',
+    label: 'MarketiQ AI Decision Engine',
     description:
-      'Every move is decided by data, not guesswork. Our AI reads signals — intent, engagement, fit — and tells the team exactly who to target, what to say, and when to post.',
+      'Every move is decided by data, not guesswork. MarketiQ AI reads signals — search demand, intent, engagement, audience fit — and tells the team exactly who to target, what to say, where to spend and when to publish.',
     signals: ['Intent data', 'Engagement', 'ICP fit', 'Channel signals'],
     decisions: ['Who to target', 'What to say', 'When to post', 'Where to spend'],
   },
   stages: [
     {
-      key: 'lead-filtering',
+      key: 'audience-intelligence',
       animation: 'leadFilter',
       step: '01',
-      title: 'Lead Filtering',
+      title: 'Audience Intelligence',
       description:
-        'Thousands of raw profiles go in. AI scores each against your ideal-customer profile and filters out the noise — only real, qualified buyers come through.',
+        'Millions of signals go in. AI segments your market, scores audiences against your ideal customer and surfaces the highest-value opportunities across every channel.',
       metricValue: 92,
       metricSuffix: '%',
-      metricLabel: 'junk filtered out',
+      metricLabel: 'targeting accuracy',
       accent: '#ffaf06',
     },
     {
-      key: 'outreach',
+      key: 'personalization',
       animation: 'outreach',
       step: '02',
-      title: 'Personalized Outreach',
+      title: 'Personalized Engagement',
       description:
-        'Each qualified lead gets a human-sounding, personalized sequence — written with AI, reviewed by strategists — that starts real conversations instead of getting ignored.',
+        'Every audience gets personalised messaging across email, social, search and web — written with AI, refined by strategists — that turns attention into action.',
       metricValue: 3.4,
       metricSuffix: 'x',
       metricDecimals: 1,
-      metricLabel: 'higher reply rate',
+      metricLabel: 'higher engagement',
       accent: '#14bb87',
     },
     {
@@ -290,7 +306,7 @@ export const growthEngine = {
       step: '04',
       title: 'Smart Posting',
       description:
-        'Content ships to the right channels at the moments your buyers are actually online — timing optimized by AI across LinkedIn, Instagram and more.',
+        'Content ships to the right channels at the moments your audience is actually online — timing optimised by AI across Instagram, LinkedIn, YouTube, X, Facebook and more.',
       metricValue: 2.8,
       metricSuffix: 'x',
       metricDecimals: 1,
@@ -303,7 +319,7 @@ export const growthEngine = {
       step: '05',
       title: 'Paid Amplification',
       description:
-        'AI finds the audiences and creatives that convert, then scales spend only where it returns — turning warm attention into booked calls and sales.',
+        'AI finds the audiences and creatives that convert across Google, Meta, LinkedIn and more, then scales spend only where it returns — turning attention into customers and revenue.',
       metricValue: 4.2,
       metricSuffix: 'x',
       metricDecimals: 1,
@@ -314,24 +330,23 @@ export const growthEngine = {
 };
 
 /**
- * Audience segments. B2B is the flagship; B2C and D2C are full offerings too.
- * Drives the interactive segment switcher on the homepage.
+ * Business models we grow. Drives the interactive segment switcher on the homepage.
  */
 export const segments = [
   {
     key: 'b2b',
     label: 'B2B',
-    flagship: true,
-    badge: 'Flagship Expertise',
-    tagline: 'LinkedIn-led pipeline for high-ticket sales.',
+    flagship: false,
+    badge: 'Pipeline & Demand',
+    tagline: 'AI-powered GTM that fills your pipeline.',
     description:
-      'Our home turf. We turn founder authority and precise outreach into a predictable stream of qualified calls with economic buyers — built for long cycles and big deal sizes.',
+      'For SaaS, tech and service companies, we combine SEO, content, paid media, ABM and marketing automation — orchestrated by MarketiQ AI — into a predictable demand and pipeline engine.',
     accent: '#ffaf06',
-    channels: ['LinkedIn', 'Cold + warm outreach', 'Demand gen', 'Founder branding'],
+    channels: ['SEO & AI search', 'Paid media', 'Content & thought leadership', 'ABM & automation'],
     outcomes: [
-      { value: '45+', label: 'qualified calls / quarter' },
-      { value: '3.4x', label: 'reply rate vs. industry' },
-      { value: '90 days', label: 'to meaningful pipeline' },
+      { value: '+212%', label: 'pipeline growth' },
+      { value: '-41%', label: 'cost per lead' },
+      { value: '90 days', label: 'to compounding results' },
     ],
   },
   {
@@ -341,7 +356,7 @@ export const segments = [
     badge: 'Full-Funnel Growth',
     tagline: 'Demand, community and conversion at scale.',
     description:
-      'For consumer brands, we build attention into loyalty — performance creative, social-first content and funnels that turn audiences into repeat customers.',
+      'For consumer brands, we build attention into loyalty — performance creative, social-first content, influencer programs and funnels that turn audiences into repeat customers.',
     accent: '#14bb87',
     channels: ['Meta & Google Ads', 'Social content', 'Influencer/UGC', 'Conversion funnels'],
     outcomes: [
@@ -357,7 +372,7 @@ export const segments = [
     badge: 'Revenue Engine',
     tagline: 'From first click to repeat purchase.',
     description:
-      'For direct-to-consumer brands, we own the full revenue engine — acquisition, retention and lifetime value — with creative and data working as one system.',
+      'For direct-to-consumer and e-commerce brands, we own the full revenue engine — acquisition, retention and lifetime value — with creative and data working as one system.',
     accent: '#0A66C2',
     channels: ['Performance ads', 'Email & SMS', 'Landing/CRO', 'Retention loops'],
     outcomes: [
@@ -369,43 +384,43 @@ export const segments = [
 ];
 
 /**
- * Our proprietary in-house platform — the Content Engine. We don't rent a
- * generic AI tool; we built the machine we run on our own clients. Featured on
- * the homepage as proof + a lead magnet.
+ * Our proprietary in-house platform — MarketiQ AI, the agentic GTM platform.
+ * We don't rent a generic AI tool; we built the machine we run for our own
+ * clients. Featured on the homepage as proof + a lead magnet.
  */
 export const contentEngine = {
-  eyebrow: 'OUR IN-HOUSE PLATFORM',
-  badge: 'Built in-house • Production-grade',
+  eyebrow: 'OUR OWN GTM AGENTIC AI PLATFORM',
+  badge: 'MarketiQ AI • Built in-house',
   title: "We didn't buy our AI stack. We built it.",
   subtitle:
-    'Meet the Content Engine — the agentic platform we engineered to research, strategise, create and publish at agency scale. The same system we run on our own clients now powers your growth.',
+    'Meet MarketiQ AI — the Autonomous Go-To-Market platform we engineered to research, strategise, create, publish and optimise at scale. The same agentic platform powers every campaign we run for our 50+ global clients.',
   capabilities: [
     {
       key: 'research',
       title: 'Agentic deep research',
       description:
-        'Autonomous agents crawl your site and the live web (DuckDuckGo + crawl4ai), map real demand and read every competitor — evidence, not opinions.',
+        'Autonomous agents crawl your site and the live web, map real demand, and analyse every competitor — evidence, not opinions.',
       accent: '#ffaf06',
     },
     {
       key: 'strategy',
-      title: 'Master strategist (DSPy)',
+      title: 'AI GTM strategist',
       description:
-        'A DSPy + LangGraph strategist turns that evidence into pillars, a funnel, lead magnets and a date-aware content calendar in minutes.',
+        'An AI strategist turns that evidence into positioning, audiences, channel mix, funnels and a date-aware content calendar in minutes.',
       accent: '#14bb87',
     },
     {
       key: 'studio',
       title: 'Brand-aware creation studio',
       description:
-        'On-brand posts, carousels, PDFs, threads and blogs — generated in your voice and colours, QA-gated before anything ships.',
+        'On-brand posts, carousels, videos, blogs, ads and landing pages — generated in your voice and colours, QA-gated before anything ships.',
       accent: '#0A66C2',
     },
     {
       key: 'publish',
-      title: 'One-click multi-platform publish',
+      title: 'One-click omnichannel publish',
       description:
-        'Schedule and push to LinkedIn, X, Instagram and more via native OAuth — captions and trending hashtags written for each channel.',
+        'Schedule and publish to Instagram, LinkedIn, X, Facebook, YouTube and more — captions and trending hashtags written for each channel.',
       accent: '#ff5a5f',
     },
     {
@@ -418,12 +433,12 @@ export const contentEngine = {
   ],
   stages: ['Research', 'Strategy', 'Studio', 'Publish', 'Learn'],
   stats: [
-    { value: '5', label: 'agentic stages, one closed loop' },
+    { value: '45', label: 'AI agents in one closed loop' },
     { value: '10x', label: 'faster content production' },
     { value: '24/7', label: 'always-on research & optimisation' },
   ],
   whyLine:
-    'When you partner with us, you get this engine working for you — the same proprietary tech we trust with our own growth.',
-  ctaPrimary: 'Explore the Content Engine',
+    'When you work with us, MarketiQ AI works for you — the same proprietary platform trusted by 50+ global brands.',
+  ctaPrimary: 'Explore MarketiQ AI',
   ctaSecondary: 'See how we work',
 };

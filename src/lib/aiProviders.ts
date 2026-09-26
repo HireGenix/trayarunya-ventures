@@ -52,7 +52,7 @@ export function providerConfigured(provider: Provider): boolean {
   return provider === 'gpt-5.5' ? Boolean(getGpt5Env()) : Boolean(getAnthropicEnv());
 }
 
-const SYSTEM_PROMPT = `You are the internal AI assistant for the Trayarunya Ventures team — a sharp, helpful copilot for a B2B/B2C/D2C digital-marketing agency. Help staff with marketing strategy, copywriting, campaign planning, lead research, content, analysis, and general work tasks. Be concise, practical, and format answers in clean Markdown when helpful.`;
+const SYSTEM_PROMPT = `You are the internal AI assistant for the Trayarunya Ventures team — a sharp, helpful copilot for an AI-powered digital marketing agency (B2B, B2C and D2C) with its own GTM agentic AI platform, MarketiQ AI. Help staff with marketing strategy, copywriting, campaign planning, lead research, content, analysis, and general work tasks. Be concise, practical, and format answers in clean Markdown when helpful.`;
 
 /**
  * Maximum output tokens for Claude Opus 4.7. Anthropic's Messages API

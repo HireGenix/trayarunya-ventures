@@ -6,7 +6,7 @@ import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import Link from 'next/link';
 import {
   ArrowForward as ArrowForwardIcon,
-  LinkedIn as LinkedInIcon,
+  AutoAwesome as AutoAwesomeIcon,
   Star as StarIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
 } from '@mui/icons-material';
@@ -15,7 +15,7 @@ import { stats } from '@/data/websiteInfo';
 import AnimatedCounter from '@/components/cinematic/AnimatedCounter';
 import HeroShowcase from './HeroShowcase';
 
-const headline = ['We don’t take clients.', 'We take partners.'];
+const headline = ['The most advanced', 'AI digital marketing agency.'];
 
 const wordContainer = {
   hidden: {},
@@ -80,8 +80,8 @@ const HeroSection = () => {
               transition={{ duration: 0.6 }}
             >
               <Chip
-                icon={<LinkedInIcon sx={{ color: '#0A66C2 !important' }} />}
-                label="B2B · B2C · D2C GROWTH PARTNER"
+                icon={<AutoAwesomeIcon sx={{ color: '#ffaf06 !important' }} />}
+                label="POWERED BY MARKETIQ AI · OUR OWN GTM AGENTIC PLATFORM"
                 sx={{
                   mb: 3,
                   py: 2,
@@ -143,9 +143,9 @@ const HeroSection = () => {
                   lineHeight: 1.6,
                 }}
               >
-                We own your pain as our own and run an AI-powered growth engine — filtering leads,
-                outreach, content and ads — that turns attention into a predictable
-                <GradientText sx={{ fontWeight: 700 }}> high-ticket pipeline.</GradientText>
+                Senior strategists + MarketiQ AI, our own agentic Go-To-Market platform — running
+                research, SEO, content, social, performance ads and automation as one engine that turns
+                attention into<GradientText sx={{ fontWeight: 700 }}> compounding revenue.</GradientText>
               </Typography>
             </motion.div>
 
@@ -162,7 +162,7 @@ const HeroSection = () => {
               >
                 <MagneticButton>
                   <GlowButton component={Link} href="/contact" size="large">
-                    Get a Free LinkedIn Audit
+                    Get a Free AI Marketing Audit
                   </GlowButton>
                 </MagneticButton>
                 <Box
@@ -236,7 +236,7 @@ const HeroSection = () => {
                     ))}
                   </Box>
                   <Typography sx={{ color: TEXT.muted, fontSize: '0.82rem', mt: 0.3 }}>
-                    Trusted by <Box component="span" sx={{ fontWeight: 700, color: TEXT.heading }}>200+ B2B founders</Box> to own their growth
+                    Trusted by <Box component="span" sx={{ fontWeight: 700, color: TEXT.heading }}>50+ global clients</Box> across industries
                   </Typography>
                 </Box>
               </Stack>

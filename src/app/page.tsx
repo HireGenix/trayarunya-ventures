@@ -11,7 +11,7 @@ import {
   GrowthEngineSection,
   ContentEngineSection,
   ServicesSection,
-  LinkedInFunnelSection,
+  GTMFunnelSection,
   WhyUsSection,
   ProofSection,
   CTASection,
@@ -28,7 +28,7 @@ export default function HomePage() {
       <GrowthEngineSection />
       <ContentEngineSection />
       <ServicesSection />
-      <LinkedInFunnelSection />
+      <GTMFunnelSection />
       <WhyUsSection />
       <ProofSection />
       <CTASection />

@@ -9,70 +9,70 @@ import { Layout } from '@/components/Layout';
 import { PageHero, Reveal, SectionHeading, GradientText, GlowButton, TiltCard, SURFACE, TEXT, CARD, LINE } from '@/components/cinematic';
 
 const categories = [
-  'LinkedIn Growth',
-  'Demand Generation',
-  'Personal Branding',
-  'Sales Funnels',
-  'Paid Ads',
-  'Founder Strategy',
+  'AI Marketing',
+  'GTM Strategy',
+  'SEO & AI Search',
+  'Performance Marketing',
+  'Social & Content',
+  'Automation & CRO',
 ];
 
 const featured = {
-  category: 'LinkedIn Growth',
+  category: 'AI Marketing',
   readTime: '9 min read',
-  title: 'The LinkedIn High-Ticket Engine: how B2B founders book qualified calls on repeat',
+  title: 'Agentic AI marketing: how MarketiQ AI runs research, content and ads in one closed loop',
   excerpt:
-    'The exact operating system we use to turn a founder’s profile, content and outreach into a predictable pipeline of economic buyers — without spammy automation.',
+    'Inside the agentic GTM platform we built and run for 50+ global clients — and why it outperforms stitching together a dozen generic AI tools.',
   accent: '#ffaf06',
 };
 
 const articles = [
   {
-    category: 'Personal Branding',
+    category: 'SEO & AI Search',
     readTime: '7 min',
-    title: 'Why your founder brand outperforms your company page (and how to scale it)',
+    title: 'SEO in the age of AI search: how to get recommended by ChatGPT, Gemini and Perplexity',
     excerpt:
-      'People buy from people. Here’s how to build founder-led authority that compounds into trust and inbound demand.',
+      'Answer & Generative Engine Optimisation explained — and the content, schema and authority signals AI assistants actually trust.',
     color: '#14bb87',
   },
   {
-    category: 'Demand Generation',
+    category: 'GTM Strategy',
     readTime: '8 min',
-    title: 'Beyond MQLs: building a B2B demand engine that finance actually respects',
+    title: 'The AI-first go-to-market playbook: from market research to launch in days',
     excerpt:
-      'Vanity leads vs. real pipeline. A framework for multi-channel demand that maps to revenue, not dashboards.',
+      'How agentic research and strategy compress weeks of GTM planning into days — without sacrificing depth or accuracy.',
     color: '#ffaf06',
   },
   {
-    category: 'Sales Funnels',
+    category: 'Automation & CRO',
     readTime: '6 min',
-    title: 'The booked-call funnel: removing friction between a click and a calendar invite',
+    title: 'Conversion rate optimisation that compounds: fixing the leaks between click and customer',
     excerpt:
-      'Where high-ticket funnels leak — and the automation that quietly recovers deals you thought were lost.',
+      'Where funnels leak — and the testing and automation that quietly recover revenue you thought was lost.',
     color: '#0A66C2',
   },
   {
-    category: 'Paid Ads',
+    category: 'Performance Marketing',
     readTime: '7 min',
-    title: 'LinkedIn Ads for high-ticket: how to make a $90 CPC actually pay off',
+    title: 'Scaling ROAS with AI: creative testing and budget allocation across Google and Meta',
     excerpt:
-      'Targeting, creative and offer structure for expensive clicks that still return outsized ROI in long sales cycles.',
+      'Audience, creative and bidding frameworks that let AI scale spend only where it returns — across every paid channel.',
     color: '#14bb87',
   },
   {
-    category: 'Founder Strategy',
+    category: 'Social & Content',
     readTime: '10 min',
-    title: 'The partner model: why we own your pain instead of selling you deliverables',
+    title: 'Content at AI speed: producing 10x more on-brand content without losing quality',
     excerpt:
-      'A look inside how we operate as an in-house growth team and what changes when accountability sits with us.',
+      'How brand-aware AI studios and human editors work together to ship scroll-stopping content every single day.',
     color: '#ffaf06',
   },
   {
-    category: 'LinkedIn Growth',
+    category: 'AI Marketing',
     readTime: '5 min',
-    title: 'Social selling without the cringe: outreach that decision-makers reply to',
+    title: 'Lessons from 50+ global clients: what actually drives growth across industries',
     excerpt:
-      'Scripts, sequencing and signals. How to start real conversations with buyers instead of pitch-slapping inboxes.',
+      'Patterns we’ve seen across SaaS, e-commerce, healthcare, fintech and education — and how to apply them to your brand.',
     color: '#0A66C2',
   },
 ];
@@ -86,10 +86,10 @@ export default function InsightsPage() {
         eyebrow="INSIGHTS & PLAYBOOKS"
         title={
           <>
-            B2B growth, <GradientText>decoded.</GradientText>
+            AI-powered marketing, <GradientText>decoded.</GradientText>
           </>
         }
-        subtitle="Field-tested frameworks on LinkedIn, demand generation and high-ticket sales — straight from the team that executes them for partners every day."
+        subtitle="Field-tested frameworks on AI marketing, GTM strategy, SEO, performance and content — straight from the team behind MarketiQ AI and 50+ global clients."
       />
 
       {/* Categories + Featured */}
@@ -200,7 +200,7 @@ export default function InsightsPage() {
               Want the strategy, not just the article?
             </Typography>
             <Typography sx={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.1rem', mb: 4, maxWidth: 600, mx: 'auto' }}>
-              Book a strategy call and we’ll apply these frameworks directly to your pipeline — as your partner.
+              Book a strategy call and we’ll apply these frameworks directly to your growth — powered by MarketiQ AI.
             </Typography>
             <GlowButton component={Link} href="/contact">
               Book a Strategy Call
